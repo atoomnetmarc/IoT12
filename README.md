@@ -1,6 +1,5 @@
-3d-models usable for the IoT12 hardware.
+3d-models usable for the [IoT12 hardware](https://github.com/atoomnetmarc/IoT12-hardware) project.
 
-<script src="https://embed.github.com/view/3d/atoomnetmarc/IoT12-3d/main/Knob1/Knob1-lowres.stl"></script>
 
 # License
 
