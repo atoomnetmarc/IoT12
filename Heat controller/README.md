@@ -18,7 +18,7 @@ Some registers are saved in NVRAM. That means once set the value earlier written
 
 Registers that have something to do with temperature are all in mK (millikelvin) and transported in an uint32_t. That means that the range of temperature goes from 0K (or -272.15°C) to 4,294,967.295K (or 7,730,481.46°F) which is somewhat on the warmer side.
 
-Registers that store resistance are in mΩ (milliohm) and are also stored in an uint32_t. Range: from 0Ω to about 4.2MΩ.
+Registers that store resistance are in mΩ (milliohm) and are also stored in an uint32_t. Range: from 0Ω to about 4.2MΩ.
 
 Registers that store gain are in unitless factors of 1/1000000 and stored in an uint32_t. Range from 0.000001 to 4294.967295. A value of 1000000 means gain '1', or no gain.
 
@@ -37,7 +37,7 @@ The firmware version register is the only register that must be read. All other 
 | 0x80 | RW | uint32_t | | Y | | Vin gain * 1/1000000. |
 | 0x81 | RW | uint32_t | 106100000 | Y | | Temperature amplifier gain * 1/1000000. |
 | 0x82 | RW | uint32_t | 50400000 | Y |  | Current amplifier gain * 1/1000000. |
-| 0x90 | RW | uint32_t | 10000000 | Y | mΩ | NTC pullup resistor. |
+| 0x90 | RW | uint32_t | 10000000 | Y | mΩ | NTC pullup resistor. |
 | 0xD0 | RW | uint8_t | 0x02 | Y | |  I2S gain. |
 | 0xD1 | RW | uint8_t | 0x00 | N | |  I2S enable. |
 
@@ -75,4 +75,8 @@ Allowed I2S gain values are: 0x02 (9dB), 0x03 (12dB) and 0x04 (15dB).
 ### 0xD1
 
 Allowed I2S enable values are: 0x00 (disabled) and 0x01 (enabled).
+
+# Fuses
+
+Enable BOD33 with hysteresis on userlevel 0x25.
 
