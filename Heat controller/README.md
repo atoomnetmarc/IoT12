@@ -24,22 +24,22 @@ Registers that store gain are in unitless factors of 1/1000000 and stored in an 
 
 The firmware version register is the only register that must be read. All other are somewhat optional and operate from carefully chosen defaults when not modified.
 
-| Register | RW | Size | Default | Saved in NVRAM | Unit | Description |
-| -- | -- | -- | -- | -- | -- | -- |
-| 0x00 | R | uint32_t | | | | Firmware version |
-| 0x10 | R | uint32_t | | |  | Interrupt reason |
-| 0x11 | RW | uint8_t | 0x00 | N | |  Heating state |
-| 0x20 | RW | uint32_t | 300000 | Y | mK | Tip temperature minimum. |
-| 0x21 | RW | uint32_t | 725000 | Y | mK | Tip temperature maximum. |
-| 0x22 | RW | uint32_t | 550000 | Y | mK | Target tip temperature. |
-| 0x23 | R | uint32_t | | | mK | Tip temperature. |
-| 0x24 | R | uint32_t | | | mK | Ambient temperature. |
-| 0x80 | RW | uint32_t | | Y | | Vin gain * 1/1000000. |
-| 0x81 | RW | uint32_t | 106100000 | Y | | Temperature amplifier gain * 1/1000000. |
-| 0x82 | RW | uint32_t | 50400000 | Y |  | Current amplifier gain * 1/1000000. |
-| 0x90 | RW | uint32_t | 10000000 | Y | mΩ | NTC pullup resistor. |
-| 0xD0 | RW | uint8_t | 0x02 | Y | |  I2S gain. |
-| 0xD1 | RW | uint8_t | 0x00 | N | |  I2S enable. |
+| Register  | RW    | Size      | Default   | Saved in NVRAM    | Unit  | Description                               |
+| --:       | --    | --:       | --:       | --                | --:   | --                                        |
+| 0x00      | R     | uint32_t  |           |                   |       | Firmware version                          |
+| 0x10      | R     | uint32_t  |           |                   |       | Interrupt reason                          |
+| 0x11      | RW    | uint8_t   | 0x00      | N                 |       | Heating state                             |
+| 0x20      | RW    | uint32_t  | 300000    | Y                 | mK    | Tip temperature minimum.                  |
+| 0x21      | RW    | uint32_t  | 725000    | Y                 | mK    | Tip temperature maximum.                  |
+| 0x22      | RW    | uint32_t  | 550000    | Y                 | mK    | Target tip temperature.                   |
+| 0x23      | R     | uint32_t  |           |                   | mK    | Tip temperature.                          |
+| 0x24      | R     | uint32_t  |           |                   | mK    | Ambient temperature.                      |
+| 0x80      | RW    | uint32_t  |           | Y                 |       | Vin gain * 1/1000000.                     |
+| 0x81      | RW    | uint32_t  | 106100000 | Y                 |       | Temperature amplifier gain * 1/1000000.   |
+| 0x82      | RW    | uint32_t  | 50400000  | Y                 |       | Current amplifier gain * 1/1000000.       |
+| 0x90      | RW    | uint32_t  | 10000000  | Y                 | mΩ    | NTC pullup resistor.                      |
+| 0xD0      | RW    | uint8_t   | 0x02      | Y                 |       | I2S gain.                                 |
+| 0xD1      | RW    | uint8_t   | 0x00      | N                 |       | I2S enable.                               |
 
 ### 0x00
 
@@ -57,10 +57,10 @@ Every bit of the 4 bytes indicate a condition which may be investigated further.
 
 Format 0bZxxxxxx.xxxxxxxxx.xxxxxxxxx.xxxxxxxxx
 
-| Bit | Description |
-| -- | -- |
-| 32, Z | Reboot of heat controller. |
-| x | Undefined, ignore if set. |
+| Bit   | Description                   |
+| --    | --                            |
+| 32, Z | Reboot of heat controller.    |
+| x     | Undefined, ignore if set.     |
 
 All versions of the heat controller must include the interrupt reason register in uint32_t.
 
