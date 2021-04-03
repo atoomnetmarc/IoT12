@@ -26,10 +26,10 @@ The firmware version register is the only register that must be read. All other 
 
 | Register  | RW    | Size      | Default   | Saved in NVRAM    | Unit  | Description                               |
 | --:       | --    | --:       | --:       | --                | --:   | --                                        |
-| 0x00      | R     | uint32_t  |           |                   |       | Firmware version                          |
-| 0x08      | R     | 16B       |           |                   |       | SAMD21 128-bit serial number              |
-| 0x10      | R     | uint32_t  |           |                   |       | Interrupt reason                          |
-| 0x18      | RW    | uint8_t   | 0x00      | N                 |       | Heating state                             |
+| 0x00      | R     | uint32_t  |           |                   |       | Firmware version.                         |
+| 0x08      | R     | 16B       |           |                   |       | SAMD21 128-bit serial number.             |
+| 0x10      | R     | uint32_t  |           |                   |       | Interrupt reason.                         |
+| 0x18      | RW    | uint8_t   | 0x00      | N                 |       | Heating state.                            |
 | 0x40      | RW    | float     | 300       | Y                 | K     | Tip temperature minimum.                  |
 | 0x41      | RW    | float     | 725       | Y                 | K     | Tip temperature maximum.                  |
 | 0x50      | RW    | float     | 550       | Y                 | K     | Tip temperature target.                   |
