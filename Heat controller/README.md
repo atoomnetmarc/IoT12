@@ -8,7 +8,7 @@ The minion interrupts the master by setting the HEAT_INT-pin high. The master mu
 
 ## Registers
 
-There are a few registers which can be read and written to in order to communicate with and configure the heat controller. Multibyte reads and writes are MSB (most significant byte) first.
+There are a few registers which can be read and written to in order to communicate with and configure the heat controller. Multibyte reads and writes are [little-endian](https://en.wikipedia.org/wiki/Endianness) format.
 
 Writes are executed by writing the register value first and then the value of the register. In case of an uint32_t or [float](https://en.wikipedia.org/wiki/Single-precision_floating-point_format) write that means writing 5 bytes in one transaction.
 
@@ -32,7 +32,7 @@ The firmware version register is the only register that must be read. All other 
 | 0x18      | RW    | uint8_t   | 0x00      | N                 |       | Heating state                 |
 | 0x40      | RW    | float     | 300       | Y                 | K     | Minimum tip temperature       |
 | 0x41      | RW    | float     | 725       | Y                 | K     | Maximum tip temperature       |
-| 0x50      | RW    | float     | 550       | Y                 | K     | Target tip temperature        |
+| 0x50      | RW    | float     | 373.15    | Y                 | K     | Target tip temperature        |
 | 0x60      | R     | float     |           |                   | K     | Current tip temperature       |
 | 0x68      | R     | float     |           |                   | K     | Ambient temperature           |
 | 0x80      | RW    | float     | 0.0449    | Y                 |       | Gain of Vin resistor divider  |
@@ -64,8 +64,8 @@ Format 0bZYxxxxx.xxxxxxxxx.xxxxxxxxx.xxxxxxxxx
 
 | Bit   | Description                   |
 | --    | --                            |
-| 32, Z | Reboot of heat controller     |
-| 31, Y | Heating state changed         |
+| 31, Z | Reboot of heat controller     |
+| 30, Y | Heating state changed         |
 | x     | Undefined, ignore if set      |
 
 All versions of the heat controller must include the interrupt reason register in uint32_t.
