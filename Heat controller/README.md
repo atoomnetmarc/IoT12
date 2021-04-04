@@ -24,23 +24,23 @@ Registers that store gain are in unitless factors and stored in a float.
 
 The firmware version register is the only register that must be read. All other are somewhat optional and operate from carefully chosen defaults when not modified.
 
-| Register  | RW    | Size      | Default   | Saved in NVRAM    | Unit  | Description                   |
-| --:       | --    | --:       | --:       | --                | --:   | --                            |
-| 0x00      | R     | uint32_t  |           |                   |       | Firmware version              |
-| 0x08      | R     | 16B       |           |                   |       | SAMD21 128-bit serial number  |
-| 0x10      | R     | uint32_t  |           |                   |       | Interrupt reason              |
-| 0x18      | RW    | uint8_t   | 0x00      | N                 |       | Heating state                 |
-| 0x40      | RW    | float     | 300       | Y                 | K     | Minimum tip temperature       |
-| 0x41      | RW    | float     | 725       | Y                 | K     | Maximum tip temperature       |
-| 0x50      | RW    | float     | 373.15    | Y                 | K     | Target tip temperature        |
-| 0x60      | R     | float     |           |                   | K     | Current tip temperature       |
-| 0x68      | R     | float     |           |                   | K     | Ambient temperature           |
-| 0x80      | RW    | float     | 0.0449    | Y                 |       | Gain of Vin resistor divider  |
-| 0x81      | RW    | float     | 106.1     | Y                 |       | Gain of temperature amplifier |
-| 0x82      | RW    | float     | 50.4      | Y                 |       | Gain of current amplifier     |
-| 0x90      | RW    | float     | 10000     | Y                 | Ω     | NTC pullup resistor           |
-| 0xF0      | RW    | uint8_t   | 0x02      | Y                 |       | I2S gain                      |
-| 0xF1      | RW    | uint8_t   | 0x00      | N                 |       | I2S enable                    |
+| Register  | RW    | Size          | Default   | Saved in NVRAM    | Unit  | Description                   |
+| --:       | --    | --:           | --:       | --                | --:   | --                            |
+| 0x00      | R     | uint32_t      |           |                   |       | Firmware version              |
+| 0x08      | R     | 4x uint32_t   |           |                   |       | SAMD21 128-bit serial number  |
+| 0x10      | R     | uint32_t      |           |                   |       | Interrupt reason              |
+| 0x18      | RW    | uint8_t       | 0x00      | N                 |       | Heating state                 |
+| 0x40      | RW    | float         | 300       | Y                 | K     | Minimum tip temperature       |
+| 0x41      | RW    | float         | 725       | Y                 | K     | Maximum tip temperature       |
+| 0x50      | RW    | float         | 373.15    | Y                 | K     | Target tip temperature        |
+| 0x60      | R     | float         |           |                   | K     | Current tip temperature       |
+| 0x68      | R     | float         |           |                   | K     | Ambient temperature           |
+| 0x80      | RW    | float         | 0.0449    | Y                 |       | Gain of Vin resistor divider  |
+| 0x81      | RW    | float         | 106.1     | Y                 |       | Gain of temperature amplifier |
+| 0x82      | RW    | float         | 50.4      | Y                 |       | Gain of current amplifier     |
+| 0x90      | RW    | float         | 10000     | Y                 | Ω     | NTC pullup resistor           |
+| 0xF0      | RW    | uint8_t       | 0x02      | Y                 |       | I2S gain                      |
+| 0xF1      | RW    | uint8_t       | 0x00      | N                 |       | I2S enable                    |
 
 ### 0x00, firmware version
 
@@ -52,7 +52,7 @@ All versions of the heat controller must include the firmware version register i
 
 ### 0x08, serial number
 
-Unique 128-bit serial number of the SAMD21 microcontroller.
+Unique 128-bit serial number of the SAMD21 microcontroller consisting of 4 words (uint32_t) with the first word being word0.
 
 ### 0x10, interrupt reason
 
