@@ -27,18 +27,17 @@ The firmware version register is the only register that must be read. All other 
 | Register  | RW    | Size          | Default   | Saved in NVRAM    | Unit  | Description                   |
 | --:       | --    | --:           | --:       | --                | --:   | --                            |
 | 0x00      | R     | uint32_t      |           |                   |       | Firmware version              |
-| 0x08      | R     | 4x uint32_t   |           |                   |       | SAMD21 128-bit serial number  |
+| 0x01      | R     | 4x uint32_t   |           |                   |       | SAMD21 128-bit serial number  |
 | 0x10      | R     | uint32_t      |           |                   |       | Interrupt reason              |
-| 0x18      | RW    | uint8_t       | 0x00      | N                 |       | Heating state                 |
-| 0x40      | RW    | float         | 300       | Y                 | K     | Minimum tip temperature       |
-| 0x41      | RW    | float         | 725       | Y                 | K     | Maximum tip temperature       |
-| 0x50      | RW    | float         | 373.15    | Y                 | K     | Target tip temperature        |
-| 0x60      | R     | float         |           |                   | K     | Current tip temperature       |
-| 0x68      | R     | float         |           |                   | K     | Ambient temperature           |
-| 0x80      | RW    | float         | 0.0449    | Y                 |       | Gain of Vin resistor divider  |
-| 0x81      | RW    | float         | 106.1     | Y                 |       | Gain of temperature amplifier |
-| 0x82      | RW    | float         | 50.4      | Y                 |       | Gain of current amplifier     |
+| 0x11      | RW    | uint8_t       | 0x00      | N                 |       | Heating state                 |
+| 0x40      | R     | float         |           |                   | K     | Current tip temperature       |
+| 0x41      | R     | float         |           |                   | K     | Ambient temperature           |
+| 0x80      | RW    | float         | 373.15    | Y                 | K     | Target tip temperature        |
+| 0xA0      | RW    | float         | 0.0449    | Y                 |       | Gain of Vin resistor divider  |
+| 0xA1      | RW    | float         | 106.1     | Y                 |       | Gain of temperature amplifier |
+| 0xA2      | RW    | float         | 50.4      | Y                 |       | Gain of current amplifier     |
 | 0x90      | RW    | float         | 10000     | Y                 | Ω     | NTC pullup resistor           |
+| 0x91      | RW    | float         | 0.005     | Y                 | Ω     | Heater shunt resistor         |
 | 0xF0      | RW    | uint8_t       | 0x02      | Y                 |       | I2S gain                      |
 | 0xF1      | RW    | uint8_t       | 0x00      | N                 |       | I2S enable                    |
 | 0xF8      | R     | uint16_t      | 0x1234    |                   |       | A constant                    |
@@ -52,7 +51,7 @@ The master is encouraged to read the firmware version register on its boot.
 
 All versions of the heat controller must include the firmware version register in uint32_t.
 
-### 0x08, serial number
+### 0x01, serial number
 
 Unique 128-bit serial number of the SAMD21 microcontroller consisting of 4 words (uint32_t) with the first word being word0.
 
@@ -62,24 +61,29 @@ Unique 128-bit serial number of the SAMD21 microcontroller consisting of 4 words
 
 Every bit of the 4 bytes indicate a condition which may be investigated further. There is one mandatory action on the Z-bit. When set this indicates a reboot of the heat controller and means that the firmware version must be checked, all other bits are to be ignored until the firmware version has been read.
 
-Format 0bZYxxxxx.xxxxxxxxx.xxxxxxxxx.xxxxxxxxx
+Format 0bZYXxxxx.xxxxxxxxx.xxxxxxxxx.xxxxxxxxx
 
-| Bit   | Description                   |
-| --    | --                            |
-| 31, Z | Reboot of heat controller     |
-| 30, Y | Heating state changed         |
-| x     | Undefined, ignore if set      |
+| Bit   | Description                       |
+| --    | --                                |
+| 31, Z | Reboot of heat controller         |
+| 30, Y | Group A measurements available    |
+| 29, X | Group B measurements available    |
+| x     | Undefined, ignore if set          |
+
+Group A measurements are the those who are measured while the heater is turned off, such as the temperature of the heater and ambient temperature.
+
+Group B measurements are the those who are measured while the heater is turned on, such as the voltage of the power supply and the current through the heater.
 
 All versions of the heat controller must include the interrupt reason register in uint32_t.
 
-### 0x18, heating state
+### 0x11, heating state
 
 | Value | State |
 | --    | --    |
 | 0x00  | Off   |
 | 0x01  | On    |
 
-### 0x41, maximum tip temperature
+### 0x80, target tip temperature
 
 The maximum hardcoded temperature that the heat controller will accept is 725K (451.85°C).
 
