@@ -1,0 +1,12 @@
+(fp_lib_table
+  (lib (name Connector_BarrelJack-fixed)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Connector_BarrelJack-fixed.pretty)(options "")(descr ""))
+  (lib (name Display-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Display-extra.pretty)(options "")(descr ""))
+  (lib (name Rotary_Encoder-fixed)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Rotary_Encoder-fixed.pretty)(options "")(descr ""))
+  (lib (name Module-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Module-extra.pretty)(options "")(descr ""))
+  (lib (name Inductor-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Inductor-extra.pretty)(options "")(descr ""))
+  (lib (name Package_SO-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Package_SO-extra.pretty)(options "")(descr ""))
+  (lib (name NetTie-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/NetTie-extra.pretty)(options "")(descr ""))
+  (lib (name TestPoint-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/TestPoint-extra.pretty)(options "")(descr ""))
+  (lib (name Inductor-fixed)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Inductor-fixed.pretty)(options "")(descr ""))
+  (lib (name Connector_USB-fixed)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Connector_USB-fixed.pretty)(options "")(descr ""))
+)
