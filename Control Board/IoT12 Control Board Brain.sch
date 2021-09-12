@@ -5,7 +5,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 5
 Title "IoT12-hardware brain"
-Date "2021-04-27"
+Date "2021-09-12"
 Rev "V2.1"
 Comp ""
 Comment1 ""
@@ -1395,55 +1395,6 @@ Text Label 10250 2700 0    50   ~ 0
 D9
 Text Label 10250 2800 0    50   ~ 0
 D10
-Wire Wire Line
-	5200 4200 5200 4800
-$Comp
-L Device:C C?
-U 1 1 6050233F
-P 4800 4500
-AR Path="/6029EF83/6050233F" Ref="C?"  Part="1" 
-AR Path="/60488463/6050233F" Ref="C22"  Part="1" 
-F 0 "C22" H 4600 4600 50  0000 L CNN
-F 1 "1nF" H 4550 4400 50  0000 L CNN
-F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder" H 4838 4350 50  0001 C CNN
-F 3 "~" H 4800 4500 50  0001 C CNN
-	1    4800 4500
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:R R?
-U 1 1 60502B3B
-P 5100 4500
-AR Path="/604A18A1/60502B3B" Ref="R?"  Part="1" 
-AR Path="/60488463/60502B3B" Ref="R84"  Part="1" 
-F 0 "R84" H 5300 4450 50  0000 R CNN
-F 1 "1M" H 5300 4550 50  0000 R CNN
-F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder" V 5030 4500 50  0001 C CNN
-F 3 "~" H 5100 4500 50  0001 C CNN
-	1    5100 4500
-	-1   0    0    1   
-$EndComp
-Wire Wire Line
-	5100 4200 5100 4250
-Wire Wire Line
-	5100 4250 4800 4250
-Wire Wire Line
-	4800 4250 4800 4350
-Connection ~ 5100 4250
-Wire Wire Line
-	5100 4250 5100 4350
-Wire Wire Line
-	4800 4650 4800 4800
-Wire Wire Line
-	4800 4800 5100 4800
-Connection ~ 5200 4800
-Wire Wire Line
-	5200 4800 5200 4850
-Wire Wire Line
-	5100 4650 5100 4800
-Connection ~ 5100 4800
-Wire Wire Line
-	5100 4800 5200 4800
 Text Notes 6250 6950 0    50   ~ 0
 I2C: 0x50
 Wire Wire Line
@@ -1459,4 +1410,7 @@ Wire Wire Line
 Connection ~ 1400 1900
 Wire Wire Line
 	1400 1900 1950 1900
+Wire Wire Line
+	5200 4200 5200 4850
+NoConn ~ 5100 4200
 $EndSCHEMATC
