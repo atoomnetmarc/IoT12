@@ -90,6 +90,7 @@ Worky (after bodge fix)?
 - Re-added MAX809S voltage monitor to keep ESP32 in reset if 3.3V is too low.
 - Dimensioned F1 to 50% of Amax of T12-tip, see notes in schematic.
 - Connected Vin ADC to after F1.
+- Moved USB connector and reset button of heater controller.
 
 **Control board PCB version V2.0**
 
