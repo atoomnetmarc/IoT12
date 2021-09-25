@@ -125,7 +125,7 @@ Worky (after bodge fix)?
 
 **Control board PCB version V1.1**
 
-- Overheating circuit not very stable. No fix.
+- Overheating protection circuit not very stable. No fix.
 
 **Control board PCB version V1.0**
 
