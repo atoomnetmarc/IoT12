@@ -5,7 +5,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 5
 Title "IoT12-hardware brain"
-Date "2021-09-25"
+Date "2021-09-26"
 Rev "V2.1"
 Comp ""
 Comment1 ""
@@ -129,17 +129,6 @@ Wire Wire Line
 	2650 4750 2650 4850
 Wire Wire Line
 	3350 3750 3550 3750
-$Comp
-L MCU_Microchip_SAMD-extra:SAMD21G_ARDUINO_M0 U1
-U 1 1 60312A43
-P 9250 3000
-F 0 "U1" H 9250 4667 50  0000 C CNN
-F 1 "ATSAMD21G18A-AU" H 9250 4576 50  0000 C CNN
-F 2 "Package_QFP:TQFP-48_7x7mm_P0.5mm" H 9250 2800 50  0001 L CNN
-F 3 "" H 9250 2800 50  0001 L CNN
-	1    9250 3000
-	1    0    0    -1  
-$EndComp
 Wire Notes Line
 	4450 550  4450 5200
 Wire Notes Line
@@ -837,10 +826,8 @@ Wire Notes Line
 	5600 5300 5600 7700
 Wire Notes Line
 	4550 7700 4550 5300
-Text GLabel 8150 2800 0    50   Output ~ 0
+Text GLabel 8100 2700 0    50   Output ~ 0
 DEBUG_LED
-Wire Wire Line
-	8250 2800 8150 2800
 Text GLabel 5150 6150 1    50   Input ~ 0
 DEBUG_LED
 Text Notes 4600 5500 0    118  ~ 0
@@ -898,9 +885,9 @@ Wire Wire Line
 	10250 2300 10500 2300
 Wire Wire Line
 	10500 2400 10250 2400
-Text Label 7800 3700 0    50   ~ 0
+Text Label 8000 3700 0    50   ~ 0
 USB-
-Text Label 7800 3800 0    50   ~ 0
+Text Label 8000 3800 0    50   ~ 0
 USB+
 Text Label 7750 1900 0    50   ~ 0
 VDDIO
@@ -1068,10 +1055,6 @@ Wire Wire Line
 	10500 3500 10250 3500
 Wire Wire Line
 	10500 1900 10250 1900
-NoConn ~ 8250 3600
-NoConn ~ 8250 3400
-NoConn ~ 8250 3300
-NoConn ~ 8250 3200
 $Comp
 L Device:C C?
 U 1 1 6047C861
@@ -1156,11 +1139,6 @@ Text Label 7750 2500 0    50   ~ 0
 XOUT32
 Wire Wire Line
 	8250 4400 8150 4400
-NoConn ~ 8250 3000
-NoConn ~ 8250 2900
-NoConn ~ 10250 4200
-NoConn ~ 10250 4300
-NoConn ~ 10250 4400
 Wire Wire Line
 	8150 4850 8150 4400
 Text GLabel 10500 2600 2    50   Input ~ 0
@@ -1259,7 +1237,6 @@ Wire Wire Line
 	6750 6550 6750 6200
 NoConn ~ 1950 3300
 NoConn ~ 1950 3200
-NoConn ~ 10250 3000
 NoConn ~ 3350 2050
 $Comp
 L Connector:TestPoint TP1
@@ -1413,4 +1390,171 @@ Wire Wire Line
 Wire Wire Line
 	5200 4200 5200 4850
 NoConn ~ 5100 4200
+$Comp
+L Connector:TestPoint TP5
+U 1 1 6151C339
+P 10500 3000
+F 0 "TP5" V 10500 3188 50  0000 L CNN
+F 1 "TestPoint" V 10545 3188 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 10700 3000 50  0001 C CNN
+F 3 "~" H 10700 3000 50  0001 C CNN
+	1    10500 3000
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	10250 3000 10500 3000
+$Comp
+L Connector:TestPoint TP6
+U 1 1 6153266E
+P 10500 4200
+F 0 "TP6" V 10500 4388 50  0000 L CNN
+F 1 "TestPoint" V 10545 4388 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 10700 4200 50  0001 C CNN
+F 3 "~" H 10700 4200 50  0001 C CNN
+	1    10500 4200
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	10250 4200 10500 4200
+$Comp
+L MCU_Microchip_SAMD-extra:SAMD21G_ARDUINO_M0 U1
+U 1 1 60312A43
+P 9250 3000
+F 0 "U1" H 9250 4667 50  0000 C CNN
+F 1 "ATSAMD21G18A-AU" H 9250 4576 50  0000 C CNN
+F 2 "Package_QFP:TQFP-48_7x7mm_P0.5mm" H 9250 2800 50  0001 L CNN
+F 3 "" H 9250 2800 50  0001 L CNN
+	1    9250 3000
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:TestPoint TP7
+U 1 1 6153C7E3
+P 10500 4300
+F 0 "TP7" V 10500 4488 50  0000 L CNN
+F 1 "TestPoint" V 10545 4488 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 10700 4300 50  0001 C CNN
+F 3 "~" H 10700 4300 50  0001 C CNN
+	1    10500 4300
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	10250 4300 10500 4300
+$Comp
+L Connector:TestPoint TP8
+U 1 1 61546341
+P 10500 4400
+F 0 "TP8" V 10500 4588 50  0000 L CNN
+F 1 "TestPoint" V 10545 4588 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 10700 4400 50  0001 C CNN
+F 3 "~" H 10700 4400 50  0001 C CNN
+	1    10500 4400
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	10250 4400 10500 4400
+$Comp
+L Connector:TestPoint TP11
+U 1 1 6155DBA8
+P 8000 3200
+F 0 "TP11" V 8000 3388 50  0000 L CNN
+F 1 "TestPoint" V 8045 3388 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 8200 3200 50  0001 C CNN
+F 3 "~" H 8200 3200 50  0001 C CNN
+	1    8000 3200
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8250 3200 8000 3200
+Text Label 10250 3000 0    50   ~ 0
+D12
+Text Label 10250 4200 0    50   ~ 0
+PA12
+Text Label 10250 4300 0    50   ~ 0
+PB10
+Text Label 10250 4400 0    50   ~ 0
+PB11
+Text Label 8000 3200 0    50   ~ 0
+ATN
+$Comp
+L Connector:TestPoint TP12
+U 1 1 6156F23B
+P 8000 3300
+F 0 "TP12" V 8000 3488 50  0000 L CNN
+F 1 "TestPoint" V 8045 3488 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 8200 3300 50  0001 C CNN
+F 3 "~" H 8200 3300 50  0001 C CNN
+	1    8000 3300
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8250 3300 8000 3300
+Text Label 8000 3300 0    50   ~ 0
+PB22
+$Comp
+L Connector:TestPoint TP13
+U 1 1 615794EF
+P 8000 3400
+F 0 "TP13" V 8000 3588 50  0000 L CNN
+F 1 "TestPoint" V 8045 3588 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 8200 3400 50  0001 C CNN
+F 3 "~" H 8200 3400 50  0001 C CNN
+	1    8000 3400
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8250 3400 8000 3400
+Text Label 8000 3400 0    50   ~ 0
+PB23
+$Comp
+L Connector:TestPoint TP10
+U 1 1 6158D44B
+P 8000 3000
+F 0 "TP10" V 8000 3188 50  0000 L CNN
+F 1 "TestPoint" V 8045 3188 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 8200 3000 50  0001 C CNN
+F 3 "~" H 8200 3000 50  0001 C CNN
+	1    8000 3000
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8250 3000 8000 3000
+Text Label 8000 3000 0    50   ~ 0
+PA27
+$Comp
+L Connector:TestPoint TP14
+U 1 1 615A6F09
+P 8000 3600
+F 0 "TP14" V 8000 3788 50  0000 L CNN
+F 1 "TestPoint" V 8045 3788 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 8200 3600 50  0001 C CNN
+F 3 "~" H 8200 3600 50  0001 C CNN
+	1    8000 3600
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8250 3600 8000 3600
+Text Label 8000 3600 0    50   ~ 0
+PA28
+$Comp
+L Connector:TestPoint TP9
+U 1 1 615B433E
+P 8000 2900
+F 0 "TP9" V 8000 3088 50  0000 L CNN
+F 1 "TestPoint" V 8045 3088 50  0001 L CNN
+F 2 "TestPoint-extra:TestPoint_Pad_D0.75mm" H 8200 2900 50  0001 C CNN
+F 3 "~" H 8200 2900 50  0001 C CNN
+	1    8000 2900
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8250 2900 8000 2900
+Text Label 8000 2900 0    50   ~ 0
+PB03
+Wire Wire Line
+	8250 2800 8200 2800
+Wire Wire Line
+	8200 2800 8200 2700
+Wire Wire Line
+	8200 2700 8100 2700
 $EndSCHEMATC

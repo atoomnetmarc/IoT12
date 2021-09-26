@@ -5,7 +5,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 5
 Title "IoT12-hardware power supply"
-Date "2021-09-25"
+Date "2021-09-26"
 Rev "V2.1"
 Comp ""
 Comment1 ""
