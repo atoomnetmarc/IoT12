@@ -1,3 +1,11 @@
+# Warning
+
+If you choose to replicate and use this PCB you are doing so on your own risk. It is very much possible to set your house on fire when something goes wrong or die when touching the wrong spots on the PCB.
+
+When handling this PCB you are working with dangerous mains voltage ⚡. When touched it hurts the entire time you are dying ☠️. The bottom and top the PCB contain exposed tracks and screw terminals carrying deadly mains voltage.
+
+In conclusion, do not use this PCB. Power the IoT12 control board with some other safe and certified power supply.
+
 # Assembly instructions Power Supply
 
 ## Solder
@@ -26,11 +34,6 @@ J1, J2.
 One off PS1, PS2 or PS3.
 
 ## Testing
-
-
-⚡ ☠️ **Warning**! When testing you are  (mm|planck distances|inches) away from dangerous mains voltage. When touched it hurts the entire time you are dying. The bottom and top the PCB contain exposed tracks and screw terminals carrying mains voltage. Consult expert on how to handle mains voltages.
-
-**You must use a wall socket that is protected by some kind of [Residual Current Device (RCD)](https://en.wikipedia.org/wiki/Residual-current_device)** that breaks the connection to mains voltage in the unfortunate event you touch live wires.
 
 Place bottom of PCB on isolating material.
 
