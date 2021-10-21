@@ -5,7 +5,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title ""
-Date "2021-10-08"
+Date "2021-10-21"
 Rev ""
 Comp "https://github.com/atoomnetmarc/IoT12-hardware"
 Comment1 ""
@@ -30,7 +30,7 @@ U 1 1 6038EB43
 P 4300 2450
 F 0 "J1" H 4218 2125 50  0000 C CNN
 F 1 "Screw_Terminal_01x03" H 4218 2216 50  0000 C CNN
-F 2 "TerminalBlock:TerminalBlock_bornier-3_P5.08mm" H 4300 2450 50  0001 C CNN
+F 2 "TerminalBlock-extra:TerminalBlock_Weidmueller-PM-5.08-03-90-3.5SN-BK-BX" H 4300 2450 50  0001 C CNN
 F 3 "~" H 4300 2450 50  0001 C CNN
 	1    4300 2450
 	-1   0    0    1   
@@ -41,7 +41,7 @@ U 1 1 60390401
 P 6750 2450
 F 0 "J2" H 6668 2125 50  0000 C CNN
 F 1 "Screw_Terminal_01x03" H 6668 2216 50  0000 C CNN
-F 2 "TerminalBlock:TerminalBlock_bornier-3_P5.08mm" H 6750 2450 50  0001 C CNN
+F 2 "TerminalBlock-extra:TerminalBlock_Weidmueller-PM-5.08-03-90-3.5SN-BK-BX" H 6750 2450 50  0001 C CNN
 F 3 "~" H 6750 2450 50  0001 C CNN
 	1    6750 2450
 	1    0    0    1   
@@ -148,70 +148,8 @@ F 3 "~" H 5450 6250 50  0001 C CNN
 	1    5450 6250
 	0    1    1    0   
 $EndComp
-$Comp
-L Converter-ACDC-extra:MPM-30-15 PS2
-U 1 1 603A0519
-P 5500 3850
-F 0 "PS2" H 5500 4217 50  0000 C CNN
-F 1 "MPM-30-15*" H 5500 4126 50  0000 C CNN
-F 2 "Converter-ACDC-extra:Converter_ACDC_MeanWell_MPM-30-xx_THT" H 5500 3450 50  0001 C CNN
-F 3 "" H 5500 3850 50  0001 C CNN
-	1    5500 3850
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	5100 3750 4650 3750
-Wire Wire Line
-	5100 3950 4650 3950
-Wire Wire Line
-	5900 3750 6400 3750
-Wire Wire Line
-	5900 3950 6400 3950
-Text Label 4650 3750 0    50   ~ 0
-L
-Text Label 4650 3950 0    50   ~ 0
-N
 Text Label 8000 3000 3    50   ~ 0
 Vout+
-Text Label 6150 3950 0    50   ~ 0
-Vout-
-Wire Notes Line
-	4200 3150 6850 3150
-Wire Notes Line
-	6850 3150 6850 5350
-Wire Notes Line
-	6850 5350 4200 5350
-Wire Notes Line
-	4200 5350 4200 3150
-Text Notes 4250 3300 0    50   ~ 0
-Lower power alternatives
-$Comp
-L Converter-ACDC-extra:MPM-20-12 PS3
-U 1 1 603A726D
-P 5500 4650
-F 0 "PS3" H 5500 5017 50  0000 C CNN
-F 1 "MPM-20-12*" H 5500 4926 50  0000 C CNN
-F 2 "Converter-ACDC-extra:Converter_ACDC_MeanWell_MPM-20-xx_THT" H 5500 4250 50  0001 C CNN
-F 3 "" H 5500 4650 50  0001 C CNN
-	1    5500 4650
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	5100 4550 4650 4550
-Wire Wire Line
-	5100 4750 4650 4750
-Wire Wire Line
-	5900 4550 6400 4550
-Wire Wire Line
-	5900 4750 6400 4750
-Text Label 4650 4550 0    50   ~ 0
-L
-Text Label 4650 4750 0    50   ~ 0
-N
-Text Label 6150 4550 0    50   ~ 0
-Vout+
-Text Label 6150 4750 0    50   ~ 0
-Vout-
 NoConn ~ 5350 5650
 NoConn ~ 5350 5850
 NoConn ~ 5350 6050
@@ -246,6 +184,4 @@ F 3 "~" H 8000 3550 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	8000 3400 8000 3000
-Text Label 6400 3750 2    50   ~ 0
-Vout+
 $EndSCHEMATC

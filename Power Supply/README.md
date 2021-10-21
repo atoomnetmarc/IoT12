@@ -30,8 +30,7 @@ J1, J2.
 
 ### Power supply
 
-
-One off PS1, PS2 or PS3.
+PS1.
 
 ## Testing
 
@@ -41,7 +40,7 @@ Connect leads of a mains cable to J1. Use the correct screw terminal for the cor
 
 ⚡ Connect the mains cable to the wall socket.
 
-Notice the green LED lighting up. Now carefully measure the low voltage side on screw terminal J2. You should measure 24V volts (if you mounted a Mean Well MPM-90-24).
+Notice the green LED lighting up. Now carefully measure the low voltage side on screw terminal J2. You should measure 24V volts.
 
 Disconnect the mains cable from the wall socket. Notice that the green LED is still lit. It will stop emitting light after some unit of time. The capacitors in the Mean Well power supply still contain some chare and are discharging slowly.
 
