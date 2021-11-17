@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 
 #include "I2SGPIO.h"
 
-//Settings are stored in EEPROM from adress 0x0400 to 0x0FFF. 0x0000 to 0x03FF are kept free.
+//Settings are stored in EEPROM from address 0x0400 to 0x0FFF. 0x0000 to 0x03FF are kept free.
 #define ROM_START 0x0400
 
 typedef struct __attribute__((packed))
