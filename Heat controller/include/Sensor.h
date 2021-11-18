@@ -10,12 +10,12 @@ SPDX-License-Identifier: Apache-2.0
 
 class SensorClass
 {
-    public:
-        SensorClass();
-        void init(void);
-        void loop(void);
+public:
+    SensorClass();
+    void init(void);
+    void loop(void);
 
-    private:
+private:
 };
 
 extern SensorClass Sensor;

@@ -10,15 +10,15 @@ SPDX-License-Identifier: Apache-2.0
 
 class AnalogComparatorClass
 {
-    public:
-        AnalogComparatorClass();
-        void init(void);
-        void loop(void);
-        bool hasTriggered(void);
-        void trigger(void);
+public:
+    AnalogComparatorClass();
+    void init(void);
+    void loop(void);
+    bool hasTriggered(void);
+    void trigger(void);
 
-    private:
-        bool triggered = false;
+private:
+    bool triggered = false;
 };
 
 extern AnalogComparatorClass AnalogComparator;

@@ -5,23 +5,13 @@ SPDX-License-Identifier: Apache-2.0
 
 */
 
-#include <ADS1115_WE.h>
-
 #include "AdcExternal.h"
-#include "config.h"
-
-volatile bool convReady = false;
-
-void convReadyAlert()
-{
-    convReady = true;
-}
 
 ADCExternalClass::ADCExternalClass()
 {
 }
 
-ADS1115_WE adc(I2C_ADS1115_ADDRESS);
+ADS1115_WE adc(I2C_ADDRESS_ADS1115);
 
 void ADCExternalClass::init(void)
 {
@@ -29,53 +19,66 @@ void ADCExternalClass::init(void)
     adc.setVoltageRange_mV(ADS1115_RANGE_2048);
     adc.setCompareChannels(ADS1115_COMP_0_GND);
     adc.setAlertPinMode(ADS1115_ASSERT_AFTER_1);
-    //adc.setConvRate(ADS1115_128_SPS);
     adc.setConvRate(ADS1115_860_SPS);
     adc.setAlertPinToConversionReady();
     pinMode(PIN_ADC_READY, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(PIN_ADC_READY), convReadyAlert, FALLING);
+    attachInterrupt(digitalPinToInterrupt(PIN_ADC_READY), &ADCExternalClass::convReadyAlert, FALLING);
 }
 
-float readChannel(ADS1115_MUX channel)
+void ADCExternalClass::requestDump(void)
 {
-    float voltage = 0.0;
-    adc.setCompareChannels(channel);
+    dumpPending = true;
+}
+
+float ADCExternalClass::readChannel(uint8_t channel)
+{
+    ADS1115_MUX mux = (ADS1115_MUX)(ADS1115_COMP_0_GND + channel * ADS1115_COMP_INC);
+    float voltage;
+    adc.setCompareChannels(mux);
     adc.startSingleMeasurement();
     while (convReady == false)
     {
     }
     convReady = false;
-    voltage = adc.getResult_V(); // alternative: getResult_mV for Millivolt
+    voltage = adc.getResult_V();
     return voltage;
 }
 
 void ADCExternalClass::loop(void)
 {
-    /*
-    static unsigned long timer2 = 0;
-    if (timer2 + 100 < millis())
+    if (dumpPending)
     {
-        timer2 = millis();
+        dumpPending = false;
 
-        float voltage = 0.0;
+        float voltage;
 
-        SerialUSB.print("0: ");
-        voltage = readChannel(ADS1115_COMP_0_GND);
+        SerialUSB.print("NTC: ");
+        voltage = readChannel(AIN_EXTERNAL_ADC_NTC);
         SerialUSB.print(voltage, 5);
+        SerialUSB.print("V");
 
-        SerialUSB.print(",   1: ");
-        voltage = readChannel(ADS1115_COMP_1_GND);
+        SerialUSB.print(", TEMP: ");
+        voltage = readChannel(AIN_EXTERNAL_ADC_TEMP);
         SerialUSB.print(voltage, 5);
+        SerialUSB.print("V");
 
-        SerialUSB.print(",   2: ");
-        voltage = readChannel(ADS1115_COMP_2_GND);
+        SerialUSB.print(", VIN: ");
+        voltage = readChannel(AIN_EXTERNAL_ADC_VIN);
         SerialUSB.print(voltage, 5);
+        SerialUSB.print("V");
 
-        SerialUSB.print(",   3: ");
-        voltage = readChannel(ADS1115_COMP_3_GND);
-        SerialUSB.println(voltage, 5);
+        SerialUSB.print(", IRON_CURRENT: ");
+        voltage = readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT);
+        SerialUSB.print(voltage, 5);
+        SerialUSB.print("V");
+
+        SerialUSB.println();
     }
-    */
+}
+
+void ADCExternalClass::convReadyAlert(void)
+{
+    ADCExternal.convReady = true;
 }
 
 ADCExternalClass ADCExternal;

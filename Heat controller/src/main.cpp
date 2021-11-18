@@ -11,6 +11,8 @@ SPDX-License-Identifier: Apache-2.0
 #include <NTC.h>
 #include <Thermocouple.h>
 
+#include "AdcExternal.h"
+#include "AdcInternal.h"
 #include "AnalogComparator.h"
 #include "config.h"
 #include "main.h"
@@ -39,35 +41,15 @@ void HardFault_Handler(void)
     }
 }
 
-float readVoltage(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2)
-{
-    uint16_t loops = 1;
-    if (oversampleExtraBits > 0)
-        loops = pow(4, oversampleExtraBits);
-
-    uint32_t val = 0;
-
-    for (uint16_t loop = 0; loop < loops; loop++)
-        val += analogRead(pinNumber);
-
-    val >>= oversampleExtraBits;
-
-    uint32_t divisor = pow(2, ADC_RESOLUTION + oversampleExtraBits) - 1;
-
-    float voltage = val * 2.23 / divisor;
-
-    return voltage;
-}
-
 float readThermocoupleVoltage()
 {
-    float v = readVoltage(PIN_INTERNAL_ADC_TEMP);
+    float v = ADCInternal.readChannel(PIN_INTERNAL_ADC_TEMP);
     return v / Setting.gainHeaterTemperatureAmplifier;
 }
 
 float readVin()
 {
-    return readVoltage(PIN_INTERNAL_ADC_VIN) / Setting.gainVSupplyResistorDivider;
+    return ADCInternal.readChannel(PIN_INTERNAL_ADC_VIN) / Setting.gainVSupplyResistorDivider;
 }
 
 volatile bool eventHeatOff = false;
@@ -137,8 +119,8 @@ void ConfigureTCC(void)
     uint32_t totalPeriod = (F_CPU / DIV_TCC / frequency) - 1;
 
     //Max 24-bit period.
-    if (totalPeriod > 1<<24)
-        totalPeriod = 1<<24;
+    if (totalPeriod > 1 << 24)
+        totalPeriod = 1 << 24;
 
     periodHeatDisabled = timeHeatingOffMeasureTempUs * (F_CPU / DIV_TCC / 1000000);
     periodHeatAllowed = totalPeriod - periodHeatDisabled;
@@ -153,7 +135,7 @@ void ConfigureTCC(void)
 
     // Set clock divider of 1 to generic clock generator 4
     GCLK->GENDIV.reg = GCLK_GENDIV_DIV(DIV_TCC) | // Divide 48 MHz by 1
-                       GCLK_GENDIV_ID(4);   // Apply to GCLK4 4
+                       GCLK_GENDIV_ID(4);         // Apply to GCLK4 4
     while (GCLK->STATUS.bit.SYNCBUSY)
         ; // Wait for synchronization
 
@@ -255,7 +237,7 @@ void loop()
         delayMicroseconds(500);
         eventHeatOn = false;
         vVINHeatOn = readVin();
-        iIronPowerOn = readVoltage(PIN_INTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+        iIronPowerOn = ADCInternal.readChannel(PIN_INTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_B);
     }
@@ -265,11 +247,11 @@ void loop()
         eventHeatOff = false;
 
         unsigned long start = millis();
-        float vNTC = readVoltage(PIN_INTERNAL_ADC_NTC);
+        float vNTC = ADCInternal.readChannel(PIN_INTERNAL_ADC_NTC);
         float vThermocouple = readThermocoupleVoltage();
         vVINHeatOff = readVin();
-        iIronPowerOff = readVoltage(PIN_INTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
-        float vAIN = readVoltage(PIN_INTERNAL_ADC_AIN_COMP, 0);
+        iIronPowerOff = ADCInternal.readChannel(PIN_INTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+        float vAIN = ADCInternal.readChannel(PIN_INTERNAL_ADC_AIN_COMP, 0);
         unsigned long stop = millis();
 
         //About 80% of the thermal energy arrives at the tip.
@@ -298,6 +280,9 @@ void loop()
 
         SerialUSB.println(String("reading adc took ") + String(stop - start) + String("ms"));
         SerialUSB.println();
+
+        ADCInternal.requestDump();
+        ADCExternal.requestDump();
 
         if (Setting.targetTemperatureHeater > tTip && Setting.heaterState == HEATER_STATE::ON)
         {

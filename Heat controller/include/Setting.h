@@ -16,7 +16,7 @@ SPDX-License-Identifier: Apache-2.0
 typedef struct __attribute__((packed))
 {
     uint16_t settingSize;
-    uint32_t settingCRC;  //Provides some protection against data corruption, but does nothing in case the fields of this stuct are shuffled.
+    uint32_t settingCRC; //Provides some protection against data corruption, but does nothing in case the fields of this stuct are shuffled.
 
     /*
 
@@ -44,7 +44,8 @@ union Setting_u
     uint8_t m_bytes[sizeof(Setting_t)];
 };
 
-enum HEATER_STATE: uint8_t {
+enum HEATER_STATE : uint8_t
+{
     OFF = 0x00,
     ON = 0x01,
 };
@@ -77,7 +78,6 @@ private:
     Setting_t _getDefaults(void);
 
     bool _saveRequested = false;
-
 };
 
 extern SettingClass Setting;

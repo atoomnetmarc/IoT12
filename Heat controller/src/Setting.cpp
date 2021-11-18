@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0
 #include "config.h"
 #include "Setting.h"
 
-I2cAt24Eeprom anEeprom(I2C_EEPROM_ADDRESS, PAGESIZE_AT24C32);
+I2cAt24Eeprom anEeprom(I2C_ADDRESS_EEPROM, PAGESIZE_AT24C32);
 
 SettingClass::SettingClass()
 {
