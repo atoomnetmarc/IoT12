@@ -69,7 +69,7 @@ void I2SGPIOClass::setGain(MAX98357_GAIN gain)
         digitalWrite(PIN_I2S_GAIN0, 1);
         break;
 
-        /* This the 3dB selection but because the I2S amp is powered by 5V you cannot reach that voltage with the 3.3V output from the microcontroller, which is fine, just use one of the other gain settings.
+        /* This would be the 3dB selection but because the I2S amp is powered by 5V you cannot reach that voltage with the 3.3V output from the microcontroller, which is fine, just use one of the other gain settings.
         pinMode(PIN_I2S_GAIN0, INPUT);
         pinMode(PIN_I2S_GAIN1, OUTPUT);
         digitalWrite(PIN_I2S_GAIN1, 1);

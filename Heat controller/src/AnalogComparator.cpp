@@ -91,6 +91,13 @@ void AnalogComparatorClass::init(void)
 
 void AnalogComparatorClass::loop(void)
 {
+    static uint16_t accounter = 0;
+    if (hasTriggered())
+    {
+        accounter++;
+
+        //SerialUSB.println("AC triggered " + String(accounter));
+    }
 }
 
 AnalogComparatorClass AnalogComparator;
