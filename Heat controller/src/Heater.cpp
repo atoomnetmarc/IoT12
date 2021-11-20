@@ -29,10 +29,10 @@ volatile float vVINHeatOff = 0;
 volatile float iIronPowerOff = 0;
 volatile float iIronPowerOn = 0;
 
-float frequency = 5;
+float heatingFrequency = 5; //This many times per second go through heating and measure cycle.
 #define DIV_TCC 1
-uint32_t timeHeatingOffMeasureTempUs = 20000;
-uint32_t timeHeatingCooldownUs = 1000;
+uint32_t timeHeatingOffMeasureTempUs = 20000; //You have this long to measure things while heating is off.
+uint32_t timeHeatingCooldownUs = 1000; //When heater is 100% on, stop heating this many time before going into off state. This is needed because the heating circuitry needs time to turn off before starting measuring off state.
 
 uint32_t periodHeatAllowed;
 uint32_t periodHeatDisabled;
@@ -44,16 +44,16 @@ volatile bool eventHeatOn = false;
 void HeaterClass::init(void)
 {
     ntc.SetParameters(3.3,
-                    Setting.resistanceNTCPullUp,
-                    10000,
-                    25 + 273.15,
-                    3950);
+                      Setting.resistanceNTCPullUp,
+                      10000,
+                      25 + 273.15,
+                      3950);
 
     //Configure TCC0
 
     //F: TCC0/WO[6], PA16, D11
 
-    uint32_t totalPeriod = (F_CPU / DIV_TCC / frequency) - 1;
+    uint32_t totalPeriod = (F_CPU / DIV_TCC / heatingFrequency) - 1;
 
     //Max 24-bit period.
     if (totalPeriod > 1 << 24)
@@ -175,13 +175,13 @@ void TCC0_Handler()
 
 float readThermocoupleVoltage()
 {
-    float v = ADCInternal.readChannel(PIN_INTERNAL_ADC_TEMP);
+    float v = ADCExternal.readChannel(AIN_EXTERNAL_ADC_TEMP);
     return v / Setting.gainHeaterTemperatureAmplifier;
 }
 
 float readVin()
 {
-    return ADCInternal.readChannel(PIN_INTERNAL_ADC_VIN) / Setting.gainVSupplyResistorDivider;
+    return ADCExternal.readChannel(AIN_EXTERNAL_ADC_VIN) / Setting.gainVSupplyResistorDivider;
 }
 
 void HeaterClass::loop(void)
@@ -192,7 +192,7 @@ void HeaterClass::loop(void)
         delayMicroseconds(500);
         eventHeatOn = false;
         vVINHeatOn = readVin();
-        iIronPowerOn = ADCInternal.readChannel(PIN_INTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+        iIronPowerOn = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_B);
     }
@@ -202,11 +202,11 @@ void HeaterClass::loop(void)
         eventHeatOff = false;
 
         unsigned long start = millis();
-        float vNTC = ADCInternal.readChannel(PIN_INTERNAL_ADC_NTC);
-        float vThermocouple = readThermocoupleVoltage();
+        float vNTC = ADCExternal.readChannel(AIN_EXTERNAL_ADC_NTC);
         vVINHeatOff = readVin();
-        iIronPowerOff = ADCInternal.readChannel(PIN_INTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+        iIronPowerOff = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
         float vAIN = ADCInternal.readChannel(PIN_INTERNAL_ADC_AIN_COMP, 0);
+        float vThermocouple = readThermocoupleVoltage();
         unsigned long stop = millis();
 
         //About 80% of the thermal energy arrives at the tip.
@@ -236,12 +236,15 @@ void HeaterClass::loop(void)
         SerialUSB.println(String("reading adc took ") + String(stop - start) + String("ms"));
         SerialUSB.println();
 
+        /*
         ADCInternal.requestDump();
         ADCExternal.requestDump();
+        */
 
+        //Bang bang heater algorithm.
         if (Setting.targetTemperatureHeater > tTip && Setting.heaterState == HEATER_STATE::ON)
         {
-            heatfactor = 0.5;
+            heatfactor = 1;
         }
         else
         {
