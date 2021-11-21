@@ -197,8 +197,9 @@ void TCC0_Handler()
 
 float readThermocoupleVoltage()
 {
-    float v = ADCExternal.readChannel(AIN_EXTERNAL_ADC_TEMP);
-    return v / Setting.gainHeaterTemperatureAmplifier;
+    float v = ADCExternal.readChannel(AIN_EXTERNAL_ADC_TEMP) / Setting.gainHeaterTemperatureAmplifier;
+    v -= Setting.thermocoupleInputOffsetVoltage;
+    return v ;
 }
 
 float readVin()
@@ -270,6 +271,7 @@ void HeaterClass::loop(void)
         SerialUSB.println(String("NTC: ") + String(vNTC, 3) + String("V"));
         SerialUSB.println(String("NTC: ") + String(tAmbient, 3) + String("K"));
         SerialUSB.println(String("NTC: ") + String(tAmbient - 273.15, 3) + String("°C"));
+        SerialUSB.println(String("Thermocouple offset: ") + String(Setting.thermocoupleInputOffsetVoltage * 1000, 3) + String("mV"));
         SerialUSB.println(String("Thermocouple: ") + String(vThermocouple * 1000, 3) + String("mV"));
         SerialUSB.println(String("TemperatureTip: ") + String(tTip - 273.15) + String("°C"));
         SerialUSB.println(String("Target Temperature: ") + String(Setting.targetTemperatureHeater - 273.15) + String("°C"));

@@ -111,6 +111,7 @@ void SettingClass::_load(bool defaults)
     resistanceHeaterShunt = setting_union.m_Setting.resistanceHeaterShunt;
     resistanceNTCPullUp = setting_union.m_Setting.resistanceNTCPullUp;
     i2sGain = setting_union.m_Setting.i2sGain;
+    thermocoupleInputOffsetVoltage = setting_union.m_Setting.thermocoupleInputOffsetVoltage;
 }
 
 Setting_t SettingClass::_getDefaults(void)
@@ -129,6 +130,9 @@ Setting_t SettingClass::_getDefaults(void)
     setting.resistanceNTCPullUp = 10000;
 
     setting.i2sGain = MAX98357_GAIN_9dB;
+
+    //INA826 input offset voltage 40uV typical to 150uV maximum.
+    setting.thermocoupleInputOffsetVoltage = 0.00004; //40uV.
 
     return setting;
 }

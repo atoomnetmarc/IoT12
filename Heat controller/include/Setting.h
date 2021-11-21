@@ -35,6 +35,7 @@ typedef struct __attribute__((packed))
     float gainVSupplyResistorDivider;
     float targetTemperatureHeater;
     float resistanceHeaterShunt;
+    float thermocoupleInputOffsetVoltage;
 
 } Setting_t;
 
@@ -70,6 +71,8 @@ public:
     float resistanceNTCPullUp;
 
     MAX98357_GAIN i2sGain;
+
+    float thermocoupleInputOffsetVoltage;
 
 private:
     void _save();
