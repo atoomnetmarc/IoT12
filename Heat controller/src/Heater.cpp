@@ -6,6 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 */
 #include <Arduino.h>
 
+#include <QuickPID.h>
+
 #include <NTC.h>
 #include <Thermocouple.h>
 
@@ -22,27 +24,41 @@ HeaterClass::HeaterClass()
 NTC ntc;
 Thermocouple thermocouple;
 
-volatile float tAmbient = 0;
-volatile float tTip = 0;
-volatile float vVINHeatOn = 0;
-volatile float vVINHeatOff = 0;
-volatile float iIronPowerOff = 0;
-volatile float iIronPowerOn = 0;
+float tAmbient = 0;
+float tTip = 0;
+float tTarget = 0;
+float vVINHeatOn = 0;
+float vVINHeatOff = 0;
+float iIronPowerOff = 0;
+float iIronPowerOn = 0;
 
 float heatingFrequency = 5; //This many times per second go through heating and measure cycle.
 #define DIV_TCC 1
 uint32_t timeHeatingOffMeasureTempUs = 20000; //You have this long to measure things while heating is off.
-uint32_t timeHeatingCooldownUs = 1000; //When heater is 100% on, stop heating this many time before going into off state. This is needed because the heating circuitry needs time to turn off before starting measuring off state.
+uint32_t timeHeatingCooldownUs = 1000;        //When heater is 100% on, stop heating this many time before going into off state. This is needed because the heating circuitry needs time to turn off before starting measuring off state.
 
 uint32_t periodHeatAllowed;
 uint32_t periodHeatDisabled;
-volatile float heatfactor = 0;
+float heatfactor = 0;
 
 volatile bool eventHeatOff = false;
 volatile bool eventHeatOn = false;
 
+/*
+https://en.wikipedia.org/wiki/PID_controller#Manual_tuning
+
+451C, Kp start of oscillation: 0.025
+
+*/
+float Kp = 0.01, Ki = 0.005, Kd = 0.0001;
+
+QuickPID myQuickPID(&tTip, &heatfactor, &tTarget, Kp, Ki, Kd, QuickPID::DIRECT);
+
 void HeaterClass::init(void)
 {
+    myQuickPID.SetOutputLimits(0, 1);
+    myQuickPID.SetMode(QuickPID::AUTOMATIC);
+
     ntc.SetParameters(3.3,
                       Setting.resistanceNTCPullUp,
                       10000,
@@ -163,7 +179,13 @@ void TCC0_Handler()
             if (heatfactor < 0)
                 heatfactor = 0;
 
+            if (Setting.heaterState != HEATER_STATE::ON)
+            {
+                heatfactor = 0;
+            }
+
             periodHeatEnabled = (periodHeatAllowed - (timeHeatingCooldownUs * (F_CPU / DIV_TCC / 1000000))) * heatfactor;
+
             while (TCC0->SYNCBUSY.bit.PERB)
                 ;
             TCC0->CCB[2].reg = periodHeatEnabled;
@@ -218,6 +240,33 @@ void HeaterClass::loop(void)
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
 
+        /*
+        ADCInternal.requestDump();
+        ADCExternal.requestDump();
+        */
+
+        //Bang bang heater algorithm.
+        /*
+        if (Setting.targetTemperatureHeater > tTip && Setting.heaterState == HEATER_STATE::ON)
+        {
+            heatfactor = 1;
+        }
+        else
+        {
+            heatfactor = 0;
+        }
+         */
+
+        if (Setting.heaterState == HEATER_STATE::ON)
+        {
+            tTarget = Setting.targetTemperatureHeater;
+        }
+        else
+        {
+            tTarget = 0;
+        }
+        myQuickPID.Compute();
+
         SerialUSB.println(String("NTC: ") + String(vNTC, 3) + String("V"));
         SerialUSB.println(String("NTC: ") + String(tAmbient, 3) + String("K"));
         SerialUSB.println(String("NTC: ") + String(tAmbient - 273.15, 3) + String("°C"));
@@ -234,22 +283,13 @@ void HeaterClass::loop(void)
         SerialUSB.println(String("Rsuppy: ") + String((vVINHeatOff - vVINHeatOn) / iIronPowerOn, 2) + String("Ω"));
 
         SerialUSB.println(String("reading adc took ") + String(stop - start) + String("ms"));
+
+        SerialUSB.println(String("Heatfactor: " + String(heatfactor, 5)));
+        SerialUSB.println(String("Pterm: ") + String(myQuickPID.GetPterm(), 5));
+        SerialUSB.println(String("Iterm: ") + String(myQuickPID.GetIterm(), 5));
+        SerialUSB.println(String("Dterm: ") + String(myQuickPID.GetDterm(), 5));
+
         SerialUSB.println();
-
-        /*
-        ADCInternal.requestDump();
-        ADCExternal.requestDump();
-        */
-
-        //Bang bang heater algorithm.
-        if (Setting.targetTemperatureHeater > tTip && Setting.heaterState == HEATER_STATE::ON)
-        {
-            heatfactor = 1;
-        }
-        else
-        {
-            heatfactor = 0;
-        }
     }
 }
 
