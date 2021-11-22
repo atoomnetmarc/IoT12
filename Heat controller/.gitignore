@@ -4,6 +4,7 @@
 .vscode/launch.json
 .vscode/tasks.json
 .vscode/ipch
+hex/*.lss
 
 # LibreOffice locks
 .~lock.*#
