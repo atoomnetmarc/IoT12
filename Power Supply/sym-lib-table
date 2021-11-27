@@ -1,3 +1,0 @@
-(sym_lib_table
-  (lib (name Converter-ACDC-extra)(type Legacy)(uri ${ATOOMNETKICAD}/symbols/Converter-ACDC-extra.lib)(options "")(descr ""))
-)
