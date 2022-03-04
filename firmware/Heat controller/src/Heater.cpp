@@ -52,12 +52,12 @@ https://en.wikipedia.org/wiki/PID_controller#Manual_tuning
 */
 float Kp = 0.01, Ki = 0.005, Kd = 0.0001;
 
-QuickPID myQuickPID(&tTip, &heatfactor, &tTarget, Kp, Ki, Kd, QuickPID::DIRECT);
+QuickPID myQuickPID(&tTip, &heatfactor, &tTarget, Kp, Ki, Kd, QuickPID::Action::direct);
 
 void HeaterClass::init(void)
 {
     myQuickPID.SetOutputLimits(0, 1);
-    myQuickPID.SetMode(QuickPID::AUTOMATIC);
+    myQuickPID.SetMode(QuickPID::Control::automatic);
 
     ntc.SetParameters(3.3,
                       Setting.resistanceNTCPullUp,
