@@ -32,10 +32,10 @@ float vVINHeatOff = 0;
 float iIronPowerOff = 0;
 float iIronPowerOn = 0;
 
-float heatingFrequency = 5; //This many times per second go through heating and measure cycle.
+float heatingFrequency = 5; // This many times per second go through heating and measure cycle.
 #define DIV_TCC 1
-uint32_t timeHeatingOffMeasureTempUs = 20000; //You have this long to measure things while heating is off.
-uint32_t timeHeatingCooldownUs = 1000;        //When heater is 100% on, stop heating this many time before going into off state. This is needed because the heating circuitry needs time to turn off before starting measuring off state.
+uint32_t timeHeatingOffMeasureTempUs = 20000; // You have this long to measure things while heating is off.
+uint32_t timeHeatingCooldownUs = 1000;        // When heater is 100% on, stop heating this many time before going into off state. This is needed because the heating circuitry needs time to turn off before starting measuring off state.
 
 uint32_t periodHeatAllowed;
 uint32_t periodHeatDisabled;
@@ -65,13 +65,13 @@ void HeaterClass::init(void)
                       25 + 273.15,
                       3950);
 
-    //Configure TCC0
+    // Configure TCC0
 
-    //F: TCC0/WO[6], PA16, D11
+    // F: TCC0/WO[6], PA16, D11
 
     uint32_t totalPeriod = (F_CPU / DIV_TCC / heatingFrequency) - 1;
 
-    //Max 24-bit period.
+    // Max 24-bit period.
     if (totalPeriod > 1 << 24)
         totalPeriod = 1 << 24;
 
@@ -153,7 +153,7 @@ void TCC0_Handler()
 
         if (state == 0)
         {
-            //Current state is (possible) heating, next state is off for measure.
+            // Current state is (possible) heating, next state is off for measure.
             if (periodHeatEnabled > 0)
                 eventHeatOn = true;
 
@@ -199,7 +199,7 @@ float readThermocoupleVoltage()
 {
     float v = ADCExternal.readChannel(AIN_EXTERNAL_ADC_TEMP) / Setting.gainHeaterTemperatureAmplifier;
     v -= Setting.thermocoupleInputOffsetVoltage;
-    return v ;
+    return v;
 }
 
 float readVin()
@@ -212,12 +212,17 @@ void HeaterClass::loop(void)
 
     if (eventHeatOn)
     {
-        delayMicroseconds(500);
         eventHeatOn = false;
-        vVINHeatOn = readVin();
-        iIronPowerOn = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
 
-        WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_B);
+        //Heater must be on long enough to read iron current.
+        if (heatfactor > 0.2)
+        {
+            delayMicroseconds(500);
+            vVINHeatOn = readVin();
+            iIronPowerOn = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+
+            WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_B);
+        }
     }
 
     if (eventHeatOff)
@@ -232,31 +237,18 @@ void HeaterClass::loop(void)
         float vThermocouple = readThermocoupleVoltage();
         unsigned long stop = millis();
 
-        //About 80% of the thermal energy arrives at the tip.
+        // About 80% of the thermal energy arrives at the tip.
         float heatTransferCoreTipFactor = 0.82;
 
         float Tthermocouple = thermocouple.GetTemperature(vThermocouple);
         tAmbient = ntc.GetTemperature(vNTC);
+
         tTip = (Tthermocouple * heatTransferCoreTipFactor) + tAmbient;
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
 
-        /*
         ADCInternal.requestDump();
         ADCExternal.requestDump();
-        */
-
-        //Bang bang heater algorithm.
-        /*
-        if (Setting.targetTemperatureHeater > tTip && Setting.heaterState == HEATER_STATE::ON)
-        {
-            heatfactor = 1;
-        }
-        else
-        {
-            heatfactor = 0;
-        }
-         */
 
         if (Setting.heaterState == HEATER_STATE::ON)
         {
@@ -266,7 +258,16 @@ void HeaterClass::loop(void)
         {
             tTarget = 0;
         }
-        myQuickPID.Compute();
+
+        if (isnan(tAmbient))
+        {
+            heatfactor = 0;
+            Setting.heaterState = HEATER_STATE::OFF;
+        }
+        else
+        {
+            myQuickPID.Compute();
+        }
 
         SerialUSB.println(String("NTC: ") + String(vNTC, 3) + String("V"));
         SerialUSB.println(String("NTC: ") + String(tAmbient, 3) + String("K"));

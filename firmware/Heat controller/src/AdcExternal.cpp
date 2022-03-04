@@ -16,7 +16,7 @@ ADS1115_WE adc(I2C_ADDRESS_ADS1115);
 void ADCExternalClass::init(void)
 {
     adc.init();
-    adc.setVoltageRange_mV(ADS1115_RANGE_2048);
+    adc.setVoltageRange_mV(ADS1115_RANGE_4096);
     adc.setCompareChannels(ADS1115_COMP_0_GND);
     adc.setAlertPinMode(ADS1115_ASSERT_AFTER_1);
     adc.setConvRate(ADS1115_860_SPS);
