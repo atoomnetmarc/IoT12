@@ -116,7 +116,8 @@ Worky (after bodge fix)?
 
 **Control board PCB version V2.1**
 
-- No known erratum.
+- It seems that after some use the 5110 LCD module has unreliable contacts. The LCD should be replaced by something else. PCB will need to be redesigned.
+- A single occurrence of incorrect and fluctuating temperatures has been observed. Possibly caused by arcs in the power switch during power on. The power switch needs te be replaced by something else. Also the firmware needs te be made aware somehow of the situation and shutdown heating.
 
 **Control board PCB version V2.0**
 
