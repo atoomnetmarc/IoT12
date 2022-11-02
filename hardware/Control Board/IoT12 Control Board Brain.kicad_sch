@@ -3130,7 +3130,7 @@
     (pin "9" (uuid 1c50ad4b-9cd9-4862-85bd-c37d2dc8bcfe))
   )
 
-  (symbol (lib_id "Device:R") (at 31.75 161.29 180)
+  (symbol (lib_id "Device:R") (at 31.75 161.29 180) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060317913)
     (property "Reference" "R53" (id 0) (at 33.528 160.1216 0)
@@ -3149,7 +3149,7 @@
     (pin "2" (uuid e41236a1-2359-433b-ad17-5db28a5669cb))
   )
 
-  (symbol (lib_id "Device:R") (at 39.37 161.29 180)
+  (symbol (lib_id "Device:R") (at 39.37 161.29 180) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060317e31)
     (property "Reference" "R54" (id 0) (at 41.148 160.1216 0)
@@ -3216,7 +3216,7 @@
     (pin "1" (uuid 1c1755b7-28ef-4355-9cd1-e063bfbe22b7))
   )
 
-  (symbol (lib_id "Device:R") (at 46.99 161.29 180)
+  (symbol (lib_id "Device:R") (at 46.99 161.29 180) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060320633)
     (property "Reference" "R55" (id 0) (at 48.768 160.1216 0)
@@ -3235,7 +3235,7 @@
     (pin "2" (uuid 1beaba15-0a3b-487b-af24-217c93ef1afc))
   )
 
-  (symbol (lib_id "Device:R") (at 54.61 161.29 180)
+  (symbol (lib_id "Device:R") (at 54.61 161.29 180) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006032271b)
     (property "Reference" "R56" (id 0) (at 56.388 160.1216 0)
@@ -3321,7 +3321,7 @@
     (pin "1" (uuid 4cf59b19-4bf5-430b-946b-ca7d645b1f41))
   )
 
-  (symbol (lib_id "Diode:BAV99") (at 160.02 109.22 90)
+  (symbol (lib_id "Diode:BAV99") (at 160.02 109.22 90) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060334d21)
     (property "Reference" "D4" (id 0) (at 165.1 110.49 90)
@@ -3341,7 +3341,7 @@
     (pin "3" (uuid 9a60fa71-8a22-46d0-8ada-45be7a6368fa))
   )
 
-  (symbol (lib_id "Diode:BAV99") (at 148.59 109.22 90)
+  (symbol (lib_id "Diode:BAV99") (at 148.59 109.22 90) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060335729)
     (property "Reference" "D3" (id 0) (at 152.4 110.49 90)
@@ -3505,7 +3505,7 @@
     (pin "8" (uuid f75b000d-af85-4fbc-841b-9fbd3bceb804))
   )
 
-  (symbol (lib_id "Device:C") (at 264.16 152.4 0)
+  (symbol (lib_id "Device:C") (at 264.16 152.4 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006035a716)
     (property "Reference" "C38" (id 0) (at 267.081 151.2316 0)
@@ -3524,7 +3524,7 @@
     (pin "2" (uuid be332be5-23c5-46e0-8939-9fd4f8770cec))
   )
 
-  (symbol (lib_id "Device:R") (at 252.73 147.32 90)
+  (symbol (lib_id "Device:R") (at 252.73 147.32 90) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006035bb84)
     (property "Reference" "R20" (id 0) (at 252.73 142.0622 90))
@@ -3634,7 +3634,7 @@
     (pin "3" (uuid cbc530fe-7379-421e-8d71-3b0c90b76c4d))
   )
 
-  (symbol (lib_id "Device:C") (at 185.42 73.66 0)
+  (symbol (lib_id "Device:C") (at 185.42 73.66 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006037167d)
     (property "Reference" "C2" (id 0) (at 188.341 72.4916 0)
@@ -3653,7 +3653,7 @@
     (pin "2" (uuid b2769e87-8792-4f37-91ab-57c34ade5d57))
   )
 
-  (symbol (lib_id "Device:C") (at 172.72 73.66 0)
+  (symbol (lib_id "Device:C") (at 172.72 73.66 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060371dfa)
     (property "Reference" "C1" (id 0) (at 169.8244 72.4916 0)
@@ -3688,7 +3688,7 @@
     (pin "1" (uuid 1a4f302e-e55b-48e6-859c-474a661622df))
   )
 
-  (symbol (lib_id "Device:C") (at 151.13 69.85 0)
+  (symbol (lib_id "Device:C") (at 151.13 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006038e2cd)
     (property "Reference" "C41" (id 0) (at 151.13 64.77 0)
@@ -3707,7 +3707,7 @@
     (pin "2" (uuid 9b89e221-2637-4ce3-ba65-7f3e9a92d465))
   )
 
-  (symbol (lib_id "Device:C") (at 144.78 69.85 0)
+  (symbol (lib_id "Device:C") (at 144.78 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006038ead0)
     (property "Reference" "C40" (id 0) (at 144.78 64.77 0)
@@ -3726,7 +3726,7 @@
     (pin "2" (uuid 1610d450-75be-422e-832b-54be72767b98))
   )
 
-  (symbol (lib_id "Device:C") (at 130.81 69.85 0)
+  (symbol (lib_id "Device:C") (at 130.81 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006038efdd)
     (property "Reference" "C35" (id 0) (at 130.81 64.77 0)
@@ -3745,7 +3745,7 @@
     (pin "2" (uuid dc0bff4d-a643-4c20-a45a-98139025b2e3))
   )
 
-  (symbol (lib_id "Device:C") (at 138.43 69.85 0)
+  (symbol (lib_id "Device:C") (at 138.43 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006039145a)
     (property "Reference" "C36" (id 0) (at 138.43 64.77 0)
@@ -3860,7 +3860,7 @@
     (pin "1" (uuid d1c38565-6dd1-4355-87c6-fd902a3e6b30))
   )
 
-  (symbol (lib_id "Device:C") (at 124.46 69.85 0)
+  (symbol (lib_id "Device:C") (at 124.46 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-0000603c632b)
     (property "Reference" "C61" (id 0) (at 124.46 64.77 0)
@@ -3879,7 +3879,7 @@
     (pin "2" (uuid 8529172d-56ef-45c8-b604-152fd1acfe15))
   )
 
-  (symbol (lib_id "Device:C") (at 118.11 69.85 0)
+  (symbol (lib_id "Device:C") (at 118.11 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-0000603c673a)
     (property "Reference" "C60" (id 0) (at 118.11 64.77 0)
@@ -4092,7 +4092,7 @@
     (pin "1" (uuid b6a45c84-b275-401c-8ad5-4def400f7c11))
   )
 
-  (symbol (lib_id "Device:C") (at 163.83 69.85 0)
+  (symbol (lib_id "Device:C") (at 163.83 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006047c861)
     (property "Reference" "C37" (id 0) (at 163.83 64.77 0)
@@ -4127,7 +4127,7 @@
     (pin "1" (uuid e2cab06d-330c-43ef-be63-765628ae014b))
   )
 
-  (symbol (lib_id "power:GND") (at 130.81 187.96 0)
+  (symbol (lib_id "power:GND") (at 130.81 187.96 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060485902)
     (property "Reference" "#PWR0161" (id 0) (at 130.81 194.31 0)
@@ -4143,7 +4143,7 @@
     (pin "1" (uuid c3d0703d-9b6a-452c-ae39-50d21342e951))
   )
 
-  (symbol (lib_id "Device:R") (at 130.81 165.1 180)
+  (symbol (lib_id "Device:R") (at 130.81 165.1 180) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-000060485908)
     (property "Reference" "R57" (id 0) (at 132.588 163.9316 0)
@@ -4162,7 +4162,7 @@
     (pin "2" (uuid a291bac3-b45e-4638-a199-dbcaf18b2f09))
   )
 
-  (symbol (lib_id "Device:LED") (at 130.81 176.53 90)
+  (symbol (lib_id "Device:LED") (at 130.81 176.53 90) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006048590e)
     (property "Reference" "D10" (id 0) (at 133.8072 175.5394 90)
@@ -4181,7 +4181,7 @@
     (pin "2" (uuid e7f142b9-5d4a-4f12-a1a6-e5846f0ef349))
   )
 
-  (symbol (lib_id "Device:C") (at 157.48 69.85 0)
+  (symbol (lib_id "Device:C") (at 157.48 69.85 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-00006048b387)
     (property "Reference" "C50" (id 0) (at 157.48 64.77 0)
@@ -4216,7 +4216,7 @@
     (pin "1" (uuid 97e4f14d-0aa9-4706-868c-d5eb93c66196))
   )
 
-  (symbol (lib_id "Device:C_Polarized") (at 74.93 33.02 0)
+  (symbol (lib_id "Device:C_Polarized") (at 74.93 33.02 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 00000000-0000-0000-0000-0000608dd07a)
     (property "Reference" "C73" (id 0) (at 77.9272 31.8516 0)
