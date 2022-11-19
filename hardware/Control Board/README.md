@@ -1,103 +1,11 @@
 # Assembly instructions Control Board
 
+*TBD for version 2.2*.
+
 ## Solder
 
 Solder components in the following order.
 Use the [interactive BOM](bom/ibom.html) for values and positions of the components.
-
-### Integrated circuit
-
-U1.
-U2.
-U3, U4.
-U5.
-U6.
-U7.
-
-### Transistor
-
-Q1, Q2.
-Q3.
-
-### Diode
-
-D1, D2, D3, D4, D12.
-D5.
-D6, D7, D8.
-D9.
-D10.
-D11.
-
-### Inductor
-
-L1.
-L2.
-
-### Resistor
-
-R1.
-R10, R11, R12.
-R20.
-R21.
-R30.
-R31, R32, R33, R34.
-R40.
-R52.
-R50, R51, R53, R54, R55, R56, R57, R58, R59, R82.
-R60, R61, R62, R63. **Read schematic notes about these resistors.**
-R64.
-R70.
-R71, R72.
-R80, R81, R83.
-
-### Capacitor
-
-C1, C2.
-C10.
-C20, C21.
-C30, C31, C32, C33, C34, C35, C36, C37, C38.
-C40, C41.
-C50, C60, C61.
-C70, C71, C73.
-
-### Crystal
-
-Y1.
-
-## Clean PCB
-
-[Clean your printed circuit board](http://letmegooglethat.com/?q=how+to+clean+flux+after+soldering). It should be squeaky clean, no flux residue or other crud should remain.
-
-### Switch, back of PCB
-
-SW2.
-
-### Connector, back of PCB
-
-J10.
-
-### Connector, front of PCB
-
-A2: 2 pcs of 1x8pin 2.54mm female headers.
-
-### Connector, back of PCB
-
-A1: 2 pcs of 1x19pin 2.54mm female headers.
-J9, J10. 2x5pin 2.54mm male headers.
-
-### Fuse, back of PCB
-
-## Clean PCB, again.
-
-Yes, do it.
-
-### Encoder, front of PCB
-
-Solder SW1 and remove nut and washer.
-
-### Module, front of PCB
-
-A3. Use pin male headers. Also for SPK pins.
 
 ## Inspect
 

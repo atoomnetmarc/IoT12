@@ -1,3 +1,6 @@
+*TBD for version V1.2*
+
+
 # Warning
 
 If you choose to replicate and use this PCB you are doing so on your own risk. It is very much possible to set your house on fire when something goes wrong or die when touching the wrong spots on the PCB.
@@ -12,25 +15,6 @@ In conclusion, do not use this PCB. Power the IoT12 control board with some othe
 
 Solder components in the following order.
 Use the [interactive BOM](bom/ibom.html) for values and positions of the components.
-
-### Resistor
-
-
-R2.
-
-### Diode
-
-
-D2.
-
-### Screw terminal
-
-
-J1, J2.
-
-### Power supply
-
-PS1.
 
 ## Testing
 

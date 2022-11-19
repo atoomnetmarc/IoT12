@@ -10,10 +10,13 @@ Schematic and PCB files of the IoT12 solder iron temperature controller for T12 
 My [Kicad library](https://github.com/atoomnetmarc/ATOOMNETKICAD) is used in this project.
 
 Control Board:\
-![](Control%20Board/IoT12%20Control%20Board.jpg)
+![](Control%20Board/IoT12%20Control%20Board-render.jpg)
 
 Power Supply:\
-![](Power%20Supply/IoT12%20Power%20Supply.jpg)
+![](Power%20Supply/IoT12%20Power%20Supply-render.jpg)
+
+Display Adapter:\
+![](Display%20Adapter/Display%20Adapter-render.jpg)
 
 # Checklist
 
@@ -82,6 +85,19 @@ Worky (after bodge fix)?
 
 # Changelog
 
+**Control board PCB version V2.2**
+
+- Removed debug LED
+- Removed 5110 LCD
+- Removed rotary encoder
+- Added header for 2.8" ILI9341 320x240 touch TFT
+- Added relay for switching 24V
+- Moved power supply circuitry to power supply PCB
+- Removed small EEPROM
+- Added SPI flash
+- Added expansion header
+- Layed out PCB again to fit on bottom lid of enclosure
+
 **Control board PCB version V2.1**
 
 - Swapped SDA/SCL I2C minion pins on heater controller.
@@ -113,6 +129,10 @@ Worky (after bodge fix)?
 - First version that got made into PCB form.
 
 # Eratta
+
+**Control board PCB version V2.2**
+
+No known erratum.
 
 **Control board PCB version V2.1**
 

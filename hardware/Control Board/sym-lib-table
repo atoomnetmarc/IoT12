@@ -5,4 +5,5 @@
   (lib (name "MCU_Module-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/symbols/MCU_Module-extra.kicad_sym")(options "")(descr ""))
   (lib (name "Module-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/symbols/Module-extra.kicad_sym")(options "")(descr ""))
   (lib (name "Transistor_FET-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/symbols/Transistor_FET-extra.kicad_sym")(options "")(descr ""))
+  (lib (name "Memory_Flash-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/symbols/Memory_Flash-extra.kicad_sym")(options "")(descr ""))
 )

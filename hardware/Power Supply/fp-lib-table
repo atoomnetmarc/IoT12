@@ -1,4 +1,6 @@
 (fp_lib_table
-  (lib (name Converter-ACDC-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/Converter-ACDC-extra.pretty)(options "")(descr ""))
-  (lib (name TerminalBlock-extra)(type KiCad)(uri ${ATOOMNETKICAD}/footprints/TerminalBlock-extra.pretty)(options "")(descr ""))
+  (lib (name "Converter-ACDC-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/Converter-ACDC-extra.pretty")(options "")(descr ""))
+  (lib (name "TerminalBlock-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/TerminalBlock-extra.pretty")(options "")(descr ""))
+  (lib (name "Inductor-fixed")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/Inductor-fixed.pretty")(options "")(descr ""))
+  (lib (name "Relay_THT-fixed")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/Relay_THT-fixed.pretty")(options "")(descr ""))
 )
