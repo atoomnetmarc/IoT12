@@ -15,7 +15,7 @@ Control Board:\
 Power Supply:\
 ![](Power%20Supply/IoT12%20Power%20Supply-render.jpg)
 
-Display Adapter:\
+[Display Adapter](Display%20Adapter/README.md):\
 ![](Display%20Adapter/Display%20Adapter-render.jpg)
 
 # Checklist
