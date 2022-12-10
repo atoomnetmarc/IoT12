@@ -584,10 +584,10 @@
       (reference "U2") (unit 1) (value "ADS1115IDGS") (footprint "Package_SO:TSSOP-10_3x3mm_P0.5mm")
     )
     (path "/00000000-0000-0000-0000-00006029ef83/00000000-0000-0000-0000-000060057f60"
-      (reference "U3") (unit 1) (value "INA826AID") (footprint "Package_SO:MSOP-8_3x3mm_P0.65mm")
+      (reference "U3") (unit 1) (value "INA826AID") (footprint "Package_SO-fixed:SOIC-8_5.23x5.23mm_P1.27mm")
     )
     (path "/00000000-0000-0000-0000-00006029ef83/00000000-0000-0000-0000-0000603393a4"
-      (reference "U4") (unit 1) (value "INA826AID") (footprint "Package_SO:MSOP-8_3x3mm_P0.65mm")
+      (reference "U4") (unit 1) (value "INA826AID") (footprint "Package_SO-fixed:SOIC-8_5.23x5.23mm_P1.27mm")
     )
     (path "/00000000-0000-0000-0000-0000604268ee/00000000-0000-0000-0000-0000604fcb6b"
       (reference "U5") (unit 1) (value "MAX809S") (footprint "Package_TO_SOT_SMD:SOT-23")
