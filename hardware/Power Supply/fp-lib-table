@@ -3,4 +3,5 @@
   (lib (name "TerminalBlock-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/TerminalBlock-extra.pretty")(options "")(descr ""))
   (lib (name "Inductor-fixed")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/Inductor-fixed.pretty")(options "")(descr ""))
   (lib (name "Relay_THT-fixed")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/Relay_THT-fixed.pretty")(options "")(descr ""))
+  (lib (name "Varistor-extra")(type "KiCad")(uri "${ATOOMNETKICAD}/footprints/Varistor-extra.pretty")(options "")(descr ""))
 )

@@ -2748,7 +2748,7 @@
     (uuid b5b2ae0c-b2cd-4fd8-9072-13fbf68a05b9)
     (property "Reference" "F1" (id 0) (at 39.37 31.75 90))
     (property "Value" "PTC 1.5A/30V" (id 1) (at 39.37 34.29 90))
-    (property "Footprint" "Varistor:RV_Disc_D9mm_W3.3mm_P5mm" (id 2) (at 34.29 39.37 0)
+    (property "Footprint" "Varistor-extra:RV_Disc_D9mm_W3.3mm_P5mm" (id 2) (at 34.29 39.37 0)
       (effects (font (size 1.27 1.27)) (justify left) hide)
     )
     (property "Datasheet" "~" (id 3) (at 39.37 38.1 0)
@@ -3093,7 +3093,7 @@
       (reference "D5") (unit 1) (value "Blue") (footprint "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder")
     )
     (path "/b5b2ae0c-b2cd-4fd8-9072-13fbf68a05b9"
-      (reference "F1") (unit 1) (value "PTC 1.5A/30V") (footprint "Varistor:RV_Disc_D9mm_W3.3mm_P5mm")
+      (reference "F1") (unit 1) (value "PTC 1.5A/30V") (footprint "Varistor-extra:RV_Disc_D9mm_W3.3mm_P5mm")
     )
     (path "/2e41f05f-9743-469f-9aba-9201a232c639"
       (reference "F2") (unit 1) (value "PTC 0.5A/30V") (footprint "Varistor:RV_Disc_D7mm_W3.4mm_P5mm")
