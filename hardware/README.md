@@ -9,79 +9,14 @@ Schematic and PCB files of the IoT12 solder iron temperature controller for T12 
 
 My [Kicad library](https://github.com/atoomnetmarc/ATOOMNETKICAD) is used in this project.
 
-Control Board:\
+## [Control Board](Control%20Board/README.md)
 ![](Control%20Board/IoT12%20Control%20Board-render.jpg)
 
-Power Supply:\
-![](Power%20Supply/IoT12%20Power%20Supply-render.jpg)
+## [Power Supply](Power%20Supply/README.md)
+![](Power%20Supply/IoT12%20Power%20Supply.jpg)
 
-[Display Adapter](Display%20Adapter/README.md):\
-![](Display%20Adapter/Display%20Adapter-render.jpg)
-
-# Checklist
-
-:ballot_box_with_check:Design schematic\
-:ballot_box_with_check:Route V1 control board PCB\
-:ballot_box_with_check:Slept a few days before ordering V1 control board PCB\
-:ballot_box_with_check:Order V1 control board PCB\
-:ballot_box_with_check:Made my first github repository\
-:ballot_box_with_check:V1 control board PCB arrived\
-:ballot_box_with_check:Solder V1 control board PCB and make assembly instructions\
-:ballot_box_with_check:Observe that there is something wrong in schematic\
-:ballot_box_with_check:Debug V1 control board PCB\
-:ballot_box_with_check:Redesign control board PCB, add microcontroller\
-:ballot_box_with_check:Order V2 control board PCB\
-:ballot_box_with_check:Design power supply PCB\
-:ballot_box_with_check:Order power supply PCB\
-:ballot_box_with_check:V2 control board PCB and power supply PCB arrived\
-:ballot_box_with_check:Solder V2 control board PCB and make assembly instructions\
-:ballot_box_with_check:Solder V1 power supply PCB and make assembly instructions\
-:black_square_button:Debug V2 control board PCB\
-:ballot_box_with_check:Start making firmware\
-:black_square_button:Finish first firmware version\
-:black_square_button:...\
-:black_square_button:profit
-
-# Checklist V2.0 control PCB
-
-Worky (after bodge fix)?
-
-:ballot_box_with_check:SAMD21 debug LED\
-:ballot_box_with_check:SAMD21 USB device\
-:ballot_box_with_check:SAMD21 SWD\
-:ballot_box_with_check:SAMD21 TP1/D0\
-:ballot_box_with_check:SAMD21 TP2/D1\
-:ballot_box_with_check:SAMD21 TP3/D9\
-:ballot_box_with_check:SAMD21 TP4/D10\
-:ballot_box_with_check:SAMD21 HEAT_INT\
-:ballot_box_with_check:SAMD21 HEAT_PWM\
-:ballot_box_with_check:SAMD21 I2C minion\
-:ballot_box_with_check:SAMD21 I2S_GAIN0\
-:ballot_box_with_check:SAMD21 I2S_GAIN1\
-:ballot_box_with_check:SAMD21 I2S_SD\
-:ballot_box_with_check:SAMD21 ADC_RDY\
-:ballot_box_with_check:SAMD21 I2C ADC\
-:ballot_box_with_check:SAMD21 I2C ADC NTC\
-:ballot_box_with_check:SAMD21 I2C ADC TEMP\
-:ballot_box_with_check:SAMD21 I2C ADC VIN\
-:ballot_box_with_check:SAMD21 I2C ADC IRON_CURRENT\
-:ballot_box_with_check:SAMD21 I2C EEPROM\
-:ballot_box_with_check:SAMD21 ADC NTC\
-:ballot_box_with_check:SAMD21 ADC TEMP\
-:ballot_box_with_check:SAMD21 ADC VIN\
-:ballot_box_with_check:SAMD21 ADC IRON_CURRENT\
-:ballot_box_with_check:SAMD21 ADC AIN_COMP\
-:ballot_box_with_check:SAMD21 AC AIN_COMP\
-:ballot_box_with_check:ESP32 LCD_LED\
-:ballot_box_with_check:ESP32 ROT_SW\
-:ballot_box_with_check:ESP32 ROT_A\
-:ballot_box_with_check:ESP32 ROT_B\
-:ballot_box_with_check:ESP32 I2S\
-:ballot_box_with_check:ESP32 I2C\
-:ballot_box_with_check:ESP32 JTAG\
-:ballot_box_with_check:ESP32 LCD\
-:ballot_box_with_check:ESP32 HEAT_INT
-
+## [Display Adapter](Display%20Adapter/README.md)
+![](Display%20Adapter/solder%20adapter%20to%20tft.jpg)
 
 # Changelog
 
