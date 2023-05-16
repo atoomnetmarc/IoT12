@@ -14,7 +14,9 @@ Stick a about 2.4mm high sticky pad on the bottom like this:
 
 ![I used a 4mm sticky pad.](stick-y%20pad%20onto.jpg)
 
-Now solder the adapter board onto the back of the TFT display:
+Did you bridge J1 on the TFT pcb to enable 3.3V operation? Do that before soldering the adapter board onto the TFT.
+
+Next, solder the adapter board onto the back of the TFT display:
 
 ![Soldered adapter board to back of TFT display.](solder%20adapter%20to%20tft.jpg)
 
