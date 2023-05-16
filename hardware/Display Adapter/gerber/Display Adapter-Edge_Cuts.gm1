@@ -1,11 +1,11 @@
-G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,(6.0.9)*
-G04 #@! TF.CreationDate,2022-11-19T16:43:32+01:00*
+G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,7.0.2*
+G04 #@! TF.CreationDate,2023-05-16T20:51:55+02:00*
 G04 #@! TF.ProjectId,Display Adapter,44697370-6c61-4792-9041-646170746572,V1.0*
 G04 #@! TF.SameCoordinates,Original*
 G04 #@! TF.FileFunction,Profile,NP*
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW (6.0.9)) date 2022-11-19 16:43:32*
+G04 Created by KiCad (PCBNEW 7.0.2) date 2023-05-16 20:51:55*
 %MOMM*%
 %LPD*%
 G01*
