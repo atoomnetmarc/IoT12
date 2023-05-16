@@ -1,12 +1,12 @@
-G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,(6.0.9)*
-G04 #@! TF.CreationDate,2022-12-10T11:36:41+01:00*
+G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,7.0.2*
+G04 #@! TF.CreationDate,2023-05-16T20:04:18+02:00*
 G04 #@! TF.ProjectId,IoT12 Power Supply,496f5431-3220-4506-9f77-657220537570,V1.2*
 G04 #@! TF.SameCoordinates,Original*
 G04 #@! TF.FileFunction,Paste,Bot*
 G04 #@! TF.FilePolarity,Positive*
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW (6.0.9)) date 2022-12-10 11:36:41*
+G04 Created by KiCad (PCBNEW 7.0.2) date 2023-05-16 20:04:18*
 %MOMM*%
 %LPD*%
 G01*
