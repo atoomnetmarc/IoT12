@@ -1600,7 +1600,7 @@
     (property "Datasheet" "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf" (at 53.34 77.47 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Description" "ESP32-DevKitC v4 Wroom 16MB" (at 77.47 121.92 0)
+    (property "Description" "ESP32-DevKitC v4 ESP32-WROOM-32E (16MB)" (at 85.09 121.92 0)
       (effects (font (size 1.27 1.27)))
     )
     (pin "1" (uuid 8f7ca07b-f500-478d-95bd-3fb5053eeb2c))
