@@ -1,7 +1,8 @@
+![](3d/case.png)
 
 # Hi!
 
-This is an attempt at creating a soldering iron controller that uses T12 tips for a soldering iron handle with GX12-5 connector. The pinout of the GX12-5 connector should match [this table](#control-board-j5-to-gx12-5-connector).
+This is an attempt at creating a soldering iron controller that uses T12 tips for a soldering iron handle with GX12-5 connector (KSGER FX9501 Handle). The pinout of the GX12-5 connector should match [this table](#control-board-j5-to-gx12-5-connector).
 
 The name IoT12 is a portmanteau of IoT (because this soldering iron controller is connected to the internet using WiFi) and T12 (the type of soldering iron tip).
 
