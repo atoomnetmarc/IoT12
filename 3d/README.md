@@ -4,9 +4,9 @@
 
 [STLs here](stl/).
 
-Use black M3x12 button head self tapping screws to connect part.
+Use 6 black M3x10 counter sunk self tapping screws for mounting the lid and the C14 power socket.
 
-Use 4 black M3x10 counter sunk self tapping screws to mount lid.
+Use 20 black M3x12 button head self tapping screws to mounting all other parts to the lid and the case.
 
 Use 4 12x12mm sticky feed on bottom of lid.
 
