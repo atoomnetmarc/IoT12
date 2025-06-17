@@ -1,25 +1,23 @@
 /*
 
-Copyright 2021 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
 
 #include <WiFi.h>
-//#include <DNSServer.h>
+// #include <DNSServer.h>
 #include <ESPmDNS.h>
 
 #include "webserverc.h"
 
 WebServer HTTPServer(80);
 
-void handleRoot()
-{
+void handleRoot() {
     HTTPServer.send(200, "text/plain", "hello from esp!");
 }
 
-void handleNotFound()
-{
+void handleNotFound() {
 
     // Page not Found
 
@@ -31,15 +29,13 @@ void handleNotFound()
     message.concat("\nArguments: ");
     message.concat(HTTPServer.args());
     message.concat("\n");
-    for (uint8_t i = 0; i < HTTPServer.args(); i++)
-    {
+    for (uint8_t i = 0; i < HTTPServer.args(); i++) {
         message.concat(" " + HTTPServer.argName(i) + ": " + HTTPServer.arg(i) + "\n");
     }
     HTTPServer.send(404, "text/plain", message);
 }
 
-void WebservercSetup(void)
-{
+void WebservercSetup(void) {
     MDNS.addService("http", "tcp", 80);
     MDNS.addService("telnet", "tcp", 23);
 
@@ -52,12 +48,10 @@ void WebservercSetup(void)
     Serial.println("HTTP server started");
 }
 
-void WebservercLoop(void)
-{
+void WebservercLoop(void) {
     HTTPServer.handleClient();
 }
 
-void WebservercOnWiFiConnect(void)
-{
+void WebservercOnWiFiConnect(void) {
     WebservercSetup();
 }

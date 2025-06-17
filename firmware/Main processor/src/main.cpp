@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -12,25 +12,22 @@ SPDX-License-Identifier: Apache-2.0
 #include <IoAbstraction.h>
 #include <TaskManagerIO.h>
 
+#include "HeatController.h"
 #include "config.h"
 #include "display.h"
-#include "HeatController.h"
 #include "main.h"
 #include "webserverc.h"
 #include "wific.h"
 
 volatile int encoderValue = 30;
-void onEncoderChange(int newValue)
-{
+void onEncoderChange(int newValue) {
     RequestDrawDisplay();
 
-    if (newValue > 0 && encoderValue < 600)
-    {
+    if (newValue > 0 && encoderValue < 600) {
         encoderValue += 5;
     }
 
-    if (newValue < 0 && encoderValue > -10)
-    {
+    if (newValue < 0 && encoderValue > -10) {
         encoderValue -= 5;
     }
 
@@ -46,8 +43,7 @@ void onEncoderChange(int newValue)
     HeatController.setTargetTemperature(celsius + 273.15f);
 }
 
-void onSpinwheelClicked(uint8_t pin, bool heldDown)
-{
+void onSpinwheelClicked(uint8_t pin, bool heldDown) {
     Serial.print("Button pressed ");
     Serial.println(heldDown ? "Held" : "Pressed");
 
@@ -56,13 +52,13 @@ void onSpinwheelClicked(uint8_t pin, bool heldDown)
   u8g2.setPowerSave(0);
   */
 
-    if (heldDown == false)
-    {
+    if (heldDown == false) {
         HEATER_STATE state = HeatController.getHeaterState();
-        if (state == HEATER_STATE::OFF)
+        if (state == HEATER_STATE::OFF) {
             HeatController.setHeaterState(HEATER_STATE::ON);
-        else
+        } else {
             HeatController.setHeaterState(HEATER_STATE::OFF);
+        }
     }
 
     /*
@@ -80,8 +76,7 @@ void onSpinwheelClicked(uint8_t pin, bool heldDown)
     */
 }
 
-void setup()
-{
+void setup() {
     Wire.begin(SDA, SCL, 400000U);
 
     Serial.begin(115200);
@@ -114,15 +109,13 @@ void setup()
         TIME_MILLIS);
 }
 
-void CriticalLoop()
-{
+void CriticalLoop() {
     HeatController.loop();
     taskManager.yieldForMicros(0);
     yield();
 }
 
-void loop()
-{
+void loop() {
     CriticalLoop();
     taskManager.runLoop();
 
