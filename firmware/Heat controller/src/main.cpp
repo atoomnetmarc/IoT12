@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -9,28 +9,25 @@ SPDX-License-Identifier: Apache-2.0
 #include <Wire.h>
 
 #include "Heater.h"
-#include "main.h"
 #include "Sensor.h"
 #include "Setting.h"
 #include "WireMinion.h"
+#include "main.h"
 
-void HardFault_Handler(void)
-{
+void HardFault_Handler(void) {
 #if defined DEBUG
     __BKPT(3);
 #endif
     NVIC_SystemReset();
-    for (;;)
-    {
+    for (;;) {
     }
 }
 
-void setup()
-{
-    pinMode(0, OUTPUT);  //TP1
-    pinMode(1, OUTPUT);  //TP2
-    pinMode(9, OUTPUT);  //TP3
-    pinMode(10, OUTPUT); //TP4
+void setup() {
+    pinMode(0, OUTPUT);  // TP1
+    pinMode(1, OUTPUT);  // TP2
+    pinMode(9, OUTPUT);  // TP3
+    pinMode(10, OUTPUT); // TP4
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
@@ -48,8 +45,7 @@ void setup()
     Heater.init();
 }
 
-void loop()
-{
+void loop() {
     Heater.loop();
     Sensor.loop();
     Setting.loop();

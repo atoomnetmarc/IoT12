@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -17,8 +17,7 @@ SPDX-License-Identifier: Apache-2.0
 #include "Setting.h"
 #include "WireMinion.h"
 
-HeaterClass::HeaterClass()
-{
+HeaterClass::HeaterClass() {
 }
 
 NTC ntc;
@@ -54,8 +53,7 @@ float Kp = 0.01, Ki = 0.005, Kd = 0.0001;
 
 QuickPID myQuickPID(&tTip, &heatfactor, &tTarget, Kp, Ki, Kd, QuickPID::Action::direct);
 
-void HeaterClass::init(void)
-{
+void HeaterClass::init(void) {
     myQuickPID.SetOutputLimits(0, 1);
     myQuickPID.SetMode(QuickPID::Control::automatic);
 
@@ -72,8 +70,9 @@ void HeaterClass::init(void)
     uint32_t totalPeriod = (F_CPU / DIV_TCC / heatingFrequency) - 1;
 
     // Max 24-bit period.
-    if (totalPeriod > 1 << 24)
+    if (totalPeriod > 1 << 24) {
         totalPeriod = 1 << 24;
+    }
 
     periodHeatDisabled = timeHeatingOffMeasureTempUs * (F_CPU / DIV_TCC / 1000000);
     periodHeatAllowed = totalPeriod - periodHeatDisabled;
@@ -141,21 +140,19 @@ void HeaterClass::init(void)
         ; // Wait for synchronization
 }
 
-void TCC0_Handler()
-{
+void TCC0_Handler() {
     static uint32_t periodHeatEnabled = 0;
 
-    if (TCC0->INTFLAG.bit.CNT)
-    {
+    if (TCC0->INTFLAG.bit.CNT) {
         TCC0->INTFLAG.bit.CNT = 1;
 
         static uint8_t state = 0;
 
-        if (state == 0)
-        {
+        if (state == 0) {
             // Current state is (possible) heating, next state is off for measure.
-            if (periodHeatEnabled > 0)
+            if (periodHeatEnabled > 0) {
                 eventHeatOn = true;
+            }
 
             state = 1;
             digitalWrite(9, HIGH);
@@ -165,22 +162,21 @@ void TCC0_Handler()
             TCC0->CCB[2].reg = 0;
             while (TCC0->SYNCBUSY.bit.CCB2)
                 ;
-        }
-        else
-        {
+        } else {
             eventHeatOff = true;
             state = 0;
             digitalWrite(9, LOW);
             TCC0->PERB.reg = periodHeatAllowed;
 
-            if (heatfactor > 1)
+            if (heatfactor > 1) {
                 heatfactor = 1;
+            }
 
-            if (heatfactor < 0)
+            if (heatfactor < 0) {
                 heatfactor = 0;
+            }
 
-            if (Setting.heaterState != HEATER_STATE::ON)
-            {
+            if (Setting.heaterState != HEATER_STATE::ON) {
                 heatfactor = 0;
             }
 
@@ -195,28 +191,23 @@ void TCC0_Handler()
     }
 }
 
-float readThermocoupleVoltage()
-{
+float readThermocoupleVoltage() {
     float v = ADCExternal.readChannel(AIN_EXTERNAL_ADC_TEMP) / Setting.gainHeaterTemperatureAmplifier;
     v -= Setting.thermocoupleInputOffsetVoltage;
     return v;
 }
 
-float readVin()
-{
+float readVin() {
     return ADCExternal.readChannel(AIN_EXTERNAL_ADC_VIN) / Setting.gainVSupplyResistorDivider;
 }
 
-void HeaterClass::loop(void)
-{
+void HeaterClass::loop(void) {
 
-    if (eventHeatOn)
-    {
+    if (eventHeatOn) {
         eventHeatOn = false;
 
-        //Heater must be on long enough to read iron current.
-        if (heatfactor > 0.2)
-        {
+        // Heater must be on long enough to read iron current.
+        if (heatfactor > 0.2) {
             delayMicroseconds(500);
             vVINHeatOn = readVin();
             iIronPowerOn = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
@@ -225,8 +216,7 @@ void HeaterClass::loop(void)
         }
     }
 
-    if (eventHeatOff)
-    {
+    if (eventHeatOff) {
         eventHeatOff = false;
 
         unsigned long start = millis();
@@ -250,22 +240,16 @@ void HeaterClass::loop(void)
         ADCInternal.requestDump();
         ADCExternal.requestDump();
 
-        if (Setting.heaterState == HEATER_STATE::ON)
-        {
+        if (Setting.heaterState == HEATER_STATE::ON) {
             tTarget = Setting.targetTemperatureHeater;
-        }
-        else
-        {
+        } else {
             tTarget = 0;
         }
 
-        if (isnan(tAmbient))
-        {
+        if (isnan(tAmbient)) {
             heatfactor = 0;
             Setting.heaterState = HEATER_STATE::OFF;
-        }
-        else
-        {
+        } else {
             myQuickPID.Compute();
         }
 

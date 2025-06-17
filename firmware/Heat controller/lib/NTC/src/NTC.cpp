@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -18,8 +18,7 @@ resistorDividerVoltage---[resistorDividerResistance]---[NTC]---GND
 
 */
 
-NTC::NTC(void)
-{
+NTC::NTC(void) {
 }
 
 /**
@@ -34,8 +33,7 @@ void NTC::SetParameters(
     float resistorDividerResistance,
     float thermistorResistance,
     float thermistorTemperature,
-    float thermistorBValue)
-{
+    float thermistorBValue) {
     this->resistorDividerVoltage = resistorDividerVoltage;
     this->resistorDividerResistance = resistorDividerResistance;
     this->thermistorResistance = thermistorResistance;
@@ -46,15 +44,14 @@ void NTC::SetParameters(
 /**
   @return Temperature in Kelvin
 */
-float NTC::GetTemperature(float voltage)
-{
-    //Current though NTC.
+float NTC::GetTemperature(float voltage) {
+    // Current though NTC.
     float I = (this->resistorDividerVoltage - voltage) / this->resistorDividerResistance;
 
-    //NTC resistance.
+    // NTC resistance.
     float Rntc = (voltage / I);
 
-    //Apply Steinhart–Hart equation: https://en.wikipedia.org/wiki/Thermistor#B_or_%CE%B2_parameter_equation
+    // Apply Steinhart–Hart equation: https://en.wikipedia.org/wiki/Thermistor#B_or_%CE%B2_parameter_equation
     float temperature = (1 / ((log(Rntc / this->resistorDividerResistance) / this->thermistorBValue) + (1 / this->thermistorTemperature)));
 
     return temperature;

@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -134,8 +134,7 @@ const temp_couple_t thermocouple_type_c[] = {
     {35.932, 2200},
 };
 
-class Thermocouple
-{
+class Thermocouple {
 public:
     Thermocouple(void);
     float GetTemperature(float voltage);

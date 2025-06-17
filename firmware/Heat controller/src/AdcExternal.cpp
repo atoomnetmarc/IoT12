@@ -1,20 +1,18 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
 
 #include "AdcExternal.h"
 
-ADCExternalClass::ADCExternalClass()
-{
+ADCExternalClass::ADCExternalClass() {
 }
 
 ADS1115_WE adc(I2C_ADDRESS_ADS1115);
 
-void ADCExternalClass::init(void)
-{
+void ADCExternalClass::init(void) {
     adc.init();
     adc.setVoltageRange_mV(ADS1115_RANGE_4096);
     adc.setCompareChannels(ADS1115_COMP_0_GND);
@@ -25,29 +23,24 @@ void ADCExternalClass::init(void)
     attachInterrupt(digitalPinToInterrupt(PIN_ADC_READY), &ADCExternalClass::convReadyAlert, FALLING);
 }
 
-void ADCExternalClass::requestDump(void)
-{
+void ADCExternalClass::requestDump(void) {
     dumpPending = true;
 }
 
-float ADCExternalClass::readChannel(uint8_t channel)
-{
+float ADCExternalClass::readChannel(uint8_t channel) {
     ADS1115_MUX mux = (ADS1115_MUX)(ADS1115_COMP_0_GND + channel * ADS1115_COMP_INC);
     float voltage;
     adc.setCompareChannels(mux);
     adc.startSingleMeasurement();
-    while (convReady == false)
-    {
+    while (convReady == false) {
     }
     convReady = false;
     voltage = adc.getResult_V();
     return voltage;
 }
 
-void ADCExternalClass::loop(void)
-{
-    if (dumpPending)
-    {
+void ADCExternalClass::loop(void) {
+    if (dumpPending) {
         dumpPending = false;
 
         float voltage;
@@ -76,8 +69,7 @@ void ADCExternalClass::loop(void)
     }
 }
 
-void ADCExternalClass::convReadyAlert(void)
-{
+void ADCExternalClass::convReadyAlert(void) {
     ADCExternal.convReady = true;
 }
 

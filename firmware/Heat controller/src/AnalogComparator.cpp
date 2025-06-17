@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -9,28 +9,22 @@ SPDX-License-Identifier: Apache-2.0
 
 #include "AnalogComparator.h"
 
-void AC_Handler(void)
-{
-    if (AC->INTFLAG.reg & AC_INTFLAG_COMP0)
-    {
+void AC_Handler(void) {
+    if (AC->INTFLAG.reg & AC_INTFLAG_COMP0) {
         AC->INTFLAG.reg = AC_INTFLAG_COMP0;
         AnalogComparator.trigger();
     }
 }
 
-AnalogComparatorClass::AnalogComparatorClass()
-{
+AnalogComparatorClass::AnalogComparatorClass() {
 }
 
-void AnalogComparatorClass::trigger(void)
-{
+void AnalogComparatorClass::trigger(void) {
     this->triggered = true;
 }
 
-bool AnalogComparatorClass::hasTriggered(void)
-{
-    if (this->triggered == true)
-    {
+bool AnalogComparatorClass::hasTriggered(void) {
+    if (this->triggered == true) {
         this->triggered = false;
 
         return true;
@@ -39,9 +33,8 @@ bool AnalogComparatorClass::hasTriggered(void)
     return false;
 }
 
-void AnalogComparatorClass::init(void)
-{
-    //PA4 / A3 / AIN[0] / MUX_B
+void AnalogComparatorClass::init(void) {
+    // PA4 / A3 / AIN[0] / MUX_B
 
     PORT->Group[PORTA].PMUX[2].reg = PORT_PMUX_PMUXE_B;
     PORT->Group[PORTA].PINCFG[4].reg |= PORT_PINCFG_PMUXEN | PORT_PINCFG_INEN;
@@ -89,14 +82,12 @@ void AnalogComparatorClass::init(void)
         ;
 }
 
-void AnalogComparatorClass::loop(void)
-{
+void AnalogComparatorClass::loop(void) {
     static uint16_t accounter = 0;
-    if (hasTriggered())
-    {
+    if (hasTriggered()) {
         accounter++;
 
-        //SerialUSB.println("AC triggered " + String(accounter));
+        // SerialUSB.println("AC triggered " + String(accounter));
     }
 }
 

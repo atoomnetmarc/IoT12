@@ -1,6 +1,6 @@
 /*
 
-Copyright 2021-2022 Marc Ketel
+Copyright 2021-2025 Marc Ketel
 SPDX-License-Identifier: Apache-2.0
 
 */
@@ -8,8 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 #ifndef NTC_H
 #define NTC_H
 
-class NTC
-{
+class NTC {
 private:
     float resistorDividerVoltage;
     float resistorDividerResistance;

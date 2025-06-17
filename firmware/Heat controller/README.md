@@ -24,89 +24,112 @@ Registers that store gain are in unitless factors and stored in a float.
 
 The firmware version register is the only register that must be read. All other are somewhat optional and operate from carefully chosen defaults when not modified.
 
-| Register  | RW    | Size          | Default   | Saved in NVRAM    | Unit  | Description                   |
-| --:       | --    | --:           | --:       | --                | --:   | --                            |
-| 0x00      | R     | uint32_t      |           |                   |       | Firmware version              |
-| 0x01      | R     | 4x uint32_t   |           |                   |       | SAMD21 128-bit serial number  |
-| 0x10      | R     | uint32_t      |           |                   |       | Interrupt reason              |
-| 0x11      | RW    | uint8_t       | 0x00      | N                 |       | Heating state                 |
-| 0x40      | R     | float         |           |                   | K     | Current tip temperature       |
-| 0x41      | R     | float         |           |                   | K     | Ambient temperature           |
-| 0x80      | RW    | float         | 373.15    | Y                 | K     | Target tip temperature        |
-| 0xA0      | RW    | float         | 0.0449    | Y                 |       | Gain of Vin resistor divider  |
-| 0xA1      | RW    | float         | 106.1     | Y                 |       | Gain of temperature amplifier |
-| 0xA2      | RW    | float         | 50.4      | Y                 |       | Gain of current amplifier     |
-| 0x90      | RW    | float         | 10000     | Y                 | Ω     | NTC pullup resistor           |
-| 0x91      | RW    | float         | 0.005     | Y                 | Ω     | Heater shunt resistor         |
-| 0xF0      | RW    | uint8_t       | 0x02      | Y                 |       | I2S gain                      |
-| 0xF1      | RW    | uint8_t       | 0x00      | N                 |       | I2S enable                    |
-| 0xF8      | R     | uint16_t      | 0x1234    |                   |       | A constant                    |
-| 0xF9      | R     | float         | 3.14      |                   |       | Mmmm, pi                      |
+| Register | RW  |        Size | Default | Saved in NVRAM | Unit | Description                   |
+| -------: | --- | ----------: | ------: | -------------- | ---: | ----------------------------- |
+|     0x00 | R   |    uint32_t |         |                |      | Firmware version              |
+|     0x01 | R   | 4x uint32_t |         |                |      | SAMD21 128-bit serial number  |
+|     0x10 | R   |    uint32_t |         |                |      | Interrupt reason              |
+|     0x11 | RW  |     uint8_t |    0x00 | N              |      | Heating state                 |
+|     0x40 | R   |       float |         |                |    K | Current tip temperature       |
+|     0x41 | R   |       float |         |                |    K | Ambient temperature           |
+|     0x80 | RW  |       float |  373.15 | Y              |    K | Target tip temperature        |
+|     0xA0 | RW  |       float |  0.0449 | Y              |      | Gain of Vin resistor divider  |
+|     0xA1 | RW  |       float |   106.1 | Y              |      | Gain of temperature amplifier |
+|     0xA2 | RW  |       float |    50.4 | Y              |      | Gain of current amplifier     |
+|     0x90 | RW  |       float |   10000 | Y              |    Ω | NTC pullup resistor           |
+|     0x91 | RW  |       float |   0.005 | Y              |    Ω | Heater shunt resistor         |
+|     0xF0 | RW  |     uint8_t |    0x02 | Y              |      | I2S gain                      |
+|     0xF1 | RW  |     uint8_t |    0x00 | N              |      | I2S enable                    |
+|     0xF8 | R   |    uint16_t |  0x1234 |                |      | A constant                    |
+|     0xF9 | R   |       float |    3.14 |                |      | Mmmm, pi                      |
 
-### 0x00, firmware version
+### 0x00: Firmware Version
 
-Firmware version in format 0bXXXXXXXX.XXXYYYYY.YYYYYYYY.YYZZZZZZ, presented as "X.Y.Z" where X is 11 bits wide, Y is 15 bits wide and Z is 6 bits wide. So minimum version is "0.0.0" and maximum is "2047.32767.63". The version number follows the [SemVer specification](https://semver.org/) loosely. In short that means that the master must be updated when X changes and may be updated when Y changes. This also means that as soon as the master detects an incompatible X, it must stop all communication with the heat controller in order to not cause any unwanted behavior. When a compatible firmware is detected register writes are allowed.
+Stored as a 32-bit integer with the bit format:
+`0bXXXXXXXXX XXYYYYYYYYY YYYYYYZZZZZZ`
+Presented as "X.Y.Z" where:
 
-The master is encouraged to read the firmware version register on its boot.
+- X: 11-bit major version (0-2047)
+- Y: 15-bit minor version (0-32767)
+- Z: 6-bit patch version (0-63)
 
-All versions of the heat controller must include the firmware version register in uint32_t.
+Version range: 0.0.0 to 2047.32767.63
+Follows [Semantic Versioning](https://semver.org/) principles:
 
-### 0x01, serial number
+- Major version (X) changes indicate breaking changes
+- Minor version (Y) changes add backward-compatible features
+- Patch version (Z) changes are backward-compatible bug fixes
 
-Unique 128-bit serial number of the SAMD21 microcontroller consisting of 4 words (uint32_t) with the first word being word0.
+The master must:
 
-### 0x10, interrupt reason
+1. Read this register during initialization
+2. Halt communication if major version is incompatible
+3. Only allow register writes when compatible firmware is detected
 
-4 bytes of interrupt reasons. Reading the register resets the HEAT_INT-pin and the contents of the register to 0.
+### 0x01: Serial Number
 
-Every bit of the 4 bytes indicate a condition which may be investigated further. There is one mandatory action on the Z-bit. When set this indicates a reboot of the heat controller and means that the firmware version must be checked, all other bits are to be ignored until the firmware version has been read.
+Unique 128-bit SAMD21 microcontroller serial number represented as four consecutive 32-bit words (little-endian order).
 
-Format 0bZYXxxxx.xxxxxxxxx.xxxxxxxxx.xxxxxxxxx
+### 0x10: Interrupt Reason
 
-| Bit   | Description                       |
-| --    | --                                |
-| 31, Z | Reboot of heat controller         |
-| 30, Y | Group A measurements available    |
-| 29, X | Group B measurements available    |
-| x     | Undefined, ignore if set          |
+32-bit register where reading clears the HEAT_INT pin and resets the register to 0.
 
-Group A measurements are the those who are measured while the heater is turned off, such as the temperature of the heater and ambient temperature.
+#### Bit Definitions:
 
-Group B measurements are the those who are measured while the heater is turned on, such as the voltage of the power supply and the current through the heater.
+| Bit  | Name | Description                    |
+| ---- | ---- | ------------------------------ |
+| 31   | Z    | Heat controller rebooted       |
+| 30   | Y    | Group A measurements available |
+| 29   | X    | Group B measurements available |
+| 28-0 |      | Reserved (ignore if set)       |
 
-All versions of the heat controller must include the interrupt reason register in uint32_t.
+#### Handling Requirements:
 
-### 0x11, heating state
+1. If bit Z is set:
+   - Immediately read firmware version (0x00)
+   - Ignore all other bits until version is verified
+2. Process other bits only after firmware verification
+
+#### Measurement Groups:
+
+- **Group A**: Measurements taken with heater off
+  (tip temperature, ambient temperature)
+- **Group B**: Measurements taken with heater on
+  (supply voltage, heater current)
+
+### 0x11: Heating State
 
 | Value | State |
-| --    | --    |
+| ----- | ----- |
 | 0x00  | Off   |
 | 0x01  | On    |
 
-### 0x80, target tip temperature
+### 0x80: Target Tip Temperature
 
-The maximum hardcoded temperature that the heat controller will accept is 725K (451.85°C).
+Maximum allowed value: 725K (451.85°C)
 
-### 0xF0, I2S gain
+### 0xF0: I2S Gain
 
-| Value | Gain  |
-| --    | --    |
-| 0x02  | 9dB   |
-| 0x03  | 12dB  |
-| 0x04  | 15dB  |
+| Value | Gain |
+| ----- | ---- |
+| 0x02  | 9dB  |
+| 0x03  | 12dB |
+| 0x04  | 15dB |
 
-### 0xF1, I2S enable
+### 0xF1: I2S Enable
 
-| Value | State     |
-| --    | --        |
-| 0x00  | Disabled  |
-| 0x01  | Enabled   |
+| Value | State    |
+| ----- | -------- |
+| 0x00  | Disabled |
+| 0x01  | Enabled  |
 
-### 0xF8, 0xF9 constants
+### 0xF8, 0xF9: Test Constants
 
-Two constants to test multibyte little-endian transfers.
+Fixed values for verifying little-endian multibyte transfers:
 
-# Fuses
+- 0xF8: uint16_t (0x1234)
+- 0xF9: float (π ≈ 3.14)
 
-Enable BOD33 with hysteresis on userlevel 0x25.
+# Fuse Configuration
 
+BOD33 enabled with hysteresis at user level 0x25
