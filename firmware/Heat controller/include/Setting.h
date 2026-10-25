@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef Setting_H
-#define Setting_H
+#pragma once
 
 #include "I2SGPIO.h"
 
@@ -85,4 +84,3 @@ private:
 
 extern SettingClass Setting;
 
-#endif

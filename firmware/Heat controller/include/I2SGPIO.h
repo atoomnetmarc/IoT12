@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef I2S_H
-#define I2S_H
+#pragma once
 
 #include <Arduino.h>
 
@@ -36,4 +35,3 @@ private:
 
 extern I2SGPIOClass I2SGPIO;
 
-#endif

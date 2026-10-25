@@ -1,14 +1,12 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef ota_h
-#define ota_h
+#pragma once
 
 void OTASetup(void);
 void OTALoop(void);
 
-#endif

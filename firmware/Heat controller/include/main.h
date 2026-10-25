@@ -1,14 +1,12 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef main_h
-#define main_h
+#pragma once
 
 extern volatile float tAmbient;
 extern volatile float tTip;
 
-#endif

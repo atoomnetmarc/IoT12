@@ -1,9 +1,9 @@
 /*
-
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include <WiFi.h>
 #include <esp_wifi.h>
@@ -16,38 +16,35 @@ SPDX-License-Identifier: Apache-2.0
 void WiFiEvent(WiFiEvent_t event) {
     switch (event) {
 
-        case SYSTEM_EVENT_AP_START:
+        case ARDUINO_EVENT_WIFI_AP_START:
             // can set ap hostname here
             WiFi.softAPsetHostname(otahostname);
             // enable ap ipv6 here
-            WiFi.softAPenableIpV6();
+            WiFi.softAPenableIPv6();
             break;
 
-        case SYSTEM_EVENT_STA_START:
+        case ARDUINO_EVENT_WIFI_STA_START:
             // set sta hostname here
             WiFi.setHostname(otahostname);
             break;
-        case SYSTEM_EVENT_STA_CONNECTED:
+        case ARDUINO_EVENT_WIFI_STA_CONNECTED:
             // enable sta ipv6 here
             Serial.println(F("WiFi connected to: "));
             Serial.println(WiFi.SSID());
 
-            WiFi.enableIpV6();
+            WiFi.enableIPv6();
             break;
-        case SYSTEM_EVENT_AP_STA_GOT_IP6:
-            // both interfaces get the same event
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
             Serial.println("STA IPv6: ");
-            Serial.println(WiFi.localIPv6().toString());
-            // Serial.println("AP IPv6: ");
-            // Serial.println(WiFi.softAPIPv6().toString());
+            Serial.println(WiFi.linkLocalIPv6().toString());
             break;
-        case SYSTEM_EVENT_STA_GOT_IP:
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP:
             Serial.println("STA IPv4: ");
             Serial.println(WiFi.localIP().toString());
             OTASetup();
             WebservercOnWiFiConnect();
             break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
+        case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             Serial.println(F("WiFi got disconnected."));
             break;
         default:

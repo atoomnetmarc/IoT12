@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef display_h
-#define display_h
+#pragma once
 
 #include <U8g2lib.h>
 
@@ -26,4 +25,3 @@ void DisplaySetup(void);
 void DisplayLoop(void);
 void RequestDrawDisplay(void);
 
-#endif

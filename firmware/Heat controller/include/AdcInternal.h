@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef AdcInternal_H
-#define AdcInternal_H
+#pragma once
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -27,4 +26,3 @@ private:
 
 extern ADCInternalClass ADCInternal;
 
-#endif

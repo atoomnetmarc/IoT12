@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef config_h
-#define config_h
+#pragma once
 
 extern const char *ssid;
 extern const char *password;
@@ -36,4 +35,3 @@ extern const char *otahostname;
 #define PIN_I2S_WS   26
 #define PIN_I2S_DATA 27
 
-#endif

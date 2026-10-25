@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef config_h
-#define config_h
+#pragma once
 
 #include <Arduino.h>
 
@@ -42,4 +41,3 @@ SPDX-License-Identifier: Apache-2.0
 #define I2C_ADDRESS_ADS1115 0x48
 #define I2C_ADDRESS_EEPROM 0x50
 
-#endif

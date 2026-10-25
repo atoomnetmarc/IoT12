@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef HeatController_H_
-#define HeatController_H_
+#pragma once
 
 #if (ARDUINO >= 100)
 #include "Arduino.h"
@@ -161,4 +160,3 @@ private:
 
 extern HeatControllerClass HeatController;
 
-#endif

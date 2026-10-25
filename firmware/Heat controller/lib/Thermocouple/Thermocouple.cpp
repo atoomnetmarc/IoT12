@@ -1,14 +1,13 @@
 /*
-
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include <math.h>
 
 #include "Thermocouple.h"
-#include "lib.h"
 
 Thermocouple::Thermocouple(void) {
 }
@@ -40,5 +39,5 @@ float Thermocouple::GetTemperature(float voltage) {
         return 999999;
     }
 
-    return mapf(mv, lower_mv, higher_mv, lower_c, higher_c);
+    return (mv - lower_mv) * (higher_c - lower_c) / (higher_mv - lower_mv) + lower_c;
 }

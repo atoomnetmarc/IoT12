@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef NTC_H
-#define NTC_H
+#pragma once
 
 class NTC {
 private:
@@ -28,4 +27,3 @@ public:
 
     float GetTemperature(float voltage);
 };
-#endif

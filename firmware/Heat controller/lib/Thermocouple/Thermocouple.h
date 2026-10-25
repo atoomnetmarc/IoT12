@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef Thermocouple_H
-#define Thermocouple_H
+#pragma once
 
 #include <Arduino.h>
 
@@ -140,4 +139,3 @@ public:
     float GetTemperature(float voltage);
 };
 
-#endif

@@ -1,12 +1,11 @@
 /*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
-
-#ifndef Heater_H
-#define Heater_H
+#pragma once
 
 class HeaterClass
 {
@@ -20,4 +19,3 @@ private:
 
 extern HeaterClass Heater;
 
-#endif

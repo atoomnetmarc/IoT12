@@ -1,9 +1,9 @@
 /*
-
-Copyright 2021-2025 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "HeatController.h"
 #include "config.h"
