@@ -47,4 +47,34 @@ Disconnect the mains cable from the wall socket. Disconnect multimeter. Notice D
 
 Done!
 
+# Pinout J1, high voltage side
+
+AC power input.
+
+| Pin # | Description                                       |
+| ----- | ------------------------------------------------- |
+| 1     | Earth, connected with 990KΩ resistor array to GND |
+| 2     | AC line                                           |
+| 3     | AC neutral                                        |
+
+# Pinout J2, 24v interlock switch
+
+In series with 24V_ON so the user can override when soldering iron heater receives power.
+
+| Pin # | Description |
+| ----- | ----------- |
+| 1     | 24V_ON      |
+| 2     | 24V_ON      |
+
+# Pinout J3, Board-to-board
+
+Goes to control board.
+
+| Pin # | Description        |
+| ----- | ------------------ |
+| 1     | 24V switched power |
+| 2     | 5V always on       |
+| 3     | GND                |
+| 4     | 24V_ON             |
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
