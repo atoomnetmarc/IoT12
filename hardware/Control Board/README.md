@@ -123,30 +123,30 @@ The wireless brains.
 
 Heater controller
 
-| GPIO # | Description  | Direction |
-| ------ | ------------ | --------- |
-| RESET  | SAMD21_RESET | In        |
-| PA02   | NTC          | In        |
-| PB08   | TEMP         | In        |
-| PB09   | SHAKE        | In        |
-| PA05   | VIN          | In        |
-| PA07   | IRON_CURRENT | In        |
-| PA14   | HEAT_INT     | Out       |
-| PA15   | EXP_D5       | Bidir     |
-| PA20   | FLASH_CS     | Out       |
-| PA21   | EXP_D7       | Bidir     |
-| PA06   | ADC_RDY      | In        |
-| PA07   | 24V_ON       | Out       |
-| PA18   | HEAT_PWM     | Out       |
-| PA22   | HEAT_SDA     | Bidir     |
-| PA23   | HEAT_SCL     | Out       |
-| PA08   | ESP32_SDA    | Bidir     |
-| PA09   | ESP32_SCL    | In        |
-| PA16   | EXP_SDA      | Bidir     |
-| PA17   | EXP_SCL      | Out       |
-| PA12   | MISO         | In        |
-| PB11   | SCK          | Out       |
-| PB10   | MOSI         | Out       |
+| GPIO #    | Description  | Direction |
+| --------- | ------------ | --------- |
+| RESET     | SAMD21_RESET | In        |
+| PA02      | NTC          | In        |
+| PB08      | TEMP         | In        |
+| PB09+PA04 | SHAKE        | In        |
+| PA05      | VIN          | In        |
+| PB02      | IRON_CURRENT | In        |
+| PA14      | HEAT_INT     | Out       |
+| PA15      | EXP_D5       | Bidir     |
+| PA20      | FLASH_CS     | Out       |
+| PA21      | EXP_D7       | Bidir     |
+| PA06      | ADC_RDY      | In        |
+| PA07      | 24V_ON       | Out       |
+| PA18      | HEAT_PWM     | Out       |
+| PA22      | HEAT_SDA     | Bidir     |
+| PA23      | HEAT_SCL     | Out       |
+| PA08      | ESP32_SDA    | Bidir     |
+| PA09      | ESP32_SCL    | In        |
+| PA16      | EXP_SDA      | Bidir     |
+| PA17      | EXP_SCL      | Out       |
+| PA12      | MISO         | In        |
+| PB11      | SCK          | Out       |
+| PB10      | MOSI         | Out       |
 
 # Pinout U2, ADS1115
 
