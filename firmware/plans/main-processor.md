@@ -32,14 +32,16 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 
 ## Milestones
 
-### M1 - Restructure without behavior change (flash: no)
+A checked box means the milestone is committed; the `flash:` marker states whether it was verified on hardware.
+
+### [ ] M1 - Restructure without behavior change (flash: no)
 
 - Move existing modules into the categorized layout: `src/app/` (composition root, `main.cpp`), `src/hardware/` (display, I2S), `src/services/` (HeatController, wific, webserverc, ota).
 - Introduce a composition root that owns all modules and wires dependencies.
 - `pio run` passes; no functional change.
 - Compile-only: the display and encoder code still target the V1 hardware, so this build is not flashed onto V2.2 hardware.
 
-### M2 - Remove dead hardware code (flash: no)
+### [ ] M2 - Remove dead hardware code (flash: no)
 
 - Delete the rotary encoder and switch code (PIN_ROT_A/B/SW, IoAbstraction encoder setup in `main.cpp`).
 - Delete the 5110 LCD pin defines (PIN_LCD_* uses the old Nokia pinout).
@@ -47,7 +49,7 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - `pio run` passes.
 - Compile-only: the display is not yet on the V2.2 pins, so there is nothing useful to verify on hardware.
 
-### M3 - Display on LovyanGFX (flash: yes)
+### [ ] M3 - Display on LovyanGFX (flash: yes)
 
 - Add LovyanGFX; configure the ILI9341 over V2.2 VSPI (TFT_SCLK IO18, MOSI IO23, MISO IO19, CS IO15, DC IO2, RST IO4) and the touch controller (TOUCH_CS IO5, TOUCH_IRQ IO34).
 - Drive TFT_LED (IO32) for backlight.
@@ -56,20 +58,20 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - First flash onto V2.2 hardware: verify the display shows the home panel and the backlight switches on.
 - `pio run` passes.
 
-### M4 - Touch UI (flash: yes)
+### [ ] M4 - Touch UI (flash: yes)
 
 - Build a single home screen: setpoint adjustment with +/- touch zones, tip temperature, and heater on/off state indicator.
 - Flash and verify the touch zones respond and the setpoint changes are visible.
 - `pio run` passes.
 
-### M5 - I2S speaker (flash: yes)
+### [ ] M5 - I2S speaker (flash: yes)
 
 - Wire the MAX98357A: BCK IO25, WS IO26, DATA IO27, SD IO33, gain pins IO13/IO14.
 - Drive gain and mute directly from the ESP32; implement spoken feedback or at minimum amplifier mute control.
 - Flash and verify the amplifier mutes and unmutes on command.
 - `pio run` passes.
 
-### M6 - Heat controller link (flash: yes, joint with Heat controller M7)
+### [ ] M6 - Heat controller link (flash: yes, joint with Heat controller M7)
 
 - I2C master on IO21/IO22 talking the minion protocol from the Heat controller plan.
 - Handle HEAT_INT (IO35) per the resolved semantics.
@@ -80,7 +82,7 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - This milestone lands together with milestone M7 of the Heat controller plan, in one integration session on the bench: both processors get the new register map in the same test run, so the register map never disagrees between the two firmwares.
 - `pio run` passes.
 
-### M7 - Network services cleanup (flash: yes)
+### [ ] M7 - Network services cleanup (flash: yes)
 
 - Keep WiFi, OTA, and webserver on core 3.x (event migration already done).
 - Move settings read/write for the Heat controller through the minion protocol into the webserver where applicable.
