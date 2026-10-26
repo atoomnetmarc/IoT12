@@ -38,8 +38,6 @@ The firmware version register is the only register that must be read. All other 
 |     0xA2 | RW  |       float |    50.4 | Y              |      | Gain of current amplifier     |
 |     0x90 | RW  |       float |   10000 | Y              |    Ω | NTC pullup resistor           |
 |     0x91 | RW  |       float |   0.005 | Y              |    Ω | Heater shunt resistor         |
-|     0xF0 | RW  |     uint8_t |    0x02 | Y              |      | I2S gain                      |
-|     0xF1 | RW  |     uint8_t |    0x00 | N              |      | I2S enable                    |
 |     0xF8 | R   |    uint16_t |  0x1234 |                |      | A constant                    |
 |     0xF9 | R   |       float |    3.14 |                |      | Mmmm, pi                      |
 
@@ -107,21 +105,6 @@ Unique 128-bit SAMD21 microcontroller serial number represented as four consecut
 ### 0x80: Target Tip Temperature
 
 Maximum allowed value: 725K (451.85°C)
-
-### 0xF0: I2S Gain
-
-| Value | Gain |
-| ----- | ---- |
-| 0x02  | 9dB  |
-| 0x03  | 12dB |
-| 0x04  | 15dB |
-
-### 0xF1: I2S Enable
-
-| Value | State    |
-| ----- | -------- |
-| 0x00  | Disabled |
-| 0x01  | Enabled  |
 
 ### 0xF8, 0xF9: Test Constants
 

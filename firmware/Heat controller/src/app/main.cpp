@@ -24,13 +24,6 @@ void HardFault_Handler(void) {
 }
 
 void setup() {
-    pinMode(0, OUTPUT);  // TP1
-    pinMode(1, OUTPUT);  // TP2
-    pinMode(9, OUTPUT);  // TP3
-    pinMode(10, OUTPUT); // TP4
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
-
     SerialUSB.begin(115200);
 
     Wire.begin();
@@ -39,7 +32,6 @@ void setup() {
 
     Setting.init();
 
-    I2SGPIO.init();
     Sensor.init();
 
     Heater.init();

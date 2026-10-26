@@ -7,20 +7,17 @@
 
 #include "Sensor.h"
 #include "AdcExternal.h"
-#include "AdcInternal.h"
 #include "AnalogComparator.h"
 
 SensorClass::SensorClass() {
 }
 
 void SensorClass::init(void) {
-    ADCInternal.init();
     ADCExternal.init();
     AnalogComparator.init();
 }
 
 void SensorClass::loop(void) {
-    ADCInternal.loop();
     ADCExternal.loop();
     AnalogComparator.loop();
 }

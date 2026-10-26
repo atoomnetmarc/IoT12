@@ -12,10 +12,10 @@
 #include <Thermocouple.h>
 
 #include "AdcExternal.h"
-#include "AdcInternal.h"
 #include "Heater.h"
 #include "Setting.h"
 #include "WireMinion.h"
+#include "config.h"
 
 HeaterClass::HeaterClass() {
 }
@@ -65,7 +65,7 @@ void HeaterClass::init(void) {
 
     // Configure TCC0
 
-    // F: TCC0/WO[6], PA16, D11
+    // F: TCC0/WO[2], PA18, D10
 
     uint32_t totalPeriod = (F_CPU / DIV_TCC / heatingFrequency) - 1;
 
@@ -117,17 +117,17 @@ void HeaterClass::init(void) {
     while (TCC0->SYNCBUSY.bit.CC2)
         ;
 
-    // Configure PA16 (D11 on Arduino M0) to be output
-    PORT->Group[PORTA].DIRSET.reg = PORT_PA16; // Set pin as output
-    PORT->Group[PORTA].OUTCLR.reg = PORT_PA16; // Set pin to low
+    // Configure PA18 (D10) to be output
+    PORT->Group[PORTA].DIRSET.reg = PORT_PA18; // Set pin as output
+    PORT->Group[PORTA].OUTCLR.reg = PORT_PA18; // Set pin to low
 
-    // Enable the port multiplexer for PA16
-    PORT->Group[PORTA].PINCFG[16].reg |= PORT_PINCFG_PMUXEN;
+    // Enable the port multiplexer for PA18
+    PORT->Group[PORTA].PINCFG[18].reg |= PORT_PINCFG_PMUXEN;
 
-    // Connect TCC0 timer to PA16. Function F is TCC0/WO[6] for PA16.
+    // Connect TCC0 timer to PA18. Function F is TCC0/WO[2] for PA18.
     // Odd pin num (2*n + 1): use PMUXO
     // Even pin num (2*n): use PMUXE
-    PORT->Group[PORTA].PMUX[8].reg = PORT_PMUX_PMUXE_F;
+    PORT->Group[PORTA].PMUX[9].reg = PORT_PMUX_PMUXE_F;
 
     TCC0->INTENSET.reg =
         TCC_INTENSET_CNT;
@@ -138,6 +138,10 @@ void HeaterClass::init(void) {
     TCC0->CTRLA.reg |= (TCC_CTRLA_ENABLE);
     while (TCC0->SYNCBUSY.bit.ENABLE)
         ; // Wait for synchronization
+
+    // Enable the 24V rail. 24V_ON is a slow relay signal; HEAT_PWM does the switching.
+    pinMode(PIN_24V_ON, OUTPUT);
+    digitalWrite(PIN_24V_ON, HIGH);
 }
 
 void TCC0_Handler() {
@@ -155,7 +159,6 @@ void TCC0_Handler() {
             }
 
             state = 1;
-            digitalWrite(9, HIGH);
             TCC0->PERB.reg = periodHeatDisabled;
             while (TCC0->SYNCBUSY.bit.PERB)
                 ;
@@ -165,7 +168,6 @@ void TCC0_Handler() {
         } else {
             eventHeatOff = true;
             state = 0;
-            digitalWrite(9, LOW);
             TCC0->PERB.reg = periodHeatAllowed;
 
             if (heatfactor > 1) {
@@ -223,7 +225,6 @@ void HeaterClass::loop(void) {
         float vNTC = ADCExternal.readChannel(AIN_EXTERNAL_ADC_NTC);
         vVINHeatOff = readVin();
         iIronPowerOff = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
-        float vAIN = ADCInternal.readChannel(PIN_INTERNAL_ADC_AIN_COMP, 0);
         float vThermocouple = readThermocoupleVoltage();
         unsigned long stop = millis();
 
@@ -237,7 +238,6 @@ void HeaterClass::loop(void) {
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
 
-        ADCInternal.requestDump();
         ADCExternal.requestDump();
 
         if (Setting.heaterState == HEATER_STATE::ON) {
@@ -264,8 +264,6 @@ void HeaterClass::loop(void) {
         SerialUSB.println(String("vVINHeatOn: ") + String(vVINHeatOn, 1) + String("V"));
         SerialUSB.println(String("Iron current Off: ") + String(iIronPowerOff, 2) + String("A"));
         SerialUSB.println(String("Iron current On: ") + String(iIronPowerOn, 2) + String("A"));
-        SerialUSB.println(String("VAIN: ") + String(vAIN, 3) + String("V"));
-
         SerialUSB.println(String("Rtip: ") + String(vVINHeatOn / iIronPowerOn, 2) + String("Ω"));
         SerialUSB.println(String("Rsuppy: ") + String((vVINHeatOff - vVINHeatOn) / iIronPowerOn, 2) + String("Ω"));
 

@@ -20,7 +20,7 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - Settings on the Heat controller are JSON; the ESP32 reads and writes them through the I2C minion protocol.
 - The ESP32 drives the I2S gain pins (IO13/IO14) and SD (IO33) directly; the REGISTER_I2S_* minion registers are obsolete.
 - The first UI iteration is a single home screen with setpoint +/- touch zones, tip temperature, and heater state indicator.
-- The minion protocol change (removal of the I2S registers) lands in the same integration session as milestone M7 of the Heat controller plan, so the two processors never disagree about the register map.
+- The I2S registers are removed in Heat controller M2; the ESP32 stops using them in M5/M6. The remaining minion protocol change (link supervision, INT_LINK_TIMEOUT) lands in the same integration session as milestone M7 of the Heat controller plan, so the two processors never disagree about the register map.
 - Link supervision: the ESP32 reads REGISTER_HEATER_STATE at least once per 5 seconds. The SAMD21 forces the heater off when no I2C transaction arrives within 5 seconds and raises the `INT_LINK_TIMEOUT` flag; heating resumes automatically when communication resumes. The two MCUs cannot reset each other; the SAMD21 owns heater safety.
 
 ## Test strategy

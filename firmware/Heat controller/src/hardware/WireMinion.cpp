@@ -9,7 +9,6 @@
 #include <Wire.h>
 #include <wiring_private.h>
 
-#include "I2SGPIO.h"
 #include "Setting.h"
 #include "WireMinion.h"
 #include "config.h"
@@ -57,12 +56,6 @@ void WireMinionClass::requestEvent(void) {
         uint32_t_union.m_uint32_t = _interruptFlags;
         memcpy(bytes, uint32_t_union.m_bytes, sendBytes);
 
-        if (_interruptFlags == 0) {
-            digitalWrite(LED_BUILTIN, HIGH);
-        } else {
-            digitalWrite(LED_BUILTIN, LOW);
-        }
-
         _interruptFlags = 0;
         _assertHeatINT = false;
         digitalWrite(PIN_HEAT_INT, LOW);
@@ -86,12 +79,6 @@ void WireMinionClass::requestEvent(void) {
         sendBytes = sizeof(float_union.m_bytes);
         float_union.m_float = tAmbient;
         memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_I2S_SD) {
-        sendBytes = 1;
-        bytes[0] = I2SGPIO.getEnable();
-    } else if (_i2cRegister == REGISTER_I2S_GAIN) {
-        sendBytes = 1;
-        bytes[0] = I2SGPIO.getGain();
     } else if (_i2cRegister == REGISTER_VERSION) {
         FirmwareVersion_u fv;
         sendBytes = sizeof(fv.m_bytes);
@@ -209,10 +196,6 @@ void WireMinionClass::receiveEvent(int numBytes) {
         memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
         Setting.resistanceHeaterShunt = float_union.m_float;
         Setting.save();
-    } else if (_i2cRegister == REGISTER_I2S_GAIN && _i2cDataSize == 1) {
-        I2SGPIO.setGain((MAX98357_GAIN)_i2cData[0]);
-    } else if (_i2cRegister == REGISTER_I2S_SD && _i2cDataSize == 1) {
-        I2SGPIO.setEnable((bool)_i2cData[0]);
     }
 }
 
