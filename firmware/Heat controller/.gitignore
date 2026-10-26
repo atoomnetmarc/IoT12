@@ -1,5 +1,6 @@
 .pio
 .vscode
+hex/*.hex
 hex/*.lss
 
 # LibreOffice locks
