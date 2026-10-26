@@ -12,10 +12,11 @@
 #define I2C_MINION_ADDRESS 0x2A
 
 // System
-#define REGISTER_VERSION       0x00
-#define REGISTER_SERIAL_NUMBER 0x01
-#define REGISTER_INTERRUPT     0x10
-#define REGISTER_HEATER_STATE  0x11
+#define REGISTER_VERSION        0x00
+#define REGISTER_SERIAL_NUMBER  0x01
+#define REGISTER_INTERRUPT      0x10
+#define REGISTER_HEATER_STATE   0x11
+#define FIRMWARE_VERSION_LENGTH 16
 
 // Measurements
 #define REGISTER_TEMPERATURE_HEATER 0x40
@@ -36,17 +37,6 @@
 #define INT_REBOOT               31
 #define INT_MEASUREMENTS_GROUP_A 30
 #define INT_MEASUREMENTS_GROUP_B 29
-
-typedef struct __attribute__((packed)) {
-    uint16_t x : 11;
-    uint16_t y : 15;
-    uint8_t z : 6;
-} FirmwareVersion_t;
-
-union FirmwareVersion_u {
-    FirmwareVersion_t m_FirmwareVersion;
-    uint8_t m_bytes[sizeof(FirmwareVersion_t)];
-};
 
 typedef struct
 {

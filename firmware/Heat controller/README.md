@@ -26,7 +26,7 @@ The firmware version register is the only register that must be read. All other 
 
 | Register | RW  |        Size | Default | Saved in NVRAM | Unit | Description                   |
 | -------: | --- | ----------: | ------: | -------------- | ---: | ----------------------------- |
-|     0x00 | R   |    uint32_t |         |                |      | Firmware version              |
+|     0x00 | R   | 16-byte str |         |                |      | Firmware version              |
 |     0x01 | R   | 4x uint32_t |         |                |      | SAMD21 128-bit serial number  |
 |     0x10 | R   |    uint32_t |         |                |      | Interrupt reason              |
 |     0x11 | RW  |     uint8_t |    0x00 | N              |      | Heating state                 |
@@ -43,26 +43,17 @@ The firmware version register is the only register that must be read. All other 
 
 ### 0x00: Firmware Version
 
-Stored as a 32-bit integer with the bit format:
-`0bXXXXXXXXX XXYYYYYYYYY YYYYYYZZZZZZ`
-Presented as "X.Y.Z" where:
+A 16-byte NUL-terminated ASCII string in Calendar Versioning format `YYYY.MM.Micro`, for example `2026.10.1`.
 
-- X: 11-bit major version (0-2047)
-- Y: 15-bit minor version (0-32767)
-- Z: 6-bit patch version (0-63)
+- `YYYY`: year
+- `MM`: month
+- `Micro`: release counter within the month, reset to 1 when the month changes
 
-Version range: 0.0.0 to 2047.32767.63
-Follows [Semantic Versioning](https://semver.org/) principles:
-
-- Major version (X) changes indicate breaking changes
-- Minor version (Y) changes add backward-compatible features
-- Patch version (Z) changes are backward-compatible bug fixes
-
-The master must:
+The Heat controller and the Main processor must report the same version to cooperate. The master must:
 
 1. Read this register during initialization
-2. Halt communication if major version is incompatible
-3. Only allow register writes when compatible firmware is detected
+2. Compare the string with its own version
+3. Refuse register writes when the strings differ
 
 ### 0x01: Serial Number
 

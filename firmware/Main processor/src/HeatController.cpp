@@ -31,13 +31,17 @@ bool HeatControllerClass::init() {
         return 0;
     }
 
-    return 1;
+    return checkCompatibility();
 }
 
 void HeatControllerClass::loop() {
     if (this->heatInt == true) {
         this->heatInt = false;
         uint32_t interrupt = getInterrupt();
+
+        if (interrupt & (1UL << INT_REBOOT)) {
+            checkCompatibility();
+        }
 
         Serial.print("HEAT_INT " + String(((float)millis()) / 1000, 2) + "s : ");
         if (interrupt == 0) {
@@ -93,10 +97,16 @@ void HeatControllerClass::setI2SGain(MAX98357_GAIN gain) {
     writeRegister(REGISTER_I2S_GAIN, (uint8_t)(gain));
 }
 
-FirmwareVersion_t HeatControllerClass::getFirmwareVersion(void) {
-    FirmwareVersion_u fv;
-    readRegisterArray(REGISTER_VERSION, fv.m_bytes, sizeof(fv.m_bytes));
-    return fv.m_FirmwareVersion;
+const char *HeatControllerClass::getFirmwareVersion(void) {
+    readRegisterArray(REGISTER_VERSION, (uint8_t *)firmwareVersion, sizeof(firmwareVersion));
+    firmwareVersion[sizeof(firmwareVersion) - 1] = '\0';
+    return firmwareVersion;
+}
+
+bool HeatControllerClass::checkCompatibility(void) {
+    getFirmwareVersion();
+    compatible = (strcmp(firmwareVersion, PRODUCT_VERSION) == 0);
+    return compatible;
 }
 
 SerialNumber_t HeatControllerClass::getSerialNumber(void) {
@@ -160,6 +170,10 @@ float HeatControllerClass::readRegister_float(uint8_t r) {
 }
 
 uint8_t HeatControllerClass::writeRegister(uint8_t r, uint8_t *src, size_t len) {
+    if (compatible == false) {
+        return 1;
+    }
+
     Wire.beginTransmission(i2cAddress);
     Wire.write(r);
 

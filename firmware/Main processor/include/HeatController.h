@@ -16,10 +16,11 @@
 #include <Wire.h>
 
 // System
-#define REGISTER_VERSION       0x00
-#define REGISTER_SERIAL_NUMBER 0x01
-#define REGISTER_INTERRUPT     0x10
-#define REGISTER_HEATER_STATE  0x11
+#define REGISTER_VERSION        0x00
+#define REGISTER_SERIAL_NUMBER  0x01
+#define REGISTER_INTERRUPT      0x10
+#define REGISTER_HEATER_STATE   0x11
+#define FIRMWARE_VERSION_LENGTH 16
 
 // Measurements
 #define REGISTER_TEMPERATURE_HEATER 0x40
@@ -54,17 +55,6 @@ enum MAX98357_GAIN : uint8_t {
 enum HEATER_STATE : uint8_t {
     OFF = 0x00,
     ON = 0x01,
-};
-
-typedef struct __attribute__((packed)) {
-    uint16_t x : 11;
-    uint16_t y : 15;
-    uint8_t z : 6;
-} FirmwareVersion_t;
-
-union FirmwareVersion_u {
-    FirmwareVersion_t m_FirmwareVersion;
-    uint8_t m_bytes[sizeof(FirmwareVersion_t)];
 };
 
 struct SerialNumber {
@@ -127,7 +117,7 @@ public:
     float getTemperatureTip(void);
     float getTemperatureNTC(void);
 
-    FirmwareVersion_t getFirmwareVersion(void);
+    const char *getFirmwareVersion(void);
     SerialNumber_t getSerialNumber(void);
     uint32_t getInterrupt(void);
 
@@ -142,8 +132,11 @@ public:
 private:
     int i2cAddress;
     bool heatInt = 0;
+    bool compatible = false;
+    char firmwareVersion[FIRMWARE_VERSION_LENGTH] = {0};
 
     void selectRegister(uint8_t r);
+    bool checkCompatibility(void);
 
     void readRegisterArray(uint8_t r, uint8_t *dest, size_t len);
     uint8_t readRegister_uint8_t(uint8_t r);
@@ -159,4 +152,3 @@ private:
 };
 
 extern HeatControllerClass HeatController;
-

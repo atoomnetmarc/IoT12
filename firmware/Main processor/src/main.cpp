@@ -62,9 +62,6 @@ void onSpinwheelClicked(uint8_t pin, bool heldDown) {
     }
 
     /*
-    FirmwareVersion_t fv = HeatController.getFirmwareVersion();
-    Serial.println(String("Version heatcontroller: ") + String(fv.x) + String(".") + String(fv.y) + String(".") + String(fv.z));
-
     SerialNumber_t sn = HeatController.getSerialNumber();
     Serial.println(String("Serial number heatcontroller: ") + String(sn.word0, HEX) + String(" ") + String(sn.word1, HEX) + String(" ") + String(sn.word2, HEX) + String(" ") + String(sn.word3, HEX) );
 
@@ -100,7 +97,11 @@ void setup() {
 
     pinMode(PIN_LCD_LED, OUTPUT);
     digitalWrite(PIN_LCD_LED, 1);
-    HeatController.init();
+
+    if (HeatController.init() == false) {
+        Serial.println(F("Heat controller not compatible"));
+    }
+    Serial.println(String(F("Heat controller version: ")) + HeatController.getFirmwareVersion());
 
     taskManager.scheduleFixedRate(
         200, [] {

@@ -80,13 +80,9 @@ void WireMinionClass::requestEvent(void) {
         float_union.m_float = tAmbient;
         memcpy(bytes, float_union.m_bytes, sendBytes);
     } else if (_i2cRegister == REGISTER_VERSION) {
-        FirmwareVersion_u fv;
-        sendBytes = sizeof(fv.m_bytes);
-
-        fv.m_FirmwareVersion.x = VERSION_MAYOR;
-        fv.m_FirmwareVersion.y = VERSION_MINOR;
-        fv.m_FirmwareVersion.z = VERSION_PATCH;
-        memcpy(bytes, fv.m_bytes, sendBytes);
+        sendBytes = FIRMWARE_VERSION_LENGTH;
+        memset(bytes, 0, sendBytes);
+        strncpy((char *)bytes, PRODUCT_VERSION, sendBytes - 1);
     } else if (_i2cRegister == REGISTER_CONST1) {
         uint16_t_u uint16_t_union;
         uint16_t_union.m_uint16_t = 0x1234;

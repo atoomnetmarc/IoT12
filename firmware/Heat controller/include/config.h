@@ -9,15 +9,6 @@
 
 #include <Arduino.h>
 
-// Max 2047
-#define VERSION_MAYOR 0u
-
-// Max 32767
-#define VERSION_MINOR 1u
-
-// Max 63
-#define VERSION_PATCH 2u
-
 #define PIN_HEAT_PWM  (10u)
 #define PIN_24V_ON    (9u)
 #define PIN_ADC_READY (8u)
