@@ -13,6 +13,9 @@
 #include "Setting.h"
 #include "config.h"
 
+// AT24C32 EEPROM address.
+#define I2C_ADDRESS_EEPROM 0x50
+
 I2cAt24Eeprom anEeprom(I2C_ADDRESS_EEPROM, PAGESIZE_AT24C32);
 
 SettingClass::SettingClass() {

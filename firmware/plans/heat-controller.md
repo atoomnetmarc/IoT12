@@ -17,11 +17,11 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 
 - Restructure the firmware: `src/` split by category (`app/`, `hardware/`, `services/`). The restructure is move-only: files are relocated and includes are updated, the existing global singletons and their wiring stay as they are. A composition root is deferred until a milestone needs one.
 - Measurement source of truth is the ADS1115 only. All four analog channels are read over the HEAT I2C bus. The SAMD21 internal ADC analog paths are removed. The ADS1115 sample timing fits the 20 ms measurement window of the heating cycle; this is proven by the working measurement code on the current hardware.
-- I2C topology: `Wire` (sercom3, PA22/PA23) is the master bus for the ADS1115. A custom `TwoWire` instance on sercom0 (PA08/PA09) is the I2C minion bus to the ESP32. The expansion bus (PA16/PA17) stays untouched.
+- I2C topology: `Wire` (sercom3, PA22/PA23) is the master bus for the ADS1115. A custom `TwoWire` instance on sercom2 (PA08/PA09) is the I2C minion bus to the ESP32. sercom0 is unavailable because the `arduino_mzero` variant defines `SERCOM0_Handler` for `Serial1`. The expansion bus (PA16/PA17) stays untouched.
 - Settings are stored as JSON (ArduinoJson) on the external W25Q64 SPI flash.
 - Storage stack: Adafruit_SPIFlash + LittleFS on the W25Q64. When the flash is detected as blank (all 0xFF) it is formatted automatically. Partitioning beyond the LittleFS volume is deferred until a feature needs it.
 - No EEPROM emulation in internal flash.
-- The pin map and the heater PWM output move in one milestone, so no firmware build exists that compiles against the V2.2 pin defines while still driving the V1 pins. That milestone is compile-only: the minion bus still runs on sercom2 (PA14/PA15) until the I2C topology milestone, and PA14 becomes HEAT_INT in the pin map, so the two moves must both be in place before the build is flashed.
+- The pin map and the heater PWM output move in one milestone, so no firmware build exists that compiles against the V2.2 pin defines while still driving the V1 pins. That milestone is compile-only because the new pin map and PWM output are not yet verified on V2.2 hardware. The minion bus runs on sercom2 (PA08/PA09) and is unaffected by the pin map move.
 - The I2S registers are removed in M2; the ESP32 stops using them in its M5/M6. The remaining minion protocol change (link supervision, INT_LINK_TIMEOUT) lands in the same integration step as the matching ESP32 firmware change, so the two processors never disagree about the register map.
 - Link supervision: the SAMD21 forces `heaterState` to OFF when no heartbeat arrives within 5 seconds, and raises the `INT_LINK_TIMEOUT` interrupt flag. The heartbeat is an explicit read of REGISTER_HEATER_STATE by the ESP32 at least once per 5 seconds; only that read restarts the SAMD21 watchdog, other I2C traffic does not. Heating resumes when the ESP32 resumes heartbeating. The two MCUs cannot reset each other; the SAMD21 owns heater safety.
 - SHAKE is a digital signal: the handle line is a 100k pullup with a 100 pF RC filter (10 us time constant), read as a plain GPIO input with a small software debounce. The analog comparator is not used on V2.2.
@@ -56,15 +56,16 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Drive 24V_ON high in `Heater.init()` and leave it on; it is a slow relay enable, HEAT_PWM does the switching.
 - Verify every Arduino pin number against `variant.cpp` before use; the D-numbers above are derived from it.
 - `pio run` passes.
-- Compile-only: the minion bus still runs on sercom2 (PA14/PA15) while PA14 becomes HEAT_INT, so this build is not flashed onto V2.2 hardware.
+- Compile-only: the minion bus runs on sercom2 (PA08/PA09) and is unaffected by the pin map move, but the new pin map and PWM output are not yet verified on V2.2 hardware.
 
-### [ ] M3 - I2C topology (flash: yes)
+### [x] M3 - I2C topology (flash: yes)
 
 - Keep `Wire` (sercom3, PA22/PA23) as the ADS1115 master bus; no variant changes needed.
-- Add a custom `TwoWire` instance on sercom0 for PA08/PA09 and move WireMinion (I2C minion to the ESP32) onto it, following the instantiation pattern in the core `Wire.cpp`.
-- Remove `I2C_ADDRESS_EEPROM` (the EEPROM is gone).
+- Keep the custom `TwoWire` instance on sercom2 for PA08/PA09 as the I2C minion bus to the ESP32. sercom0 is unavailable: the `arduino_mzero` variant defines `SERCOM0_Handler` for `Serial1`, so a second handler is a duplicate symbol.
+- Remove `I2C_ADDRESS_EEPROM` from `config.h`; the address stays local to `Setting.cpp` until the settings move to the SPI flash.
 - Flash and verify the minion bus with the existing ESP32 firmware: register reads (version, temperatures) and REGISTER_INTERRUPT fetch-and-clear over HEAT_INT.
 - `pio run` passes.
+- Hardware verification is open: the minion bus has not yet been exercised with the ESP32 firmware.
 
 ### [ ] M4 - W25Q64 storage (flash: yes)
 

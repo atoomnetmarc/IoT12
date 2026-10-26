@@ -21,4 +21,3 @@
 #define AIN_EXTERNAL_ADC_VIN          (3u)
 
 #define I2C_ADDRESS_ADS1115 0x48
-#define I2C_ADDRESS_EEPROM  0x50
