@@ -27,6 +27,8 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 - SHAKE is a digital signal: the handle line is a 100k pullup with a 100 pF RC filter (10 us time constant), read as a plain GPIO input with a small software debounce. The analog comparator is not used on V2.2.
 - Settings persistence: double-buffered `/settings.json` and `/settings.json.bak` on LittleFS. Each save writes the inactive file completely, then renames it over the active one; on boot the newest valid file wins, and the other is a fallback if one is corrupt.
 - SHAKE switches the heater to a standby temperature on lack of motion; this is the lowest-priority nice-to-have and is scheduled last.
+- A Serial CLI is a development requirement, not a product feature: it is always compiled in, never prints periodically, and only responds to commands plus one-shot events. It is the `SerialCli` module, shared with the ESP32 project.
+- Code style is clang-format with the project `.clang-format` (LLVM base, 4 spaces, `BreakBeforeBraces: Custom` with only `BeforeLambdaBody: false`, which means Attach/K&R, `InsertBraces: true`, no column limit). Every `.cpp` and `.h` in `Heat controller/`, `Main processor/` and `lib/` is formatted with it; `lib/.clang-format` is a copy so the shared libraries use the same style.
 
 ## Test strategy
 
@@ -34,6 +36,21 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 - The ESP32 firmware on the minion bus is the test partner. The ESP32 firmware that exists at the start of this plan speaks the same minion protocol and the same HEAT_INT semantics, so it is a valid test partner for every milestone up to and including M6.
 - M7 changes the register map together with the ESP32 firmware; from M7 onward the updated ESP32 firmware is the test partner.
 - Each milestone below carries a flash marker: `flash: yes` means the build is safe and useful to test on V2.2 hardware, `flash: no` means compile-only because the build does not yet drive the V2.2 pins correctly.
+- Every milestone's CLI commands are exercised on hardware as part of the milestone verification; a command that cannot be demonstrated is not done.
+
+## Serial CLI
+
+Development requires a command line on the USB-CDC port; validating the minion protocol, the flash stack, and the settings without one is slow and error-prone. The CLI is the `SerialCli` module, vendored unchanged in behavior.
+
+- Module: `lib/SerialCli/` shared by both projects through `lib_extra_dirs = ../lib`; `SerialCli.h`/`SerialCli.cpp` are Arduino-free (push-driven `feed(char)`, output callback, runtime command table, auto-generated `help`).
+- Transport: `SerialUSB` at 115200. `SerialCli::loop()` drains `SerialUSB.available()` from the main `loop()`; the output callback writes to `SerialUSB` and returns immediately when no host is attached (`if (!SerialUSB) return;`) so a missing terminal can never stall the heater loop.
+- Registration: every module owns a `registerXxxCommands(cli::SerialCli&, deps...)` free function in its own translation unit; `main.cpp` only calls the registrars. Commands are registered after the module is initialized.
+- Non-blocking rule: handlers return immediately. No `delay()`, no `while (!Serial)`, no unbounded loops. Destructive commands use the stateless two-step form (`command yes-really`), which is not listed in `help`.
+- Output caps: `flash read` is capped at 256 bytes and `fs cat` at 4 KiB per invocation, so a dump cannot stretch the 20 ms measurement window.
+- No periodic prints. The firmware never prints telemetry on a timer. All output is a response to a command, plus one-shot events recorded in a small RAM ring buffer (`EventLog`, 32 records) that `events` dumps on demand. Live event printing is off by default (`events live on` enables it) and is a single line per event, never periodic.
+- The periodic debug prints that exist today are removed in M3c: the per-cycle block in `Heater.cpp`, the per-cycle dump in `AdcExternal.cpp`, and the EEPROM save line in `Setting.cpp`. Their data becomes queryable through the CLI.
+- Safety: commands that change heater state go through `Setting.heaterState` and the same path as the minion protocol; the CLI never writes HEAT_PWM directly. CLI activity does not count as a link heartbeat: only a minion read of REGISTER_HEATER_STATE restarts the supervision watchdog, so a CLI `heater on` while the link is down is overridden by the watchdog.
+- Output format: `KEY: value\r\n` lines, uppercase keys, one fact per line. Errors are `<command>: not available (<reason>)` or `Usage: ...`.
 
 ## Milestones
 
@@ -71,11 +88,32 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - The minion bus runs at 100 kHz on both sides: `SERCOM::initSlaveWIRE()` never sets CTRLA.SPEED, so the SAMD21 slave stays in standard mode.
 - `PIN_HEAT_INT` is D4 (PA14) on the `mzeroUSB` board; D2 is PA08 (ESP32_SDA) and D3 is PA09 (ESP32_SCL). Using D2 for HEAT_INT silently disables the SDA pinmux.
 
+### [x] M3b - Serial CLI foundation (flash: yes)
+
+- Vendor `SerialCli` into `lib/SerialCli/`; add `lib_extra_dirs = ../lib` to `platformio.ini`. Set `MAX_COMMANDS` to 16 and `INPUT_BUFFER_SIZE` to 128 for the SAMD21 RAM budget, through `-DCLI_MAX_COMMANDS` / `-DCLI_INPUT_BUFFER_SIZE` build flags so the library source stays shared and unmodified.
+- Add the shared `EventLog` library (`lib/EventLog/`): a 32-record ring buffer of one-shot events (boot, reset cause, fault, link timeout, heater state change, settings save, flash error). Recording an event never prints.
+- Add the CLI wiring in `main.cpp`: the `SerialUSB` output callback, the `loop()` drain, and the `help`/`version`/`reboot`/`uptime`/`mem`/`events` commands.
+- `version` prints PRODUCT_VERSION, build date, board, and `PM->RCAUSE`. `reboot` is two-step (`reboot yes-really`). `events` dumps the ring buffer; `events clear` clears it; `events live on|off` toggles one-shot live printing (default off).
+- Flash and verify: `help` lists the commands, `version` matches the build, `events` shows the boot record, and the heater loop keeps running while a command is typed.
+- `pio run` passes.
+
+### [x] M3c - Remove periodic prints (flash: yes)
+
+- Delete the ~20-line `SerialUSB.println` block in `Heater.cpp` `loop()` that runs on every `eventHeatOff` (every heating cycle, about 50 Hz). The values move to file-scope state and are exposed through `HeaterClass::status()`.
+- Delete the per-cycle dump in `AdcExternal.cpp` `loop()` and the `requestDump()` call in `Heater.cpp`; `ADCExternalClass::readChannelRaw()` serves the `adc` command instead.
+- Replace the "Wrote N bytes to EEPROM." print in `Setting.cpp` with `SETTINGS_SAVE`/`SETTINGS_LOAD`/`SETTINGS_DEFAULT` events.
+- Delete the commented-out print in `AnalogComparator.cpp`.
+- Add the read-only commands that expose the same data on demand: `sensor` (tip temperature, NTC temperature, VIN, iron current, Rtip, Rsupply), `adc [temp|ntc|current|vin]` (raw and converted per channel), `heater` (state, setpoint, target, heatfactor, PWM duty), `pid` (Pterm/Iterm/Dterm, Kp/Ki/Kd), `settings` (current EEPROM values).
+- Floats are formatted by `include/CliFormat.h`, not by `%f`: the SAMD21 links newlib-nano without `_printf_float`, so `%f` in `vsnprintf` prints nothing.
+- Flash and verify: the USB-CDC port stays silent while the heater runs, and each command returns the values the old prints showed.
+- `pio run` passes.
+
 ### [ ] M4 - W25Q64 storage (flash: yes)
 
 - Add Adafruit_SPIFlash with `Adafruit_FlashTransport_SPI` on the default SPI pads (PA12/PB10/PB11) with FLASH_CS on PA20.
 - Add LittleFS on top. On mount: blank-check the first sector; if blank (0xFF) or mount fails, format and mount again.
 - Flash and verify the flash JEDEC ID is readable over USB serial and that a file survives a power cycle.
+- CLI: `flash` (JEDEC ID, size, status), `flash read <addr> <len>` (capped at 256 bytes), `flash erase yes-really`, `fs` (mount state, total/used bytes), `fs ls [path]`, `fs cat <path>` (capped at 4 KiB), `fs rm <path> yes-really`, `fs format yes-really`.
 - `pio run` passes.
 
 ### [ ] M5 - Settings as JSON (flash: yes)
@@ -85,6 +123,7 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Keep the debounced save behavior of the current SettingClass.
 - Remove the CRC/union versioning code and the EepromAbstractionWire dependency.
 - Flash and verify: change a setting over the minion bus, confirm it persists across a reboot, confirm defaults appear on a blank filesystem.
+- CLI: extend `settings` to the JSON store: `settings` (dump all keys), `settings get <key>`, `settings set <key> <value>` (writes and saves), `settings save`, `settings load`, `settings defaults yes-really`, `settings file` (active file, sizes, validity of both buffers).
 - `pio run` passes.
 
 ### [ ] M6 - ADS1115-only measurement (flash: yes)
@@ -92,6 +131,7 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Read TEMP, NTC, IRON_CURRENT, VIN from ADS1115 channels AIN0-AIN3 over `Wire`, conversion-ready signaled by ADC_RDY (PA06) interrupt.
 - Delete AnalogComparator; SHAKE is read as a digital GPIO input in M8.
 - Flash and verify the tip temperature and heater current readings against the values the current firmware reports, and confirm the heating cycle stays stable.
+- CLI: extend `adc`/`sensor` to the ADS1115-only path: `adc` (all four channels, raw and converted), `adc raw`, `adc <temp|ntc|current|vin>`, `sensor` (tip temperature, NTC temperature, heater current, supply voltage), `sensor offset [<volts>]` (get/set `thermocoupleInputOffsetVoltage`).
 - `pio run` passes.
 
 ### [ ] M7 - Minion protocol and HEAT_INT (flash: yes, joint with ESP32 M6)
@@ -101,10 +141,12 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Implement link supervision in the SAMD21: a watchdog timer restarts only on a read of REGISTER_HEATER_STATE; when no heartbeat arrives within 5 seconds, the SAMD21 forces `heaterState` to OFF and raises the `INT_LINK_TIMEOUT` flag. Heartbeats restart supervision, so heating resumes automatically when the ESP32 returns.
 - Document the link supervision contract in the README: the ESP32 reads REGISTER_HEATER_STATE at least once per 5 seconds as its heartbeat, and `INT_LINK_TIMEOUT` signals a lost link.
 - This milestone lands together with milestone M6 of the Main processor plan, in one integration session on the bench: both processors get the new register map in the same test run, so the register map never disagrees between the two firmwares.
+- CLI: extend `heater`/`pid`/`setpoint`; add `minion` (address, last transaction, latched interrupt flags, HEAT_INT asserted), `minion read <reg> [len]`, `minion write <reg> <hex...> yes-really` (bench-only, bypasses the protocol), `regs` (full register map with names, addresses, types, current values), `int` (latched flags), `int clear`, `link` (last heartbeat age, timeout flag, forced-off count), `link timeout [<ms>]`, `heater on|off`, `setpoint [<celsius>]`, `pid kp|ki|kd <value>`.
 - `pio run` passes.
 
 ### [ ] M8 - SHAKE standby (flash: yes, nice-to-have, lowest priority)
 
 - Read SHAKE (PA04/PB09) as a digital GPIO input with a small software debounce and switch the heater to a standby temperature on lack of motion; return to the setpoint on motion.
 - The standby temperature and timeout are settings in `/settings.json`.
+- CLI: `shake` (raw level, debounced state, time since last motion, standby active), `shake standby [<celsius>]`, `shake timeout [<ms>]`.
 - `pio run` passes.

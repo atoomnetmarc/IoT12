@@ -5,6 +5,15 @@
 		},
 		{
 			"path": "Main processor"
+		},
+		{
+			"path": "plans"
+		},
+		{
+			"path": "tools"
+		},
+		{
+			"path": "lib"
 		}
 	],
 	"settings": {}
