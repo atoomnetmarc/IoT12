@@ -15,3 +15,6 @@ void WebservercSetup(void);
 void WebservercLoop(void);
 void WebservercOnWiFiConnect(void);
 
+bool WebservercRunning(void);
+uint32_t WebservercRequestCount(void);
+const char *WebservercLastUri(void);

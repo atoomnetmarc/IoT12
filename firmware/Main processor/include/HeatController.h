@@ -120,6 +120,8 @@ public:
     const char *getFirmwareVersion(void);
     SerialNumber_t getSerialNumber(void);
     uint32_t getInterrupt(void);
+    uint32_t getLastInterrupt(void);
+    bool isCompatible(void);
 
     uint16_t getConst1(void);
     float getConst2(void);
@@ -133,6 +135,7 @@ private:
     int i2cAddress;
     bool heatInt = 0;
     bool compatible = false;
+    uint32_t lastInterrupt = 0;
     char firmwareVersion[FIRMWARE_VERSION_LENGTH] = {0};
 
     void selectRegister(uint8_t r);

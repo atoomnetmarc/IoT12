@@ -9,15 +9,41 @@
 // #include <DNSServer.h>
 #include <ESPmDNS.h>
 
+#include <cstring>
+
+#include "Log.h"
 #include "webserverc.h"
+
+static const char *tag = "Web";
 
 WebServer HTTPServer(80);
 
+namespace {
+    bool running = false;
+    uint32_t requestCount = 0;
+    char lastUri[32] = {0};
+
+    void noteRequest(void) {
+        requestCount++;
+
+        String uri = HTTPServer.uri();
+        size_t len = uri.length();
+        if (len >= sizeof(lastUri)) {
+            len = sizeof(lastUri) - 1;
+        }
+
+        memcpy(lastUri, uri.c_str(), len);
+        lastUri[len] = '\0';
+    }
+}
+
 void handleRoot() {
+    noteRequest();
     HTTPServer.send(200, "text/plain", "hello from esp!");
 }
 
 void handleNotFound() {
+    noteRequest();
 
     // Page not Found
 
@@ -45,7 +71,8 @@ void WebservercSetup(void) {
 
     HTTPServer.begin();
 
-    Serial.println("HTTP server started");
+    running = true;
+    LOG_I(tag, "http server started on port 80");
 }
 
 void WebservercLoop(void) {
@@ -54,4 +81,16 @@ void WebservercLoop(void) {
 
 void WebservercOnWiFiConnect(void) {
     WebservercSetup();
+}
+
+bool WebservercRunning(void) {
+    return running;
+}
+
+uint32_t WebservercRequestCount(void) {
+    return requestCount;
+}
+
+const char *WebservercLastUri(void) {
+    return lastUri;
 }

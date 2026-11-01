@@ -6,7 +6,10 @@
  */
 
 #include "HeatController.h"
+#include "Log.h"
 #include "config.h"
+
+static const char *tag = "HeatLink";
 
 void IRAM_ATTR HeatControllerINT() {
     HeatController._INT();
@@ -36,31 +39,12 @@ bool HeatControllerClass::init() {
 void HeatControllerClass::loop() {
     if (this->heatInt == true) {
         this->heatInt = false;
-        uint32_t interrupt = getInterrupt();
+        lastInterrupt = getInterrupt();
 
-        if (interrupt & (1UL << INT_REBOOT)) {
+        if (lastInterrupt & (1UL << INT_REBOOT)) {
+            LOG_W(tag, "heat controller rebooted, re-checking compatibility");
             checkCompatibility();
         }
-
-        Serial.print("HEAT_INT " + String(((float)millis()) / 1000, 2) + "s : ");
-        if (interrupt == 0) {
-            Serial.print("0");
-        } else {
-            Serial.print("0b");
-            for (int8_t b = 31; b >= 0; b--) {
-
-                if (interrupt & (1 << b)) {
-                    Serial.print("1");
-                } else {
-                    Serial.print("0");
-                }
-
-                if (b % 8 == 0 && b > 0) {
-                    Serial.print(".");
-                }
-            }
-        }
-        Serial.println();
     }
 }
 
@@ -108,6 +92,10 @@ bool HeatControllerClass::checkCompatibility(void) {
     return compatible;
 }
 
+bool HeatControllerClass::isCompatible(void) {
+    return compatible;
+}
+
 SerialNumber_t HeatControllerClass::getSerialNumber(void) {
     SerialNumber_u sn;
     readRegisterArray(REGISTER_SERIAL_NUMBER, sn.m_bytes, sizeof(sn.m_bytes));
@@ -118,6 +106,10 @@ uint32_t HeatControllerClass::getInterrupt(void) {
     uint32_t_u interrupt;
     readRegisterArray(REGISTER_INTERRUPT, interrupt.m_bytes, sizeof(interrupt.m_bytes));
     return interrupt.m_uint32_t;
+}
+
+uint32_t HeatControllerClass::getLastInterrupt(void) {
+    return lastInterrupt;
 }
 
 uint16_t HeatControllerClass::getConst1(void) {
