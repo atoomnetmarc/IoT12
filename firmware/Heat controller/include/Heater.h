@@ -45,6 +45,7 @@ public:
     HeaterClass();
     void init(void);
     void loop(void);
+    void setInhibit(bool inhibit);
     HeaterStatus status(void);
 
 private:

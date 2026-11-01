@@ -49,6 +49,7 @@ float heatfactor = 0;
 
 volatile bool eventHeatOff = false;
 volatile bool eventHeatOn = false;
+volatile bool heaterInhibited = false;
 
 /*
 https://en.wikipedia.org/wiki/PID_controller#Manual_tuning
@@ -183,7 +184,7 @@ void TCC0_Handler() {
                 heatfactor = 0;
             }
 
-            if (Setting.heaterState != HEATER_STATE::ON) {
+            if (heaterInhibited || Setting.heaterState != HEATER_STATE::ON) {
                 heatfactor = 0;
             }
 
@@ -244,7 +245,7 @@ void HeaterClass::loop(void) {
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
 
-        if (Setting.heaterState == HEATER_STATE::ON) {
+        if (Setting.heaterState == HEATER_STATE::ON && !heaterInhibited) {
             tTarget = Setting.targetTemperatureHeater;
         } else {
             tTarget = 0;
@@ -267,6 +268,25 @@ void HeaterClass::loop(void) {
         lastHeaterState = Setting.heaterState;
         eventlog::Log.record(lastHeaterState == HEATER_STATE::ON ? eventlog::HEATER_ON : eventlog::HEATER_OFF, 0);
     }
+}
+
+void HeaterClass::setInhibit(bool inhibit) {
+    if (heaterInhibited == inhibit) {
+        return;
+    }
+
+    noInterrupts();
+    heaterInhibited = inhibit;
+
+    if (inhibit) {
+        heatfactor = 0;
+        periodHeatEnabled = 0;
+        TCC0->CCB[2].reg = 0;
+        while (TCC0->SYNCBUSY.bit.CCB2) {
+        }
+    }
+
+    interrupts();
 }
 
 HeaterStatus HeaterClass::status(void) {

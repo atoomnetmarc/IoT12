@@ -19,7 +19,7 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 - Measurement source of truth is the ADS1115 only. All four analog channels are read over the HEAT I2C bus. The SAMD21 internal ADC analog paths are removed. The ADS1115 sample timing fits the 20 ms measurement window of the heating cycle; this is proven by the working measurement code on the current hardware.
 - I2C topology: `Wire` (sercom3, PA22/PA23) is the master bus for the ADS1115. A custom `TwoWire` instance on sercom2 (PA08/PA09) is the I2C minion bus to the ESP32. sercom0 is unavailable because the `arduino_mzero` variant defines `SERCOM0_Handler` for `Serial1`. The expansion bus (PA16/PA17) stays untouched.
 - Settings are stored as JSON (ArduinoJson) on the external W25Q64 SPI flash.
-- Storage stack: Adafruit_SPIFlash + LittleFS on the W25Q64. When the flash is detected as blank (all 0xFF) it is formatted automatically. Partitioning beyond the LittleFS volume is deferred until a feature needs it.
+- Storage stack: Adafruit_SPIFlashBase with Adafruit_FlashTransport_SPI on the default SPI pads (PA12/PB10/PB11) and FLASH_CS on PA20, with the upstream littlefs library (`rw0402/littlefs`) on top through a block-device glue. Adafruit SPIFlash 5.x does not bundle LittleFS and Adafruit_LittleFS is not in the PlatformIO registry; the base class avoids the SdFat wrapper and its 4 KiB block cache. The LittleFS block is the 4 KiB sector, the cache is 256 bytes, and the lookahead buffer is 16 bytes. When the flash is detected as blank (all 0xFF) it is formatted automatically. Partitioning beyond the LittleFS volume is deferred until a feature needs it.
 - No EEPROM emulation in internal flash.
 - The pin map and the heater PWM output move in one milestone, so no firmware build exists that compiles against the V2.2 pin defines while still driving the V1 pins. That milestone is compile-only because the new pin map and PWM output are not yet verified on V2.2 hardware. The minion bus runs on sercom2 (PA08/PA09) and is unaffected by the pin map move.
 - The I2S registers are removed in M2; the ESP32 stops using them in its M5/M6. The remaining minion protocol change (link supervision, INT_LINK_TIMEOUT) lands in the same integration step as the matching ESP32 firmware change, so the two processors never disagree about the register map.
@@ -108,13 +108,18 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Flash and verify: the USB-CDC port stays silent while the heater runs, and each command returns the values the old prints showed.
 - `pio run` passes.
 
-### [ ] M4 - W25Q64 storage (flash: yes)
+### [x] M4 - W25Q64 storage (flash: yes)
 
-- Add Adafruit_SPIFlash with `Adafruit_FlashTransport_SPI` on the default SPI pads (PA12/PB10/PB11) with FLASH_CS on PA20.
+- Add Adafruit_SPIFlashBase with `Adafruit_FlashTransport_SPI` on the default SPI pads (PA12/PB10/PB11) with FLASH_CS on PA20.
 - Add LittleFS on top. On mount: blank-check the first sector; if blank (0xFF) or mount fails, format and mount again.
-- Flash and verify the flash JEDEC ID is readable over USB serial and that a file survives a power cycle.
-- CLI: `flash` (JEDEC ID, size, status), `flash read <addr> <len>` (capped at 256 bytes), `flash erase yes-really`, `fs` (mount state, total/used bytes), `fs ls [path]`, `fs cat <path>` (capped at 4 KiB), `fs rm <path> yes-really`, `fs format yes-really`.
+- `flash erase yes-really` erases one sector per main-loop pass and inhibits the heater output for the duration of the erase; `flash` reports the progress.
+- CLI: `flash` (JEDEC ID, size, status), `flash info` (JEDEC ID, size, 64-bit unique ID, decoded status 1/2/3, ready), `flash read <addr> <len>` (capped at 256 bytes), `flash erase yes-really`, `fs` (mount state, total/used bytes), `fs ls [path]`, `fs cat <path>` (capped at 4 KiB), `fs write <path> <text>`, `fs rm <path> yes-really`, `fs format yes-really`.
+- `flash info` needs commands the Adafruit transport cannot issue, because it has no dummy-byte support: a small raw-SPI helper sends the unique ID command (0x4B, four dummy bytes) and the status 3 read (0x15). Status 1 and 2 come from the library.
+- The block-protect and lock bits are reported as `none`, `partial` or `all` rather than as an address range, because the exact range depends on the datasheet table of the fitted device.
 - `pio run` passes.
+- Verified on V2.2 hardware: `flash` reports JEDEC `0xEF4017` and 8 MiB, `fs` reports mounted with 8192 bytes used, a file written with `fs write` survives a reboot, `flash erase` runs to completion in the background while the CLI stays responsive, and `fs format` restores the volume afterwards.
+- Verified on V2.2 hardware: `flash info` reports unique ID `D164B8424F2D3021`, identical before and after a reboot, status 1/2/3 all `0x00` (no busy, no write enable, no block protect, no lock, drive strength 100%), and the filesystem still reads and writes normally after the raw-SPI reads.
+- The heater output is inhibited for the duration of the erase. The inhibit path is not yet exercised with the heater on: the Heat controller has no local `heater on` command until M7, so the bench test runs with the heater off.
 
 ### [ ] M5 - Settings as JSON (flash: yes)
 

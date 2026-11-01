@@ -16,6 +16,8 @@
 #include "SerialCli.h"
 #include "Setting.h"
 #include "SettingCommands.h"
+#include "Storage.h"
+#include "StorageCommands.h"
 #include "SystemCommands.h"
 #include "WireMinion.h"
 #include "main.h"
@@ -57,10 +59,13 @@ void setup() {
     heater_commands::registerCommands(serialCli);
     adc_commands::registerCommands(serialCli);
     setting_commands::registerCommands(serialCli);
+    storage_commands::registerCommands(serialCli);
 
     Wire.begin();
     Wire.setClock(100000);
     WireMinion.init();
+
+    Storage.init();
 
     Setting.init();
 
@@ -70,9 +75,11 @@ void setup() {
 }
 
 void loop() {
+    Heater.setInhibit(Storage.erasing());
     Heater.loop();
     Sensor.loop();
     Setting.loop();
+    Storage.loop();
     WireMinion.loop();
 
     while (SerialUSB.available() > 0) {
