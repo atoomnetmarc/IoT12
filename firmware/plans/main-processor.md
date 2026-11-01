@@ -11,11 +11,15 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - J2 speaker: spoken soldering instructions for the visually impaired (MAX98357 I2S amplifier with gain pins).
 - HEAT_INT signaling: the SAMD21 raises the line and latches a 32-bit flag bitmask; the ESP32 reads REGISTER_INTERRUPT to fetch and clear it.
 - Platform: espressif32 ~8.0.0 (Arduino core 3.x); WiFi event migration to ARDUINO_EVENT_* is already done in `wific.cpp`.
+- Flash: the ESP32 module has 16 MiB. The build uses `board_upload.flash_size = 16MB` and `board_build.partitions = default_16MB.csv`: app slots of 6.25 MiB each, SPIFFS 3.375 MiB, coredump 64 KiB. The firmware uses 1.17 MiB of the app slot (17.9%).
 
 ## Decisions (from interview)
 
 - Restructure the firmware: `src/` split by category (`app/`, `hardware/`, `services/`), a composition root that owns and wires all modules.
 - Display and touch run on LovyanGFX; the UI is touch-driven.
+- Panel: ILI9341 2.8" 320x240 (SKU MSP2807) with XPT2046 resistive touch on the same SPI bus, separate CS. Rotation 1 (landscape) is confirmed on hardware. Backlight is IO32 through LEDC PWM at 5 kHz, 8-bit. Touch calibration constants live in the code; `touch` prints raw and mapped coordinates so they can be tuned on the bench.
+- The display SPI bus is full-duplex (`spi_3wire = false`): the XPT2046 shares MISO with the panel, and a half-duplex bus returns no touch data. The touch configuration repeats the SCLK/MOSI/MISO pins so the bus is never re-initialized with default pins.
+- The home panel redraws only when a displayed value changes; there is no periodic redraw. The tip and setpoint values are formatted to a fixed width of six characters and drawn with an explicit background color, so a value update repaints only its own glyph cells. The heater and link fields have a fixed rectangle that is cleared before drawing. `display test` holds the test pattern for 3 seconds.
 - The rotary encoder code (IoAbstraction switches/encoder, PIN_ROT_*) is removed; IO16/IO17/IO33 have no function on V2.2.
 - Settings on the Heat controller are JSON; the ESP32 reads and writes them through the I2C minion protocol.
 - The ESP32 drives the I2S gain pins (IO13/IO14) and SD (IO33) directly; the REGISTER_I2S_* minion registers are obsolete.
@@ -91,16 +95,17 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Flash and verify: UART0 stays silent while the system runs, each command returns the data the old prints showed, and the WiFi password never appears.
 - `pio run` passes.
 
-### [ ] M3 - Display on LovyanGFX (flash: yes)
+### [x] M3 - Display on LovyanGFX (flash: yes)
 
 - Add LovyanGFX; configure the ILI9341 over V2.2 VSPI (TFT_SCLK IO18, MOSI IO23, MISO IO19, CS IO15, DC IO2, RST IO4) and the touch controller (TOUCH_CS IO5, TOUCH_IRQ IO34).
-- Check the partition table before adding LovyanGFX: the OTA image is already at 88.5% of its 1.25 MiB slot, so the default `min_spiffs` layout may need to be replaced.
+- Partition table: `default_16MB.csv` with `board_upload.flash_size = 16MB`, so the app slot is 6.25 MiB and LovyanGFX fits without further layout changes. The first flash after this change is a full erase over the serial port; an OTA update across the old 4 MB layout is not safe.
 - Drive TFT_LED (IO32) for backlight.
 - Replace the U8g2 84x48 drawing code with a 320x240 LovyanGFX panel; keep the existing data source (HeatController temperatures and state).
 - Remove the custom `u8x8_byte_arduino_hw_spi_custom` yield hack together with U8g2.
 - First flash onto V2.2 hardware: verify the display shows the home panel and the backlight switches on.
 - CLI: extend `display` to LovyanGFX (driver, resolution, rotation, backlight, last draw time), `display backlight <0-255>`, `display on|off`, `display test` (draw a test pattern once); add `touch` (raw coordinates, pressed state).
 - `pio run` passes.
+- Verified on V2.2 hardware: `version` reports `FLASH_MB: 16`, `display` reports 320x240 rotation 1, the home panel is visible, `display test` shows the color bars, `display backlight 64` dims the panel, and `touch` reports `IRQ: high` when idle and raw/mapped coordinates when pressed (raw about 1900/1500 maps to about 110/130).
 
 ### [ ] M4 - Touch UI (flash: yes)
 

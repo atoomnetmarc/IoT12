@@ -35,9 +35,6 @@ namespace {
     }
 
     cli::SerialCli serialCli(serialOutput);
-
-    constexpr uint32_t DISPLAY_REFRESH_MS = 200;
-    uint32_t lastDisplayRequest = 0;
 }
 
 void AppSetup(void) {
@@ -76,17 +73,10 @@ void AppSetup(void) {
     } else {
         LOG_I(tag, "heat controller %s, compatible %s", HeatController.getFirmwareVersion(), HeatController.isCompatible() ? "yes" : "no");
     }
-
-    lastDisplayRequest = millis();
 }
 
 void AppLoop(void) {
     HeatController.loop();
-
-    if (millis() - lastDisplayRequest >= DISPLAY_REFRESH_MS) {
-        lastDisplayRequest = millis();
-        RequestDrawDisplay();
-    }
 
     WiFicLoop();
     WebservercLoop();
