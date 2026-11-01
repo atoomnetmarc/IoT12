@@ -74,7 +74,7 @@ void onSpinwheelClicked(uint8_t pin, bool heldDown) {
 }
 
 void setup() {
-    Wire.begin(SDA, SCL, 400000U);
+    Wire.begin(SDA, SCL, 100000U);
 
     Serial.begin(115200);
     Serial.println(F("Booting"));

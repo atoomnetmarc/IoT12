@@ -86,7 +86,7 @@ private:
 
     bool _assertHeatINT = false;
 
-    // Minion bus on PA08/PA09 (SERCOM2).
+    // Minion bus on PA08/PA09 (SERCOM2), D2/D3.
     TwoWire _minion = TwoWire(&sercom2, 2, 3);
 };
 

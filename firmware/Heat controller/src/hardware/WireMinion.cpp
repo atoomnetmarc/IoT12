@@ -197,7 +197,7 @@ void WireMinionClass::receiveEvent(int numBytes) {
 
 void WireMinionClass::raiseInterrupt(uint8_t flag) {
     if (flag > 0 && flag < 32) {
-        _interruptFlags |= (1 << flag);
+        _interruptFlags |= (1UL << flag);
         _assertHeatINT = true;
     }
 }

@@ -26,8 +26,7 @@ bool HeatControllerClass::init() {
     }
 
     Wire.beginTransmission(i2cAddress);
-    uint8_t success = Wire.endTransmission();
-    if (success) {
+    if (Wire.endTransmission()) {
         return 0;
     }
 

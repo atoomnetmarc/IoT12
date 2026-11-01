@@ -65,7 +65,11 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Remove `I2C_ADDRESS_EEPROM` from `config.h`; the address stays local to `Setting.cpp` until the settings move to the SPI flash.
 - Flash and verify the minion bus with the existing ESP32 firmware: register reads (version, temperatures) and REGISTER_INTERRUPT fetch-and-clear over HEAT_INT.
 - `pio run` passes.
-- Hardware verification is open: the minion bus has not yet been exercised with the ESP32 firmware.
+- Verified on V2.2 hardware: the ESP32 gets an ACK on 0x2A, reads version `2026.11.1`, and receives INT_REBOOT (bit 31) on the first fetch and INT_MEASUREMENTS_GROUP_A (bit 30) on every measurement cycle. INT_MEASUREMENTS_GROUP_B (bit 29) only appears while the heater is actually switching, which is expected with the heater off.
+- Verified register reads: 0x00 version, 0x01 serial number, 0x11 heater state, 0x40 tip temperature, 0x41 NTC temperature, 0x80 target temperature, 0xF8 const1 (`0x1234`), 0xF9 const2 (`3.141593`).
+- Verified the write path: writing 0x80 and reading it back returns the written value, and the original value is restored afterwards.
+- The minion bus runs at 100 kHz on both sides: `SERCOM::initSlaveWIRE()` never sets CTRLA.SPEED, so the SAMD21 slave stays in standard mode.
+- `PIN_HEAT_INT` is D4 (PA14) on the `mzeroUSB` board; D2 is PA08 (ESP32_SDA) and D3 is PA09 (ESP32_SCL). Using D2 for HEAT_INT silently disables the SDA pinmux.
 
 ### [ ] M4 - W25Q64 storage (flash: yes)
 
