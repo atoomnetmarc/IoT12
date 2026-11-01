@@ -12,6 +12,7 @@
 #include <Thermocouple.h>
 
 #include "AdcExternal.h"
+#include "EventLog.h"
 #include "Heater.h"
 #include "Setting.h"
 #include "WireMinion.h"
@@ -30,6 +31,11 @@ float vVINHeatOn = 0;
 float vVINHeatOff = 0;
 float iIronPowerOff = 0;
 float iIronPowerOn = 0;
+float vNTC = 0;
+float vThermocouple = 0;
+uint32_t adcReadMs = 0;
+uint32_t cycleCount = 0;
+uint32_t lastCycleMs = 0;
 
 float heatingFrequency = 5; // This many times per second go through heating and measure cycle.
 #define DIV_TCC 1
@@ -38,6 +44,7 @@ uint32_t timeHeatingCooldownUs = 1000;        // When heater is 100% on, stop he
 
 uint32_t periodHeatAllowed;
 uint32_t periodHeatDisabled;
+uint32_t periodHeatEnabled = 0;
 float heatfactor = 0;
 
 volatile bool eventHeatOff = false;
@@ -145,8 +152,6 @@ void HeaterClass::init(void) {
 }
 
 void TCC0_Handler() {
-    static uint32_t periodHeatEnabled = 0;
-
     if (TCC0->INTFLAG.bit.CNT) {
         TCC0->INTFLAG.bit.CNT = 1;
 
@@ -222,11 +227,12 @@ void HeaterClass::loop(void) {
         eventHeatOff = false;
 
         unsigned long start = millis();
-        float vNTC = ADCExternal.readChannel(AIN_EXTERNAL_ADC_NTC);
+        vNTC = ADCExternal.readChannel(AIN_EXTERNAL_ADC_NTC);
         vVINHeatOff = readVin();
         iIronPowerOff = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
-        float vThermocouple = readThermocoupleVoltage();
+        vThermocouple = readThermocoupleVoltage();
         unsigned long stop = millis();
+        adcReadMs = stop - start;
 
         // About 80% of the thermal energy arrives at the tip.
         float heatTransferCoreTipFactor = 0.82;
@@ -238,8 +244,6 @@ void HeaterClass::loop(void) {
 
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
 
-        ADCExternal.requestDump();
-
         if (Setting.heaterState == HEATER_STATE::ON) {
             tTarget = Setting.targetTemperatureHeater;
         } else {
@@ -249,33 +253,51 @@ void HeaterClass::loop(void) {
         if (isnan(tAmbient)) {
             heatfactor = 0;
             Setting.heaterState = HEATER_STATE::OFF;
+            eventlog::Log.record(eventlog::FAULT, 1);
         } else {
             myQuickPID.Compute();
         }
 
-        SerialUSB.println(String("NTC: ") + String(vNTC, 3) + String("V"));
-        SerialUSB.println(String("NTC: ") + String(tAmbient, 3) + String("K"));
-        SerialUSB.println(String("NTC: ") + String(tAmbient - 273.15, 3) + String("°C"));
-        SerialUSB.println(String("Thermocouple offset: ") + String(Setting.thermocoupleInputOffsetVoltage * 1000, 3) + String("mV"));
-        SerialUSB.println(String("Thermocouple: ") + String(vThermocouple * 1000, 3) + String("mV"));
-        SerialUSB.println(String("TemperatureTip: ") + String(tTip - 273.15) + String("°C"));
-        SerialUSB.println(String("Target Temperature: ") + String(Setting.targetTemperatureHeater - 273.15) + String("°C"));
-        SerialUSB.println(String("vVINHeatOff: ") + String(vVINHeatOff, 1) + String("V"));
-        SerialUSB.println(String("vVINHeatOn: ") + String(vVINHeatOn, 1) + String("V"));
-        SerialUSB.println(String("Iron current Off: ") + String(iIronPowerOff, 2) + String("A"));
-        SerialUSB.println(String("Iron current On: ") + String(iIronPowerOn, 2) + String("A"));
-        SerialUSB.println(String("Rtip: ") + String(vVINHeatOn / iIronPowerOn, 2) + String("Ω"));
-        SerialUSB.println(String("Rsuppy: ") + String((vVINHeatOff - vVINHeatOn) / iIronPowerOn, 2) + String("Ω"));
-
-        SerialUSB.println(String("reading adc took ") + String(stop - start) + String("ms"));
-
-        SerialUSB.println(String("Heatfactor: " + String(heatfactor, 5)));
-        SerialUSB.println(String("Pterm: ") + String(myQuickPID.GetPterm(), 5));
-        SerialUSB.println(String("Iterm: ") + String(myQuickPID.GetIterm(), 5));
-        SerialUSB.println(String("Dterm: ") + String(myQuickPID.GetDterm(), 5));
-
-        SerialUSB.println();
+        cycleCount++;
+        lastCycleMs = millis();
     }
+
+    static HEATER_STATE lastHeaterState = HEATER_STATE::OFF;
+    if (Setting.heaterState != lastHeaterState) {
+        lastHeaterState = Setting.heaterState;
+        eventlog::Log.record(lastHeaterState == HEATER_STATE::ON ? eventlog::HEATER_ON : eventlog::HEATER_OFF, 0);
+    }
+}
+
+HeaterStatus HeaterClass::status(void) {
+    HeaterStatus status;
+
+    status.vNTC = vNTC;
+    status.tAmbientK = tAmbient;
+    status.tAmbientC = tAmbient - 273.15f;
+    status.vThermocouple = vThermocouple;
+    status.tTipC = tTip - 273.15f;
+    status.tTargetC = tTarget > 0 ? tTarget - 273.15f : 0.0f;
+    status.vVINHeatOff = vVINHeatOff;
+    status.vVINHeatOn = vVINHeatOn;
+    status.iIronPowerOff = iIronPowerOff;
+    status.iIronPowerOn = iIronPowerOn;
+    status.rTip = iIronPowerOn != 0 ? vVINHeatOn / iIronPowerOn : 0;
+    status.rSupply = iIronPowerOn != 0 ? (vVINHeatOff - vVINHeatOn) / iIronPowerOn : 0;
+    status.heatfactor = heatfactor;
+    status.pTerm = myQuickPID.GetPterm();
+    status.iTerm = myQuickPID.GetIterm();
+    status.dTerm = myQuickPID.GetDterm();
+    status.kp = Kp;
+    status.ki = Ki;
+    status.kd = Kd;
+    status.adcReadMs = adcReadMs;
+    status.cycleCount = cycleCount;
+    status.lastCycleMs = lastCycleMs;
+    status.pwmDuty = periodHeatEnabled;
+    status.pwmPeriod = periodHeatAllowed;
+
+    return status;
 }
 
 HeaterClass Heater;

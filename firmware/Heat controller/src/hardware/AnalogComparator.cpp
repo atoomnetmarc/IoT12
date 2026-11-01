@@ -83,12 +83,9 @@ void AnalogComparatorClass::init(void) {
 }
 
 void AnalogComparatorClass::loop(void) {
-    static uint16_t accounter = 0;
-    if (hasTriggered()) {
-        accounter++;
-
-        // SerialUSB.println("AC triggered " + String(accounter));
-    }
+    // Clear the latched trigger. The comparator is not used on V2.2; SHAKE is a
+    // plain GPIO input in M8.
+    hasTriggered();
 }
 
 AnalogComparatorClass AnalogComparator;

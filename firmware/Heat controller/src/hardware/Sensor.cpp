@@ -18,7 +18,6 @@ void SensorClass::init(void) {
 }
 
 void SensorClass::loop(void) {
-    ADCExternal.loop();
     AnalogComparator.loop();
 }
 

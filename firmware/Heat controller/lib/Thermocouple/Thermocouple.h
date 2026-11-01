@@ -138,4 +138,3 @@ public:
     Thermocouple(void);
     float GetTemperature(float voltage);
 };
-

@@ -7,8 +7,7 @@
 
 #pragma once
 
-class AnalogComparatorClass
-{
+class AnalogComparatorClass {
 public:
     AnalogComparatorClass();
     void init(void);
@@ -21,4 +20,3 @@ private:
 };
 
 extern AnalogComparatorClass AnalogComparator;
-

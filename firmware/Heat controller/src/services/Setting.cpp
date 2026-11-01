@@ -10,6 +10,7 @@
 #include <CRC.h>
 #include <EepromAbstractionWire.h>
 
+#include "EventLog.h"
 #include "Setting.h"
 #include "config.h"
 
@@ -63,12 +64,13 @@ void SettingClass::_save(void) {
 
     anEeprom.writeArrayToRom(ROM_START, setting_union.m_bytes, setting_union.m_Setting.settingSize);
 
-    SerialUSB.println("Wrote " + String(setting_union.m_Setting.settingSize) + " bytes to EEPROM.");
+    eventlog::Log.record(eventlog::SETTINGS_SAVE, setting_union.m_Setting.settingSize);
 }
 
 // Gets the setting stored in EEPROM or the default when data is corrupted.
 void SettingClass::_load(bool defaults) {
     Setting_u setting_union;
+    bool usedDefaults = true;
 
     // Always load defaults (for new members not in EEPROM).
     setting_union.m_Setting = _getDefaults();
@@ -91,6 +93,8 @@ void SettingClass::_load(bool defaults) {
         if (calculatedCRC != claimedCRC) {
             // Then use defaults.
             setting_union.m_Setting = _getDefaults();
+        } else {
+            usedDefaults = false;
         }
         // Otherwise, we are good to go.
     }
@@ -102,6 +106,8 @@ void SettingClass::_load(bool defaults) {
     resistanceHeaterShunt = setting_union.m_Setting.resistanceHeaterShunt;
     resistanceNTCPullUp = setting_union.m_Setting.resistanceNTCPullUp;
     thermocoupleInputOffsetVoltage = setting_union.m_Setting.thermocoupleInputOffsetVoltage;
+
+    eventlog::Log.record(usedDefaults ? eventlog::SETTINGS_DEFAULT : eventlog::SETTINGS_LOAD, 0);
 }
 
 Setting_t SettingClass::_getDefaults(void) {

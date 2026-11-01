@@ -7,8 +7,7 @@
 
 #pragma once
 
-class SensorClass
-{
+class SensorClass {
 public:
     SensorClass();
     void init(void);
@@ -18,4 +17,3 @@ private:
 };
 
 extern SensorClass Sensor;
-
