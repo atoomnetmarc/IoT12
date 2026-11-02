@@ -25,7 +25,11 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 - The I2S registers are removed in M2; the ESP32 stops using them in its M5/M6. The remaining minion protocol change (link supervision, INT_LINK_TIMEOUT) lands in the same integration step as the matching ESP32 firmware change, so the two processors never disagree about the register map.
 - Link supervision: the SAMD21 forces `heaterState` to OFF when no heartbeat arrives within 5 seconds, and raises the `INT_LINK_TIMEOUT` interrupt flag. The heartbeat is an explicit read of REGISTER_HEATER_STATE by the ESP32 at least once per 5 seconds; only that read restarts the SAMD21 watchdog, other I2C traffic does not. Heating resumes when the ESP32 resumes heartbeating. The two MCUs cannot reset each other; the SAMD21 owns heater safety.
 - SHAKE is a digital signal: the handle line is a 100k pullup with a 100 pF RC filter (10 us time constant), read as a plain GPIO input with a small software debounce. The analog comparator is not used on V2.2.
-- Settings persistence: double-buffered `/settings.json` and `/settings.json.bak` on LittleFS. Each save writes the inactive file completely, then renames it over the active one; on boot the newest valid file wins, and the other is a fallback if one is corrupt.
+- Settings persistence: double-buffered `/settings.json` and `/settings.json.bak` on LittleFS. Each save copies `/settings.json` to `/settings.json.bak`, then writes the new `/settings.json` in one `lfs_file_write`.
+- Settings recovery: `/settings.json` always wins; `/settings.json.bak` is used only when the primary is missing or invalid. LittleFS stores no timestamps, so "newest" is not provable; the copy-then-write order makes the backup the last completed save, and a partial primary is invalid JSON.
+- Settings file format: JSON with camelCase keys identical to the `SettingClass` members, so the file, the CLI, and the tests use one name per setting. The target temperature is stored in Kelvin, the same unit as `REGISTER_TEMPERATURE_HEATER_TARGET`. ArduinoJson 7 with an elastic `JsonDocument` serializes the seven fields.
+- No EEPROM migration: the first boot after M5 starts from defaults. The EEPROM code, the CRC, and the `EepromAbstractionWire` dependency are removed in M5.
+- CLI naming: `settings` prints the file keys verbatim (camelCase). It is the one command that does not use uppercase keys, because a key copied from `settings` must work as `settings set` input unchanged.
 - SHAKE switches the heater to a standby temperature on lack of motion; this is the lowest-priority nice-to-have and is scheduled last.
 - A Serial CLI is a development requirement, not a product feature: it is always compiled in, never prints periodically, and only responds to commands plus one-shot events. It is the `SerialCli` module, shared with the ESP32 project.
 - Code style is clang-format with the project `.clang-format` (LLVM base, 4 spaces, `BreakBeforeBraces: Custom` with only `BeforeLambdaBody: false`, which means Attach/K&R, `InsertBraces: true`, no column limit). Every `.cpp` and `.h` in `Heat controller/`, `Main processor/` and `lib/` is formatted with it; `lib/.clang-format` is a copy so the shared libraries use the same style.
@@ -50,7 +54,7 @@ Development requires a command line on the USB-CDC port; validating the minion p
 - No periodic prints. The firmware never prints telemetry on a timer. All output is a response to a command, plus one-shot events recorded in a small RAM ring buffer (`EventLog`, 32 records) that `events` dumps on demand. Live event printing is off by default (`events live on` enables it) and is a single line per event, never periodic.
 - The periodic debug prints that exist today are removed in M3c: the per-cycle block in `Heater.cpp`, the per-cycle dump in `AdcExternal.cpp`, and the EEPROM save line in `Setting.cpp`. Their data becomes queryable through the CLI.
 - Safety: commands that change heater state go through `Setting.heaterState` and the same path as the minion protocol; the CLI never writes HEAT_PWM directly. CLI activity does not count as a link heartbeat: only a minion read of REGISTER_HEATER_STATE restarts the supervision watchdog, so a CLI `heater on` while the link is down is overridden by the watchdog.
-- Output format: `KEY: value\r\n` lines, uppercase keys, one fact per line. Errors are `<command>: not available (<reason>)` or `Usage: ...`.
+- Output format: `KEY: value\r\n` lines, uppercase keys, one fact per line. Errors are `<command>: not available (<reason>)` or `Usage: ...`. The `settings` command prints the JSON keys verbatim (camelCase) so a printed key is valid `settings set` input.
 
 ## Milestones
 
@@ -123,12 +127,13 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 
 ### [ ] M5 - Settings as JSON (flash: yes)
 
-- Add ArduinoJson. Serialize the existing settings fields to `/settings.json` (compact), deserialize on boot; missing keys fall back to defaults.
-- Double-buffer the settings file: write `/settings.json.bak` completely, then rename it over `/settings.json`; on boot load the newest valid file, fall back to the other one if it is corrupt.
+- Add ArduinoJson 7. Serialize the seven settings fields to `/settings.json` (compact) with camelCase keys identical to the `SettingClass` members; deserialize on boot, and a missing key falls back to its default.
+- Double-buffer the settings file: copy `/settings.json` to `/settings.json.bak`, then write the new `/settings.json`. On boot `/settings.json` wins; `/settings.json.bak` is used only when the primary is missing or invalid.
 - Keep the debounced save behavior of the current SettingClass.
-- Remove the CRC/union versioning code and the EepromAbstractionWire dependency.
+- Remove the CRC/union versioning code, `Setting_t`, `ROM_START`, and the `CRC` and `EepromAbstractionWire` dependencies. `IoAbstraction` and `TaskManagerIO` leave with them.
+- No EEPROM migration: the first boot after this milestone starts from defaults.
 - Flash and verify: change a setting over the minion bus, confirm it persists across a reboot, confirm defaults appear on a blank filesystem.
-- CLI: extend `settings` to the JSON store: `settings` (dump all keys), `settings get <key>`, `settings set <key> <value>` (writes and saves), `settings save`, `settings load`, `settings defaults yes-really`, `settings file` (active file, sizes, validity of both buffers).
+- CLI: extend `settings` to the JSON store: `settings` (dump all keys, camelCase, so a printed key is valid `settings set` input), `settings get <key>`, `settings set <key> <value>` (writes and saves), `settings save`, `settings load`, `settings defaults yes-really`, `settings file` (active file, sizes, validity of both buffers).
 - `pio run` passes.
 
 ### [ ] M6 - ADS1115-only measurement (flash: yes)

@@ -104,6 +104,12 @@ Fixed values for verifying little-endian multibyte transfers:
 - 0xF8: uint16_t (0x1234)
 - 0xF9: float (π ≈ 3.14)
 
+# Settings Storage
+
+The registers marked "Saved in NVRAM" are stored in `/settings.json` on the LittleFS volume of the W25Q64 SPI flash. The target temperature is in K (kelvin), the same unit as register 0x80.
+
+A save copies `/settings.json` to `/settings.json.bak` and then writes the new `/settings.json`. That means the backup is always the last completed save. On boot `/settings.json` is read first; `/settings.json.bak` is read only when the primary file is missing or invalid. A key that is missing from the file keeps its default.
+
 # Fuse Configuration
 
 BOD33 enabled with hysteresis at user level 0x25
