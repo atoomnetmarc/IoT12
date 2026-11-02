@@ -17,6 +17,8 @@
 #include "SerialCli.h"
 #include "Setting.h"
 #include "SettingCommands.h"
+#include "Shake.h"
+#include "ShakeCommands.h"
 #include "Storage.h"
 #include "StorageCommands.h"
 #include "SystemCommands.h"
@@ -61,6 +63,7 @@ void setup() {
     adc_commands::registerCommands(serialCli);
     minion_commands::registerCommands(serialCli);
     setting_commands::registerCommands(serialCli);
+    shake_commands::registerCommands(serialCli);
     storage_commands::registerCommands(serialCli);
 
     Wire.begin();
@@ -73,11 +76,14 @@ void setup() {
 
     Sensor.init();
 
+    Shake.init();
+
     Heater.init();
 }
 
 void loop() {
     Heater.setInhibit(Storage.erasing());
+    Shake.loop();
     Heater.loop();
     Setting.loop();
     Storage.loop();

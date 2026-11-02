@@ -55,6 +55,11 @@ public:
     float resistanceHeaterShunt;
     float resistanceNTCPullUp;
     float thermocoupleInputOffsetVoltage;
+    float standbyTemperatureHeater;
+    float standbyTemperatureHeater2;
+    float shakeStage1Ms;
+    float shakeStage2Ms;
+    float shakeOffMs;
 
 private:
     void _save(void);

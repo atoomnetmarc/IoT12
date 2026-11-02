@@ -123,6 +123,20 @@ When no heartbeat arrives within the timeout (register 0x12, default 5000 ms), t
 
 The master reads register 0x10 to fetch and clear the flag, reports the lost link, and writes register 0x11 again after communication resumes. Heating resumes on that write. The two controllers cannot reset each other.
 
+# SHAKE Standby
+
+The SHAKE input (PA04/A3 and PB09/A2, tied together) is read with the SAMD21 internal ADC against the 3.3 V supply reference, with a 2.5 V threshold, a 10 ms sample interval, and a 20 ms software debounce. Both pins are inputs without pull. The ball switch pulls the line to about 2.17 V, which is above the digital input threshold, so the ADC is used instead of a plain GPIO read. After the last motion the heater target follows a three-phase schedule:
+
+1. At `shakeStage1Ms` the target drops to `min(setpoint, standbyTemperatureHeater)`.
+2. The target ramps linearly to `min(setpoint, standbyTemperatureHeater2)` at `shakeStage2Ms`.
+3. The target holds the second value until `shakeOffMs`, then the heater turns off.
+
+Motion before `shakeOffMs` returns the target to the setpoint and restarts the timer. After `shakeOffMs` a shake does not re-enable the heater; `heater on` does and restarts the timer. The target is capped at the setpoint so the iron never heats above it.
+
+The two temperatures and three times are stored in `/settings.json` as `standbyTemperatureHeater`, `standbyTemperatureHeater2`, `shakeStage1Ms`, `shakeStage2Ms`, and `shakeOffMs`.
+
+The `shake adc` command reads the internal ADC on A3 and A2 against the 3.3 V supply reference for diagnostics.
+
 # Settings Storage
 
 The registers marked "Saved in NVRAM" are stored in `/settings.json` on the LittleFS volume of the W25Q64 SPI flash. The target temperature is in K (kelvin), the same unit as register 0x80.

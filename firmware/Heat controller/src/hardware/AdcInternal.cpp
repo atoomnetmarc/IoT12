@@ -41,4 +41,27 @@ float ADCInternalClass::readChannel(pin_size_t pinNumber, uint8_t oversampleExtr
     return val * 2.23f / divisor;
 }
 
+// Reads one pin against the 3.3 V supply reference and restores the 2.23 V reference.
+float ADCInternalClass::readChannelVdd(pin_size_t pinNumber, uint8_t oversampleExtraBits) {
+    analogReference(AR_DEFAULT);
+    delayMicroseconds(10);
+
+    uint16_t loops = 1u << (2u * oversampleExtraBits);
+    uint32_t val = 0;
+
+    for (uint16_t loop = 0; loop < loops; loop++) {
+        val += analogRead(pinNumber);
+    }
+
+    val >>= oversampleExtraBits;
+
+    uint32_t divisor = (1u << (ADC_RESOLUTION + oversampleExtraBits)) - 1u;
+    float result = val * 3.3f / divisor;
+
+    analogReference(AR_INTERNAL2V23);
+    delayMicroseconds(10);
+
+    return result;
+}
+
 ADCInternalClass ADCInternal;

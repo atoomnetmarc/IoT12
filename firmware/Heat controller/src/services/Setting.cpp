@@ -30,6 +30,11 @@ namespace {
         {"resistanceHeaterShunt", &SettingClass::resistanceHeaterShunt},
         {"resistanceNTCPullUp", &SettingClass::resistanceNTCPullUp},
         {"thermocoupleInputOffsetVoltage", &SettingClass::thermocoupleInputOffsetVoltage},
+        {"standbyTemperatureHeater", &SettingClass::standbyTemperatureHeater},
+        {"standbyTemperatureHeater2", &SettingClass::standbyTemperatureHeater2},
+        {"shakeStage1Ms", &SettingClass::shakeStage1Ms},
+        {"shakeStage2Ms", &SettingClass::shakeStage2Ms},
+        {"shakeOffMs", &SettingClass::shakeOffMs},
     };
 
     /*
@@ -97,6 +102,12 @@ void SettingClass::defaults(void) {
 
     // INA826 input offset voltage 40uV typical to 150uV maximum.
     thermocoupleInputOffsetVoltage = 0.00004f;
+
+    standbyTemperatureHeater = 523.15f;
+    standbyTemperatureHeater2 = 423.15f;
+    shakeStage1Ms = 180000.0f;
+    shakeStage2Ms = 600000.0f;
+    shakeOffMs = 900000.0f;
 }
 
 void SettingClass::load(void) {

@@ -15,6 +15,7 @@
 #include "EventLog.h"
 #include "Heater.h"
 #include "Setting.h"
+#include "Shake.h"
 #include "WireMinion.h"
 #include "config.h"
 
@@ -246,7 +247,7 @@ void HeaterClass::loop(void) {
         WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
 
         if (Setting.heaterState == HEATER_STATE::ON && !heaterInhibited) {
-            tTarget = Setting.targetTemperatureHeater;
+            tTarget = Shake.targetTemperature();
         } else {
             tTarget = 0;
         }
@@ -265,8 +266,16 @@ void HeaterClass::loop(void) {
 
     static HEATER_STATE lastHeaterState = HEATER_STATE::OFF;
     if (Setting.heaterState != lastHeaterState) {
+        if (Setting.heaterState == HEATER_STATE::ON) {
+            Shake.reset();
+        }
+
         lastHeaterState = Setting.heaterState;
         eventlog::Log.record(lastHeaterState == HEATER_STATE::ON ? eventlog::HEATER_ON : eventlog::HEATER_OFF, 0);
+    }
+
+    if (Shake.expired() && Setting.heaterState == HEATER_STATE::ON) {
+        Setting.heaterState = HEATER_STATE::OFF;
     }
 }
 

@@ -14,6 +14,7 @@
 #define PIN_ADC_READY (8u)
 #define PIN_HEAT_INT  (4u)
 #define PIN_FLASH_CS  (6u)
+#define PIN_SHAKE     A3
 
 #define PIN_INTERNAL_ADC_NTC          PIN_A0
 #define PIN_INTERNAL_ADC_TEMP         PIN_A1

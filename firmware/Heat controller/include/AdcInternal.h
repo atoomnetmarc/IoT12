@@ -18,6 +18,7 @@ class ADCInternalClass {
 public:
     void init(void);
     float readChannel(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2);
+    float readChannelVdd(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2);
 };
 
 extern ADCInternalClass ADCInternal;
