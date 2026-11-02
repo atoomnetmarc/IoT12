@@ -50,21 +50,26 @@ namespace cli_format {
             value = -value;
         }
 
-        uint32_t scale = 1;
+        /*
+         * The scaled value needs 64 bits: 10000 with 6 decimals is 1e10, which
+         * overflows uint32_t. The product is formed in double, because a float
+         * product loses the low digits before the rounding step.
+         */
+        uint64_t scale = 1;
         for (uint8_t i = 0; i < decimals; ++i) {
             scale *= 10U;
         }
 
-        uint32_t scaled = static_cast<uint32_t>(value * static_cast<float>(scale) + 0.5f);
-        uint32_t whole = scaled / scale;
-        uint32_t fraction = scaled % scale;
+        uint64_t scaled = static_cast<uint64_t>(static_cast<double>(value) * static_cast<double>(scale) + 0.5);
+        uint64_t whole = scaled / scale;
+        uint64_t fraction = scaled % scale;
 
         size_t pos = 0;
         if (negative && pos + 1 < size) {
             buffer[pos++] = '-';
         }
 
-        char digits[12];
+        char digits[20];
         size_t count = 0;
         do {
             digits[count++] = static_cast<char>('0' + (whole % 10U));
@@ -78,7 +83,7 @@ namespace cli_format {
         if (decimals > 0 && pos + 1 < size) {
             buffer[pos++] = '.';
             for (uint8_t i = decimals; i > 0 && pos + 1 < size; --i) {
-                uint32_t divisor = 1;
+                uint64_t divisor = 1;
                 for (uint8_t j = 1; j < i; ++j) {
                     divisor *= 10U;
                 }

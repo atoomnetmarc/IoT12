@@ -125,7 +125,7 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Verified on V2.2 hardware: `flash info` reports unique ID `D164B8424F2D3021`, identical before and after a reboot, status 1/2/3 all `0x00` (no busy, no write enable, no block protect, no lock, drive strength 100%), and the filesystem still reads and writes normally after the raw-SPI reads.
 - The heater output is inhibited for the duration of the erase. The inhibit path is not yet exercised with the heater on: the Heat controller has no local `heater on` command until M7, so the bench test runs with the heater off.
 
-### [ ] M5 - Settings as JSON (flash: yes)
+### [x] M5 - Settings as JSON (flash: yes)
 
 - Add ArduinoJson 7. Serialize the seven settings fields to `/settings.json` (compact) with camelCase keys identical to the `SettingClass` members; deserialize on boot, and a missing key falls back to its default.
 - Double-buffer the settings file: copy `/settings.json` to `/settings.json.bak`, then write the new `/settings.json`. On boot `/settings.json` wins; `/settings.json.bak` is used only when the primary is missing or invalid.
@@ -135,6 +135,9 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Flash and verify: change a setting over the minion bus, confirm it persists across a reboot, confirm defaults appear on a blank filesystem.
 - CLI: extend `settings` to the JSON store: `settings` (dump all keys, camelCase, so a printed key is valid `settings set` input), `settings get <key>`, `settings set <key> <value>` (writes and saves), `settings save`, `settings load`, `settings defaults yes-really`, `settings file` (active file, sizes, validity of both buffers).
 - `pio run` passes.
+- Verified on V2.2 hardware: `settings` dumps the seven camelCase keys, `settings set targetTemperatureHeater 400` writes a 240-byte `/settings.json` that survives a reboot, `settings file` reports both buffers valid, and `fs format` plus a reboot returns the defaults with a `SETTINGS_DEFAULT` event.
+- Verified on V2.2 hardware: a corrupt primary falls back to `/settings.json.bak` on boot (`SETTINGS_LOAD`), and the next save keeps the valid backup instead of copying the corrupt primary over it.
+- Verified on V2.2 hardware: `heat setpoint 150` from the ESP32 writes 423.15 K over the minion bus and the value survives a Heat controller reboot.
 
 ### [ ] M6 - ADS1115-only measurement (flash: yes)
 

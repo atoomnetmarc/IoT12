@@ -194,6 +194,16 @@ bool SettingClass::_backup(void) {
         return false;
     }
 
+    /*
+     * Only a valid primary replaces the backup, so a corrupt primary cannot
+     * destroy the last good copy.
+     */
+    JsonDocument doc;
+
+    if (deserializeJson(doc, buffer, static_cast<size_t>(count)) != DeserializationError::Ok || !doc.is<JsonObject>()) {
+        return true;
+    }
+
     lfs_file_t target;
 
     if (lfs_file_open(&Storage.fs(), &target, setting_files::BACKUP, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) != LFS_ERR_OK) {
