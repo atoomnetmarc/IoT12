@@ -11,7 +11,6 @@ class SensorClass {
 public:
     SensorClass();
     void init(void);
-    void loop(void);
 
 private:
 };

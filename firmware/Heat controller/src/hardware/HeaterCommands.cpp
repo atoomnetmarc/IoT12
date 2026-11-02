@@ -7,14 +7,24 @@
 
 #include "HeaterCommands.h"
 
+#include <cstdlib>
+#include <cstring>
+
 #include "CliFormat.h"
 #include "Heater.h"
 #include "Setting.h"
 
 namespace {
     void cmdSensor(cli::SerialCli &cli, int argc, char **argv) {
-        (void)argc;
-        (void)argv;
+        if (argc >= 2 && strcmp(argv[1], "offset") == 0) {
+            if (argc >= 3) {
+                Setting.thermocoupleInputOffsetVoltage = atof(argv[2]);
+                Setting.save();
+            }
+
+            cli_format::keyFloat(cli, "THERMOCOUPLE_OFFSET_V", Setting.thermocoupleInputOffsetVoltage, 6);
+            return;
+        }
 
         HeaterStatus status = Heater.status();
 
@@ -66,7 +76,7 @@ namespace {
 
 namespace heater_commands {
     void registerCommands(cli::SerialCli &cli) {
-        cli.registerCommand({"sensor", [&cli](int argc, char **argv) { cmdSensor(cli, argc, argv); }, "tip and NTC temperature, VIN, iron current, Rtip, Rsupply"});
+        cli.registerCommand({"sensor", [&cli](int argc, char **argv) { cmdSensor(cli, argc, argv); }, "tip and NTC temperature, VIN, iron current, Rtip, Rsupply; sensor offset [<volts>]"});
         cli.registerCommand({"heater", [&cli](int argc, char **argv) { cmdHeater(cli, argc, argv); }, "state, setpoint, heatfactor, PWM duty"});
         cli.registerCommand({"pid", [&cli](int argc, char **argv) { cmdPid(cli, argc, argv); }, "PID gains and terms"});
     }

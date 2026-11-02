@@ -7,6 +7,11 @@
 
 #include "AdcExternal.h"
 
+namespace {
+    // A conversion at 860 SPS takes 1.16 ms; 5 ms leaves room for I2C overhead.
+    constexpr uint32_t CONVERSION_TIMEOUT_US = 5000;
+}
+
 ADCExternalClass::ADCExternalClass() {
 }
 
@@ -32,12 +37,15 @@ float ADCExternalClass::readChannel(uint8_t channel) {
     return voltage;
 }
 
+// Reads one channel and waits for the conversion-ready edge, bounded by the timeout.
 void ADCExternalClass::readChannelRaw(uint8_t channel, int16_t &raw, float &volts) {
     ADS1115_MUX mux = (ADS1115_MUX)(ADS1115_COMP_0_GND + channel * ADS1115_COMP_INC);
 
     adc.setCompareChannels(mux);
     adc.startSingleMeasurement();
-    while (convReady == false) {
+
+    uint32_t start = micros();
+    while (convReady == false && (micros() - start) < CONVERSION_TIMEOUT_US) {
     }
     convReady = false;
 

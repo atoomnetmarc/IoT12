@@ -22,7 +22,13 @@ namespace {
             return;
         }
 
-        HeatController.setHeaterState(on ? HEATER_STATE::ON : HEATER_STATE::OFF);
+        uint8_t result = HeatController.setHeaterState(on ? HEATER_STATE::ON : HEATER_STATE::OFF);
+
+        if (result != 0) {
+            cli.writef("heat: write failed (%u)\r\n", result);
+            return;
+        }
+
         cli_format::keyText(cli, "STATE", on ? "ON" : "OFF");
     }
 
@@ -33,7 +39,13 @@ namespace {
         }
 
         float celsius = static_cast<float>(atof(argument));
-        HeatController.setTargetTemperature(celsius + 273.15f);
+        uint8_t result = HeatController.setTargetTemperature(celsius + 273.15f);
+
+        if (result != 0) {
+            cli.writef("heat: write failed (%u)\r\n", result);
+            return;
+        }
+
         cli_format::keyFloat(cli, "SETPOINT_C", celsius, 2);
     }
 

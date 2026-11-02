@@ -15,6 +15,11 @@
 #define PIN_HEAT_INT  (4u)
 #define PIN_FLASH_CS  (6u)
 
+#define PIN_INTERNAL_ADC_NTC          PIN_A0
+#define PIN_INTERNAL_ADC_TEMP         PIN_A1
+#define PIN_INTERNAL_ADC_VIN          PIN_A4
+#define PIN_INTERNAL_ADC_IRON_CURRENT PIN_A5
+
 #define AIN_EXTERNAL_ADC_TEMP         (0u)
 #define AIN_EXTERNAL_ADC_NTC          (1u)
 #define AIN_EXTERNAL_ADC_IRON_CURRENT (2u)

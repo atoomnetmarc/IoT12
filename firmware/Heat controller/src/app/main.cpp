@@ -77,7 +77,6 @@ void setup() {
 void loop() {
     Heater.setInhibit(Storage.erasing());
     Heater.loop();
-    Sensor.loop();
     Setting.loop();
     Storage.loop();
     WireMinion.loop();

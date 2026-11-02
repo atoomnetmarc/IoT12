@@ -52,16 +52,16 @@ float HeatControllerClass::getTargetTemperature(void) {
     return readRegister_float(REGISTER_TEMPERATURE_HEATER_TARGET);
 }
 
-void HeatControllerClass::setTargetTemperature(float kelvin) {
-    writeRegister(REGISTER_TEMPERATURE_HEATER_TARGET, kelvin);
+uint8_t HeatControllerClass::setTargetTemperature(float kelvin) {
+    return writeRegister(REGISTER_TEMPERATURE_HEATER_TARGET, kelvin);
 }
 
 HEATER_STATE HeatControllerClass::getHeaterState(void) {
     return (HEATER_STATE)readRegister_uint8_t(REGISTER_HEATER_STATE);
 }
 
-void HeatControllerClass::setHeaterState(HEATER_STATE state) {
-    writeRegister(REGISTER_HEATER_STATE, (uint8_t)state);
+uint8_t HeatControllerClass::setHeaterState(HEATER_STATE state) {
+    return writeRegister(REGISTER_HEATER_STATE, (uint8_t)state);
 }
 
 float HeatControllerClass::getTemperatureTip(void) {

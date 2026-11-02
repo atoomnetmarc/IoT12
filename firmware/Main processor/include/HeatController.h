@@ -110,9 +110,9 @@ public:
     void loop(void);
 
     float getTargetTemperature(void);
-    void setTargetTemperature(float kelvin);
+    uint8_t setTargetTemperature(float kelvin);
     HEATER_STATE getHeaterState(void);
-    void setHeaterState(HEATER_STATE state);
+    uint8_t setHeaterState(HEATER_STATE state);
 
     float getTemperatureTip(void);
     float getTemperatureNTC(void);

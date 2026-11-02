@@ -16,7 +16,7 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 ## Decisions (from interview)
 
 - Restructure the firmware: `src/` split by category (`app/`, `hardware/`, `services/`). The restructure is move-only: files are relocated and includes are updated, the existing global singletons and their wiring stay as they are. A composition root is deferred until a milestone needs one.
-- Measurement source of truth is the ADS1115 only. All four analog channels are read over the HEAT I2C bus. The SAMD21 internal ADC analog paths are removed. The ADS1115 sample timing fits the 20 ms measurement window of the heating cycle; this is proven by the working measurement code on the current hardware.
+- Measurement source of truth is the ADS1115 only. All four analog channels are read over the HEAT I2C bus. The SAMD21 internal ADC stays available as a read-only diagnostic on the same analog nets; it never feeds the heater control loop. The ADS1115 sample timing fits the 20 ms measurement window of the heating cycle; this is proven by the working measurement code on the current hardware.
 - I2C topology: `Wire` (sercom3, PA22/PA23) is the master bus for the ADS1115. A custom `TwoWire` instance on sercom2 (PA08/PA09) is the I2C minion bus to the ESP32. sercom0 is unavailable because the `arduino_mzero` variant defines `SERCOM0_Handler` for `Serial1`. The expansion bus (PA16/PA17) stays untouched.
 - Settings are stored as JSON (ArduinoJson) on the external W25Q64 SPI flash.
 - Storage stack: Adafruit_SPIFlashBase with Adafruit_FlashTransport_SPI on the default SPI pads (PA12/PB10/PB11) and FLASH_CS on PA20, with the upstream littlefs library (`rw0402/littlefs`) on top through a block-device glue. Adafruit SPIFlash 5.x does not bundle LittleFS and Adafruit_LittleFS is not in the PlatformIO registry; the base class avoids the SdFat wrapper and its 4 KiB block cache. The LittleFS block is the 4 KiB sector, the cache is 256 bytes, and the lookahead buffer is 16 bytes. When the flash is detected as blank (all 0xFF) it is formatted automatically. Partitioning beyond the LittleFS volume is deferred until a feature needs it.
@@ -143,8 +143,10 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 
 - Read TEMP, NTC, IRON_CURRENT, VIN from ADS1115 channels AIN0-AIN3 over `Wire`, conversion-ready signaled by ADC_RDY (PA06) interrupt.
 - Delete AnalogComparator; SHAKE is read as a digital GPIO input in M8.
+- Restore the SAMD21 internal ADC as a read-only diagnostic. It reads the same analog nets as the ADS1115 and never feeds the control loop. The 2.23 V reference clips the NTC below about 10 C; the ADS1115 covers that range.
+- Bench fact: with a cold tip, the TEMP net swings between about 0.005 V and 0.23 V with a mean of about 0.08 V (20 C). The ADS1115 and the SAMD21 internal ADC show the same swing, so the swing is in the analog signal and not in the ADC read path. The cause is investigated with a scope on the hardware bench.
 - Flash and verify the tip temperature and heater current readings against the values the current firmware reports, and confirm the heating cycle stays stable.
-- CLI: extend `adc`/`sensor` to the ADS1115-only path: `adc` (all four channels, raw and converted), `adc raw`, `adc <temp|ntc|current|vin>`, `sensor` (tip temperature, NTC temperature, heater current, supply voltage), `sensor offset [<volts>]` (get/set `thermocoupleInputOffsetVoltage`).
+- CLI: extend `adc`/`sensor` to the ADS1115-only path: `adc` (all four channels, raw and converted, with the SAMD21 ADC value and absolute difference in V in the second and third column), `adc raw`, `adc <temp|ntc|current|vin>`, `sensor` (tip temperature, NTC temperature, heater current, supply voltage), `sensor offset [<volts>]` (get/set `thermocoupleInputOffsetVoltage`).
 - `pio run` passes.
 
 ### [ ] M7 - Minion protocol and HEAT_INT (flash: yes, joint with ESP32 M6)
