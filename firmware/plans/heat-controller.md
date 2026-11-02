@@ -139,7 +139,7 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Verified on V2.2 hardware: a corrupt primary falls back to `/settings.json.bak` on boot (`SETTINGS_LOAD`), and the next save keeps the valid backup instead of copying the corrupt primary over it.
 - Verified on V2.2 hardware: `heat setpoint 150` from the ESP32 writes 423.15 K over the minion bus and the value survives a Heat controller reboot.
 
-### [ ] M6 - ADS1115-only measurement (flash: yes)
+### [x] M6 - ADS1115-only measurement (flash: yes)
 
 - Read TEMP, NTC, IRON_CURRENT, VIN from ADS1115 channels AIN0-AIN3 over `Wire`, conversion-ready signaled by ADC_RDY (PA06) interrupt.
 - Delete AnalogComparator; SHAKE is read as a digital GPIO input in M8.
@@ -148,8 +148,10 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Flash and verify the tip temperature and heater current readings against the values the current firmware reports, and confirm the heating cycle stays stable.
 - CLI: extend `adc`/`sensor` to the ADS1115-only path: `adc` (all four channels, raw and converted, with the SAMD21 ADC value and absolute difference in V in the second and third column), `adc raw`, `adc <temp|ntc|current|vin>`, `sensor` (tip temperature, NTC temperature, heater current, supply voltage), `sensor offset [<volts>]` (get/set `thermocoupleInputOffsetVoltage`).
 - `pio run` passes.
+- Verified on V2.2 hardware: the ADS1115 path reports tip temperature, NTC temperature, iron current and VIN, and the heating cycle stays stable.
+- Verified on V2.2 hardware: `adc` prints the ADS1115 raw and converted value per channel with the SAMD21 internal ADC value and the absolute difference in V, `adc raw` and `adc <temp|ntc|current|vin>` select the channel, and `sensor offset` gets and sets `thermocoupleInputOffsetVoltage`.
 
-### [ ] M7 - Minion protocol and HEAT_INT (flash: yes, joint with ESP32 M6)
+### [x] M7 - Minion protocol and HEAT_INT (flash: yes, joint with ESP32 M6)
 
 - Define and document the I2C minion register protocol the ESP32 uses to read temperatures and control the heater.
 - Document the HEAT_INT (PA14) flag bitmask semantics: the SAMD21 raises the line and latches a 32-bit flag word, the ESP32 reads REGISTER_INTERRUPT to fetch and clear it.
@@ -158,6 +160,11 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - This milestone lands together with milestone M6 of the Main processor plan, in one integration session on the bench: both processors get the new register map in the same test run, so the register map never disagrees between the two firmwares.
 - CLI: extend `heater`/`pid`/`setpoint`; add `minion` (address, last transaction, latched interrupt flags, HEAT_INT asserted), `minion read <reg> [len]`, `minion write <reg> <hex...> yes-really` (bench-only, bypasses the protocol), `regs` (full register map with names, addresses, types, current values), `int` (latched flags), `int clear`, `link` (last heartbeat age, timeout flag, forced-off count), `link timeout [<ms>]`, `heater on|off`, `setpoint [<celsius>]`, `pid kp|ki|kd <value>`.
 - `pio run` passes.
+- Register 0x12 holds the link supervision timeout in milliseconds, so the master sets the same value the heat controller enforces.
+- Bench fact: the Main processor can boot before the heat controller leaves its bootloader, so the first minion handshake fails. The Main processor retries the handshake every second until it succeeds.
+- Verified on V2.2 hardware: `regs` and `minion read` report the same register values on both processors, `minion write` changes a register, and `minion` reports the last transaction and the latched flags.
+- Verified on V2.2 hardware: with the link timeout at 500 ms, the heat controller forces the heater off and raises INT_LINK_TIMEOUT; the Main processor fetches the flag, reports the lost link, and re-writes HEATER_STATE, so heating resumes. The forced-off and re-write counters both increase.
+- Verified on V2.2 hardware: `heater on|off`, `setpoint`, and `pid kp|ki|kd` change the state, the setpoint, and the gains, and the watchdog overrides the state when the heartbeat stops.
 
 ### [ ] M8 - SHAKE standby (flash: yes, nice-to-have, lowest priority)
 

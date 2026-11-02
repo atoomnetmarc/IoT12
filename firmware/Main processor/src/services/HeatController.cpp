@@ -6,10 +6,31 @@
  */
 
 #include "HeatController.h"
+#include "EventLog.h"
 #include "Log.h"
 #include "config.h"
 
 static const char *tag = "HeatLink";
+
+namespace {
+    const RegisterInfo registers[] = {
+        {"VERSION", REGISTER_VERSION, "str16", FIRMWARE_VERSION_LENGTH, false},
+        {"SERIAL_NUMBER", REGISTER_SERIAL_NUMBER, "u32x4", 16, false},
+        {"INTERRUPT", REGISTER_INTERRUPT, "u32", 4, false},
+        {"HEATER_STATE", REGISTER_HEATER_STATE, "u8", 1, true},
+        {"LINK_TIMEOUT", REGISTER_LINK_TIMEOUT, "u32", 4, true},
+        {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
+        {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
+        {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
+        {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
+        {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
+        {"GAIN_VSUPPLY_RESISTOR_DIVIDER", REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER, "float", 4, true},
+        {"GAIN_HEATER_TEMPERATURE_AMPLIFIER", REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER, "float", 4, true},
+        {"GAIN_HEATER_CURRENT_AMPLIFIER", REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER, "float", 4, true},
+        {"CONST1", REGISTER_CONST1, "u16", 2, false},
+        {"CONST2", REGISTER_CONST2, "float", 4, false},
+    };
+}
 
 void IRAM_ATTR HeatControllerINT() {
     HeatController._INT();
@@ -30,13 +51,37 @@ bool HeatControllerClass::init() {
 
     Wire.beginTransmission(i2cAddress);
     if (Wire.endTransmission()) {
-        return 0;
+        return false;
     }
 
-    return checkCompatibility();
+    if (checkCompatibility() == false) {
+        return false;
+    }
+
+    lastHeartbeatMs = millis();
+    lastInitAttemptMs = millis();
+    heartbeat();
+
+    return true;
 }
 
 void HeatControllerClass::loop() {
+    uint32_t now = millis();
+
+    /*
+     * The heat controller can still be in its bootloader when this processor
+     * boots. Retry the handshake until it answers, so a reset of either side
+     * never leaves the link down.
+     */
+    if (compatible == false) {
+        if (now - lastInitAttemptMs >= 1000) {
+            lastInitAttemptMs = now;
+            init();
+        }
+
+        return;
+    }
+
     if (this->heatInt == true) {
         this->heatInt = false;
         lastInterrupt = getInterrupt();
@@ -44,6 +89,47 @@ void HeatControllerClass::loop() {
         if (lastInterrupt & (1UL << INT_REBOOT)) {
             LOG_W(tag, "heat controller rebooted, re-checking compatibility");
             checkCompatibility();
+        }
+
+        if (lastInterrupt & (1UL << INT_LINK_TIMEOUT)) {
+            linkTimedOutFlag = true;
+            eventlog::Log.record(eventlog::LINK_TIMEOUT, 0);
+            LOG_W(tag, "heat controller link timeout");
+        }
+    }
+
+    if (now - lastHeartbeatMs >= HEARTBEAT_INTERVAL_MS) {
+        lastHeartbeatMs = now;
+        heartbeat();
+    }
+}
+
+/*
+ * Reads REGISTER_HEATER_STATE. That read is the link heartbeat: it restarts the
+ * heat controller watchdog. After a timeout the requested state is written
+ * again, so heating resumes when the link returns.
+ */
+void HeatControllerClass::heartbeat(void) {
+    uint8_t state = 0;
+    size_t got = readRegisterArray(REGISTER_HEATER_STATE, &state, sizeof(state));
+
+    if (got != sizeof(state)) {
+        errorCountValue++;
+        return;
+    }
+
+    heartbeatCountValue++;
+    cachedState = (HEATER_STATE)state;
+
+    if (linkTimedOutFlag) {
+        linkTimedOutFlag = false;
+
+        if (desiredStateValid) {
+            if (writeRegister(REGISTER_HEATER_STATE, static_cast<uint8_t>(desiredState)) == 0) {
+                rewriteCountValue++;
+            } else {
+                errorCountValue++;
+            }
         }
     }
 }
@@ -57,11 +143,19 @@ uint8_t HeatControllerClass::setTargetTemperature(float kelvin) {
 }
 
 HEATER_STATE HeatControllerClass::getHeaterState(void) {
-    return (HEATER_STATE)readRegister_uint8_t(REGISTER_HEATER_STATE);
+    return cachedState;
 }
 
 uint8_t HeatControllerClass::setHeaterState(HEATER_STATE state) {
-    return writeRegister(REGISTER_HEATER_STATE, (uint8_t)state);
+    uint8_t result = writeRegister(REGISTER_HEATER_STATE, static_cast<uint8_t>(state));
+
+    if (result == 0) {
+        desiredState = state;
+        desiredStateValid = true;
+        cachedState = state;
+    }
+
+    return result;
 }
 
 float HeatControllerClass::getTemperatureTip(void) {
@@ -70,14 +164,6 @@ float HeatControllerClass::getTemperatureTip(void) {
 
 float HeatControllerClass::getTemperatureNTC(void) {
     return readRegister_float(REGISTER_TEMPERATURE_NTC);
-}
-
-void HeatControllerClass::setI2SEnable(bool enable) {
-    writeRegister(REGISTER_I2S_SD, (uint8_t)(enable));
-}
-
-void HeatControllerClass::setI2SGain(MAX98357_GAIN gain) {
-    writeRegister(REGISTER_I2S_GAIN, (uint8_t)(gain));
 }
 
 const char *HeatControllerClass::getFirmwareVersion(void) {
@@ -124,22 +210,82 @@ float HeatControllerClass::getConst2(void) {
     return const2.m_float;
 }
 
+uint8_t HeatControllerClass::readRegisterRaw(uint8_t r, uint8_t *dest, size_t len) {
+    return static_cast<uint8_t>(readRegisterArray(r, dest, len));
+}
+
+uint8_t HeatControllerClass::writeRegisterRaw(uint8_t r, const uint8_t *src, size_t len) {
+    return writeRegister(r, src, len);
+}
+
+size_t HeatControllerClass::registerCount(void) const {
+    return sizeof(registers) / sizeof(registers[0]);
+}
+
+const RegisterInfo &HeatControllerClass::registerAt(size_t index) const {
+    return registers[index];
+}
+
+uint8_t HeatControllerClass::registerSize(uint8_t r) const {
+    for (size_t i = 0; i < registerCount(); i++) {
+        if (registers[i].address == r) {
+            return registers[i].size;
+        }
+    }
+
+    return 0;
+}
+
+uint32_t HeatControllerClass::linkAgeMs(void) const {
+    return millis() - lastHeartbeatMs;
+}
+
+bool HeatControllerClass::linkTimedOut(void) const {
+    return linkTimedOutFlag;
+}
+
+uint32_t HeatControllerClass::rewriteCount(void) const {
+    return rewriteCountValue;
+}
+
+uint32_t HeatControllerClass::errorCount(void) const {
+    return errorCountValue;
+}
+
+uint32_t HeatControllerClass::heartbeatCount(void) const {
+    return heartbeatCountValue;
+}
+
+uint32_t HeatControllerClass::getLinkTimeout(void) {
+    return readRegister_uint32_t(REGISTER_LINK_TIMEOUT);
+}
+
+uint8_t HeatControllerClass::setLinkTimeout(uint32_t ms) {
+    return writeRegister(REGISTER_LINK_TIMEOUT, ms);
+}
+
 void HeatControllerClass::_INT() {
     this->heatInt = true;
 }
 
-void HeatControllerClass::selectRegister(uint8_t r) {
+uint8_t HeatControllerClass::selectRegister(uint8_t r) {
     Wire.beginTransmission(i2cAddress);
     Wire.write(r);
-    Wire.endTransmission();
+    return Wire.endTransmission();
 }
 
-void HeatControllerClass::readRegisterArray(uint8_t r, uint8_t *dest, size_t len) {
-    selectRegister(r);
-    Wire.requestFrom(i2cAddress, len);
-    for (size_t b = 0; b < len; b++) {
-        dest[b] = Wire.read();
+size_t HeatControllerClass::readRegisterArray(uint8_t r, uint8_t *dest, size_t len) {
+    if (selectRegister(r) != 0) {
+        return 0;
     }
+
+    size_t got = Wire.requestFrom(i2cAddress, len);
+
+    for (size_t b = 0; b < len; b++) {
+        dest[b] = b < got ? static_cast<uint8_t>(Wire.read()) : 0;
+    }
+
+    return got;
 }
 
 uint8_t HeatControllerClass::readRegister_uint8_t(uint8_t r) {
@@ -160,7 +306,7 @@ float HeatControllerClass::readRegister_float(uint8_t r) {
     return float_union.m_float;
 }
 
-uint8_t HeatControllerClass::writeRegister(uint8_t r, uint8_t *src, size_t len) {
+uint8_t HeatControllerClass::writeRegister(uint8_t r, const uint8_t *src, size_t len) {
     if (compatible == false) {
         return 1;
     }
@@ -168,7 +314,7 @@ uint8_t HeatControllerClass::writeRegister(uint8_t r, uint8_t *src, size_t len) 
     Wire.beginTransmission(i2cAddress);
     Wire.write(r);
 
-    for (int8_t b = len; b > 0; b--) {
+    for (size_t b = len; b > 0; b--) {
         Wire.write(src[b - 1]);
     }
 

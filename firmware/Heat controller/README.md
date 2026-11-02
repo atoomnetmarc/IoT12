@@ -30,6 +30,7 @@ The firmware version register is the only register that must be read. All other 
 |     0x01 | R   | 4x uint32_t |         |                |      | SAMD21 128-bit serial number  |
 |     0x10 | R   |    uint32_t |         |                |      | Interrupt reason              |
 |     0x11 | RW  |     uint8_t |    0x00 | N              |      | Heating state                 |
+|     0x12 | RW  |    uint32_t |    5000 | N              |   ms | Link supervision timeout      |
 |     0x40 | R   |       float |         |                |    K | Current tip temperature       |
 |     0x41 | R   |       float |         |                |    K | Ambient temperature           |
 |     0x80 | RW  |       float |  373.15 | Y              |    K | Target tip temperature        |
@@ -65,12 +66,13 @@ Unique 128-bit SAMD21 microcontroller serial number represented as four consecut
 
 #### Bit Definitions:
 
-| Bit  | Name | Description                    |
-| ---- | ---- | ------------------------------ |
-| 31   | Z    | Heat controller rebooted       |
-| 30   | Y    | Group A measurements available |
-| 29   | X    | Group B measurements available |
-| 28-0 |      | Reserved (ignore if set)       |
+| Bit  | Name | Description                     |
+| ---- | ---- | ------------------------------- |
+| 31   | Z    | Heat controller rebooted        |
+| 30   | Y    | Group A measurements available  |
+| 29   | X    | Group B measurements available  |
+| 28   | W    | Link timeout, heater forced off |
+| 27-0 |      | Reserved (ignore if set)        |
 
 #### Handling Requirements:
 
@@ -93,6 +95,12 @@ Unique 128-bit SAMD21 microcontroller serial number represented as four consecut
 | 0x00  | Off   |
 | 0x01  | On    |
 
+A read of this register is the link heartbeat. See "Link Supervision" below.
+
+### 0x12: Link Supervision Timeout
+
+The time in milliseconds without a heartbeat before the heat controller forces the heater off. The default is 5000 ms. The value is not saved in NVRAM.
+
 ### 0x80: Target Tip Temperature
 
 Maximum allowed value: 725K (451.85°C)
@@ -103,6 +111,17 @@ Fixed values for verifying little-endian multibyte transfers:
 
 - 0xF8: uint16_t (0x1234)
 - 0xF9: float (π ≈ 3.14)
+
+# Link Supervision
+
+The heat controller owns heater safety. The master must read register 0x11 (heating state) at least once per 5 seconds. That read is the heartbeat: it restarts the supervision timer. No other register read or write restarts the timer.
+
+When no heartbeat arrives within the timeout (register 0x12, default 5000 ms), the heat controller:
+
+1. Forces the heating state to 0x00 (off).
+2. Raises bit 28 (INT_LINK_TIMEOUT) in the interrupt register and asserts HEAT_INT.
+
+The master reads register 0x10 to fetch and clear the flag, reports the lost link, and writes register 0x11 again after communication resumes. Heating resumes on that write. The two controllers cannot reset each other.
 
 # Settings Storage
 

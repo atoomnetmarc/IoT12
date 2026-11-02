@@ -122,7 +122,7 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - CLI: `audio` (SD/mute state, gain pins, gain in dB, playing), `audio gain <3|6|9|12|15>`, `audio mute|unmute`, `audio test` (play a test tone once).
 - `pio run` passes.
 
-### [ ] M6 - Heat controller link (flash: yes, joint with Heat controller M7)
+### [x] M6 - Heat controller link (flash: yes, joint with Heat controller M7)
 
 - I2C master on IO21/IO22 talking the minion protocol from the Heat controller plan.
 - Handle HEAT_INT (IO35) per the resolved semantics.
@@ -133,6 +133,11 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - This milestone lands together with milestone M7 of the Heat controller plan, in one integration session on the bench: both processors get the new register map in the same test run, so the register map never disagrees between the two firmwares.
 - CLI: extend `heat` with link age, interrupt flags, NTC temperature, and the full register map (`heat regs`); add `heat read <reg> [len]`, `heat write <reg> <hex...> yes-really` (bench-only), `heat int` (fetch-and-clear), `heat on|off`, `heat setpoint <celsius>`, `link` (last heartbeat age, timeout flag, re-write count, error counters), `link timeout [<ms>]`.
 - `pio run` passes.
+- The heartbeat is a read of REGISTER_HEATER_STATE every second from `HeatControllerClass::loop()`, which the application loop calls before the display and the network services.
+- The handshake retries every second while the heat controller does not answer, so a reset of either processor never leaves the link down.
+- Verified on V2.2 hardware: `heat` reports the link age, the timeout flag, the re-write and error counters, and the heartbeat count; `heat regs` and `heat read` match the heat controller register map.
+- Verified on V2.2 hardware: with the link timeout at 500 ms, the heat controller raises INT_LINK_TIMEOUT, the Main processor fetches the flag, reports the lost link, and re-writes HEATER_STATE, so heating resumes.
+- Verified on V2.2 hardware: `heat on|off` and `heat setpoint` return the write result, and `heat write` changes a register.
 
 ### [ ] M7 - Network services cleanup (flash: yes)
 

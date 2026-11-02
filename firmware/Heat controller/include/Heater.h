@@ -46,6 +46,7 @@ public:
     void init(void);
     void loop(void);
     void setInhibit(bool inhibit);
+    void setGains(float kp, float ki, float kd);
     HeaterStatus status(void);
 
 private:

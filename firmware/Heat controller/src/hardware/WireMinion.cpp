@@ -9,10 +9,31 @@
 #include <Wire.h>
 #include <wiring_private.h>
 
+#include "EventLog.h"
 #include "Setting.h"
 #include "WireMinion.h"
 #include "config.h"
 #include "main.h"
+
+namespace {
+    const RegisterInfo registers[] = {
+        {"VERSION", REGISTER_VERSION, "str16", FIRMWARE_VERSION_LENGTH, false},
+        {"SERIAL_NUMBER", REGISTER_SERIAL_NUMBER, "u32x4", 16, false},
+        {"INTERRUPT", REGISTER_INTERRUPT, "u32", 4, false},
+        {"HEATER_STATE", REGISTER_HEATER_STATE, "u8", 1, true},
+        {"LINK_TIMEOUT", REGISTER_LINK_TIMEOUT, "u32", 4, true},
+        {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
+        {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
+        {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
+        {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
+        {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
+        {"GAIN_VSUPPLY_RESISTOR_DIVIDER", REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER, "float", 4, true},
+        {"GAIN_HEATER_TEMPERATURE_AMPLIFIER", REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER, "float", 4, true},
+        {"GAIN_HEATER_CURRENT_AMPLIFIER", REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER, "float", 4, true},
+        {"CONST1", REGISTER_CONST1, "u16", 2, false},
+        {"CONST2", REGISTER_CONST2, "float", 4, false},
+    };
+}
 
 void _requestEvent(void) {
     WireMinion.requestEvent();
@@ -35,6 +56,8 @@ void WireMinionClass::init(void) {
 
     pinMode(PIN_HEAT_INT, OUTPUT);
 
+    _lastHeartbeatMs = millis();
+
     raiseInterrupt(INT_REBOOT);
 }
 
@@ -43,79 +66,30 @@ void WireMinionClass::loop(void) {
         _assertHeatINT = false;
         digitalWrite(PIN_HEAT_INT, HIGH);
     }
+
+    if (_linkTimedOut == false && (millis() - _lastHeartbeatMs) > _linkTimeoutMs) {
+        _linkTimedOut = true;
+        _forcedOffCount++;
+        Setting.heaterState = HEATER_STATE::OFF;
+        raiseInterrupt(INT_LINK_TIMEOUT);
+        eventlog::Log.record(eventlog::LINK_TIMEOUT, static_cast<int32_t>(_linkTimeoutMs));
+    }
 }
 
 void WireMinionClass::requestEvent(void) {
-    uint8_t sendBytes = 4;
-    uint8_t bytes[16];
-    float_u float_union;
+    uint8_t bytes[REGISTER_MAX_LENGTH];
+    uint8_t sendBytes = readRegister(_i2cRegister, bytes, sizeof(bytes));
 
-    if (_i2cRegister == REGISTER_INTERRUPT) {
-        uint32_t_u uint32_t_union;
-        sendBytes = sizeof(uint32_t_union.m_bytes);
-        uint32_t_union.m_uint32_t = _interruptFlags;
-        memcpy(bytes, uint32_t_union.m_bytes, sendBytes);
-
-        _interruptFlags = 0;
-        _assertHeatINT = false;
-        digitalWrite(PIN_HEAT_INT, LOW);
-    } else if (_i2cRegister == REGISTER_SERIAL_NUMBER) {
-        SerialNumber_u SerialNumber_union;
-        sendBytes = sizeof(SerialNumber_union.m_bytes);
-        SerialNumber_union.m_SerialNumber.word0 = *(uint32_t *)0x0080A00C;
-        SerialNumber_union.m_SerialNumber.word1 = *(uint32_t *)0x0080A040;
-        SerialNumber_union.m_SerialNumber.word2 = *(uint32_t *)0x0080A044;
-        SerialNumber_union.m_SerialNumber.word3 = *(uint32_t *)0x0080A048;
-        memcpy(bytes, SerialNumber_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_TEMPERATURE_HEATER_TARGET) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = Setting.targetTemperatureHeater;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_TEMPERATURE_HEATER) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = tTip;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_TEMPERATURE_NTC) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = tAmbient;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_VERSION) {
-        sendBytes = FIRMWARE_VERSION_LENGTH;
-        memset(bytes, 0, sendBytes);
-        strncpy((char *)bytes, PRODUCT_VERSION, sendBytes - 1);
-    } else if (_i2cRegister == REGISTER_CONST1) {
-        uint16_t_u uint16_t_union;
-        uint16_t_union.m_uint16_t = 0x1234;
-        sendBytes = sizeof(uint16_t_union.m_bytes);
-        memcpy(bytes, uint16_t_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_CONST2) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = PI;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_HEATER_STATE) {
-        sendBytes = sizeof(HEATER_STATE);
-        bytes[0] = Setting.heaterState;
-    } else if (_i2cRegister == REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = Setting.gainVSupplyResistorDivider;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = Setting.gainHeaterTemperatureAmplifier;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = Setting.gainHeaterCurrentAmplifier;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_RESISTOR_NTC_PULLUP) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = Setting.resistanceNTCPullUp;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
-    } else if (_i2cRegister == REGISTER_RESISTOR_HEATER_SHUNT) {
-        sendBytes = sizeof(float_union.m_bytes);
-        float_union.m_float = Setting.resistanceHeaterShunt;
-        memcpy(bytes, float_union.m_bytes, sendBytes);
+    // Only a read of the heater state is a link heartbeat.
+    if (_i2cRegister == REGISTER_HEATER_STATE) {
+        _lastHeartbeatMs = millis();
+        _linkTimedOut = false;
     }
+
+    _lastRegister = _i2cRegister;
+    _lastWasRead = true;
+    _lastLength = sendBytes;
+    _lastTransactionMs = millis();
 
     for (uint8_t i = 0; i < sendBytes; i++) {
         _minion.write(bytes[i]);
@@ -123,7 +97,7 @@ void WireMinionClass::requestEvent(void) {
 }
 
 void WireMinionClass::receiveEvent(int numBytes) {
-    float_u float_union;
+    (void)numBytes;
 
     // Read register address
     if (_minion.available()) {
@@ -143,6 +117,11 @@ void WireMinionClass::receiveEvent(int numBytes) {
         }
     }
 
+    _lastRegister = _i2cRegister;
+    _lastWasRead = false;
+    _lastLength = _i2cDataSize;
+    _lastTransactionMs = millis();
+
     // If not data received, do nothing.
     if (_i2cDataSize == 0) {
         return;
@@ -160,10 +139,106 @@ void WireMinionClass::receiveEvent(int numBytes) {
         }
     }
 
-    if (_i2cRegister == REGISTER_HEATER_STATE && _i2cDataSize == sizeof(HEATER_STATE)) {
-        Setting.heaterState = (HEATER_STATE)_i2cData[0];
-    } else if (_i2cRegister == REGISTER_TEMPERATURE_HEATER_TARGET && _i2cDataSize == sizeof(float_union.m_bytes)) {
-        memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
+    writeRegister(_i2cRegister, _i2cData, _i2cDataSize);
+}
+
+uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLength) {
+    uint8_t length = 0;
+    float_u float_union;
+
+    if (reg == REGISTER_INTERRUPT) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = _interruptFlags;
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+        clearInterrupts();
+    } else if (reg == REGISTER_SERIAL_NUMBER) {
+        SerialNumber_u SerialNumber_union;
+        SerialNumber_union.m_SerialNumber.word0 = *(uint32_t *)0x0080A00C;
+        SerialNumber_union.m_SerialNumber.word1 = *(uint32_t *)0x0080A040;
+        SerialNumber_union.m_SerialNumber.word2 = *(uint32_t *)0x0080A044;
+        SerialNumber_union.m_SerialNumber.word3 = *(uint32_t *)0x0080A048;
+        length = sizeof(SerialNumber_union.m_bytes);
+        memcpy(dest, SerialNumber_union.m_bytes, length);
+    } else if (reg == REGISTER_TEMPERATURE_HEATER_TARGET) {
+        float_union.m_float = Setting.targetTemperatureHeater;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_TEMPERATURE_HEATER) {
+        float_union.m_float = tTip;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_TEMPERATURE_NTC) {
+        float_union.m_float = tAmbient;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_VERSION) {
+        length = FIRMWARE_VERSION_LENGTH;
+        memset(dest, 0, length);
+        strncpy((char *)dest, PRODUCT_VERSION, length - 1);
+    } else if (reg == REGISTER_CONST1) {
+        uint16_t_u uint16_t_union;
+        uint16_t_union.m_uint16_t = 0x1234;
+        length = sizeof(uint16_t_union.m_bytes);
+        memcpy(dest, uint16_t_union.m_bytes, length);
+    } else if (reg == REGISTER_CONST2) {
+        float_union.m_float = PI;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_HEATER_STATE) {
+        length = sizeof(HEATER_STATE);
+        dest[0] = Setting.heaterState;
+    } else if (reg == REGISTER_LINK_TIMEOUT) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = _linkTimeoutMs;
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER) {
+        float_union.m_float = Setting.gainVSupplyResistorDivider;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER) {
+        float_union.m_float = Setting.gainHeaterTemperatureAmplifier;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER) {
+        float_union.m_float = Setting.gainHeaterCurrentAmplifier;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_RESISTOR_NTC_PULLUP) {
+        float_union.m_float = Setting.resistanceNTCPullUp;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_RESISTOR_HEATER_SHUNT) {
+        float_union.m_float = Setting.resistanceHeaterShunt;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    }
+
+    if (length > maxLength) {
+        length = maxLength;
+    }
+
+    return length;
+}
+
+bool WireMinionClass::writeRegister(uint8_t reg, const uint8_t *data, uint8_t length) {
+    float_u float_union;
+
+    if (reg == REGISTER_HEATER_STATE && length == sizeof(HEATER_STATE)) {
+        Setting.heaterState = (HEATER_STATE)data[0];
+        return true;
+    }
+
+    if (reg == REGISTER_LINK_TIMEOUT && length == sizeof(uint32_t)) {
+        uint32_t_u uint32_t_union;
+        memcpy(uint32_t_union.m_bytes, data, sizeof(uint32_t_union.m_bytes));
+        setLinkTimeout(uint32_t_union.m_uint32_t);
+        return true;
+    }
+
+    if (reg == REGISTER_TEMPERATURE_HEATER_TARGET && length == sizeof(float_union.m_bytes)) {
+        memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
 
         // Max temperature is 725K;
         if (float_union.m_float > 725) {
@@ -172,27 +247,45 @@ void WireMinionClass::receiveEvent(int numBytes) {
 
         Setting.targetTemperatureHeater = float_union.m_float;
         Setting.save();
-    } else if (_i2cRegister == REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER && _i2cDataSize == sizeof(float_union.m_bytes)) {
-        memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
+        return true;
+    }
+
+    if (reg == REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER && length == sizeof(float_union.m_bytes)) {
+        memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
         Setting.gainVSupplyResistorDivider = float_union.m_float;
         Setting.save();
-    } else if (_i2cRegister == REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER && _i2cDataSize == sizeof(float_union.m_bytes)) {
-        memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
+        return true;
+    }
+
+    if (reg == REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER && length == sizeof(float_union.m_bytes)) {
+        memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
         Setting.gainHeaterTemperatureAmplifier = float_union.m_float;
         Setting.save();
-    } else if (_i2cRegister == REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER && _i2cDataSize == sizeof(float_union.m_bytes)) {
-        memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
+        return true;
+    }
+
+    if (reg == REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER && length == sizeof(float_union.m_bytes)) {
+        memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
         Setting.gainHeaterCurrentAmplifier = float_union.m_float;
         Setting.save();
-    } else if (_i2cRegister == REGISTER_RESISTOR_NTC_PULLUP && _i2cDataSize == sizeof(float_union.m_bytes)) {
-        memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
+        return true;
+    }
+
+    if (reg == REGISTER_RESISTOR_NTC_PULLUP && length == sizeof(float_union.m_bytes)) {
+        memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
         Setting.resistanceNTCPullUp = float_union.m_float;
         Setting.save();
-    } else if (_i2cRegister == REGISTER_RESISTOR_HEATER_SHUNT && _i2cDataSize == sizeof(float_union.m_bytes)) {
-        memcpy(float_union.m_bytes, _i2cData, sizeof(float_union.m_bytes));
+        return true;
+    }
+
+    if (reg == REGISTER_RESISTOR_HEATER_SHUNT && length == sizeof(float_union.m_bytes)) {
+        memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
         Setting.resistanceHeaterShunt = float_union.m_float;
         Setting.save();
+        return true;
     }
+
+    return false;
 }
 
 void WireMinionClass::raiseInterrupt(uint8_t flag) {
@@ -200,6 +293,64 @@ void WireMinionClass::raiseInterrupt(uint8_t flag) {
         _interruptFlags |= (1UL << flag);
         _assertHeatINT = true;
     }
+}
+
+void WireMinionClass::clearInterrupts(void) {
+    _interruptFlags = 0;
+    _assertHeatINT = false;
+    digitalWrite(PIN_HEAT_INT, LOW);
+}
+
+uint32_t WireMinionClass::interruptFlags(void) const {
+    return _interruptFlags;
+}
+
+bool WireMinionClass::heatIntAsserted(void) const {
+    return digitalRead(PIN_HEAT_INT) == HIGH;
+}
+
+size_t WireMinionClass::registerCount(void) const {
+    return sizeof(registers) / sizeof(registers[0]);
+}
+
+const RegisterInfo &WireMinionClass::registerAt(size_t index) const {
+    return registers[index];
+}
+
+void WireMinionClass::setLinkTimeout(uint32_t ms) {
+    _linkTimeoutMs = ms < 100 ? 100 : ms;
+}
+
+uint32_t WireMinionClass::linkTimeout(void) const {
+    return _linkTimeoutMs;
+}
+
+uint32_t WireMinionClass::lastHeartbeatAgeMs(void) const {
+    return millis() - _lastHeartbeatMs;
+}
+
+bool WireMinionClass::linkTimedOut(void) const {
+    return _linkTimedOut;
+}
+
+uint32_t WireMinionClass::forcedOffCount(void) const {
+    return _forcedOffCount;
+}
+
+uint8_t WireMinionClass::lastRegister(void) const {
+    return _lastRegister;
+}
+
+bool WireMinionClass::lastWasRead(void) const {
+    return _lastWasRead;
+}
+
+uint8_t WireMinionClass::lastLength(void) const {
+    return _lastLength;
+}
+
+uint32_t WireMinionClass::lastTransactionAgeMs(void) const {
+    return millis() - _lastTransactionMs;
 }
 
 void WireMinionClass::onService(void) {

@@ -270,6 +270,13 @@ void HeaterClass::loop(void) {
     }
 }
 
+void HeaterClass::setGains(float kp, float ki, float kd) {
+    Kp = kp;
+    Ki = ki;
+    Kd = kd;
+    myQuickPID.SetTunings(kp, ki, kd);
+}
+
 void HeaterClass::setInhibit(bool inhibit) {
     if (heaterInhibited == inhibit) {
         return;

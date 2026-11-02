@@ -12,6 +12,7 @@
 #include "EventLog.h"
 #include "Heater.h"
 #include "HeaterCommands.h"
+#include "MinionCommands.h"
 #include "Sensor.h"
 #include "SerialCli.h"
 #include "Setting.h"
@@ -58,6 +59,7 @@ void setup() {
     system_commands::registerCommands(serialCli);
     heater_commands::registerCommands(serialCli);
     adc_commands::registerCommands(serialCli);
+    minion_commands::registerCommands(serialCli);
     setting_commands::registerCommands(serialCli);
     storage_commands::registerCommands(serialCli);
 
