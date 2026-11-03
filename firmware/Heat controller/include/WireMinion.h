@@ -26,6 +26,7 @@
 // Measurements
 #define REGISTER_TEMPERATURE_HEATER 0x40
 #define REGISTER_TEMPERATURE_NTC    0x41
+#define REGISTER_HEATER_DUTY        0x42
 
 // Configuration
 #define REGISTER_TEMPERATURE_HEATER_TARGET         0x80

@@ -10,6 +10,7 @@
 #include <wiring_private.h>
 
 #include "EventLog.h"
+#include "Heater.h"
 #include "Setting.h"
 #include "WireMinion.h"
 #include "config.h"
@@ -24,6 +25,7 @@ namespace {
         {"LINK_TIMEOUT", REGISTER_LINK_TIMEOUT, "u32", 4, true},
         {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
         {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
+        {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
@@ -170,6 +172,12 @@ uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLen
         memcpy(dest, float_union.m_bytes, length);
     } else if (reg == REGISTER_TEMPERATURE_NTC) {
         float_union.m_float = tAmbient;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_HEATER_DUTY) {
+        // Actual PWM duty in percent, so the display can show the real output.
+        HeaterStatus status = Heater.status();
+        float_union.m_float = status.pwmPeriod > 0 ? (100.0f * status.pwmDuty / status.pwmPeriod) : 0.0f;
         length = sizeof(float_union.m_bytes);
         memcpy(dest, float_union.m_bytes, length);
     } else if (reg == REGISTER_VERSION) {

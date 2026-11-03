@@ -31,6 +31,7 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A3, U2, J
 - No EEPROM migration: the first boot after M5 starts from defaults. The EEPROM code, the CRC, and the `EepromAbstractionWire` dependency are removed in M5.
 - CLI naming: `settings` prints the file keys verbatim (camelCase). It is the one command that does not use uppercase keys, because a key copied from `settings` must work as `settings set` input unchanged.
 - SHAKE standby is a three-phase schedule after the last motion: at `shakeStage1Ms` the target drops to `min(setpoint, standbyTemperatureHeater)`, ramps linearly to `min(setpoint, standbyTemperatureHeater2)` at `shakeStage2Ms`, holds that value until `shakeOffMs`, then forces the heater off. Motion before `shakeOffMs` returns to the setpoint and restarts the timer. After `shakeOffMs` a shake does not re-enable the heater; `heater on` does and restarts the timer. The target is capped at the setpoint so the iron never heats above it. This is the lowest-priority nice-to-have and is scheduled last.
+- Setpoint limits: 0-450 C (273.15-723.15 K). The heat controller clamps every write to `REGISTER_TEMPERATURE_HEATER_TARGET` and every CLI `setpoint` value, so the limit holds for every master. The Main processor UI clamps the same range so it never offers an impossible value.
 - A Serial CLI is a development requirement, not a product feature: it is always compiled in, never prints periodically, and only responds to commands plus one-shot events. It is the `SerialCli` module, shared with the ESP32 project.
 - Code style is clang-format with the project `.clang-format` (LLVM base, 4 spaces, `BreakBeforeBraces: Custom` with only `BeforeLambdaBody: false`, which means Attach/K&R, `InsertBraces: true`, no column limit). Every `.cpp` and `.h` in `Heat controller/`, `Main processor/` and `lib/` is formatted with it; `lib/.clang-format` is a copy so the shared libraries use the same style.
 
@@ -161,10 +162,12 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - CLI: extend `heater`/`pid`/`setpoint`; add `minion` (address, last transaction, latched interrupt flags, HEAT_INT asserted), `minion read <reg> [len]`, `minion write <reg> <hex...> yes-really` (bench-only, bypasses the protocol), `regs` (full register map with names, addresses, types, current values), `int` (latched flags), `int clear`, `link` (last heartbeat age, timeout flag, forced-off count), `link timeout [<ms>]`, `heater on|off`, `setpoint [<celsius>]`, `pid kp|ki|kd <value>`.
 - `pio run` passes.
 - Register 0x12 holds the link supervision timeout in milliseconds, so the master sets the same value the heat controller enforces.
+- Register 0x42 `HEATER_DUTY` is a read-only `float` with the actual PWM duty in percent (`100 * pwmDuty / pwmPeriod`). It landed during Main processor M4, so the home screen can show the real output; it is the first piece of the M7 minion-protocol work.
 - Bench fact: the Main processor can boot before the heat controller leaves its bootloader, so the first minion handshake fails. The Main processor retries the handshake every second until it succeeds.
 - Verified on V2.2 hardware: `regs` and `minion read` report the same register values on both processors, `minion write` changes a register, and `minion` reports the last transaction and the latched flags.
 - Verified on V2.2 hardware: with the link timeout at 500 ms, the heat controller forces the heater off and raises INT_LINK_TIMEOUT; the Main processor fetches the flag, reports the lost link, and re-writes HEATER_STATE, so heating resumes. The forced-off and re-write counters both increase.
 - Verified on V2.2 hardware: `heater on|off`, `setpoint`, and `pid kp|ki|kd` change the state, the setpoint, and the gains, and the watchdog overrides the state when the heartbeat stops.
+- Verified on V2.2 hardware: a setpoint written through `REGISTER_TEMPERATURE_HEATER_TARGET` (0x80) from the Main processor UI is stored in `Setting.targetTemperatureHeater` and persisted to the W25Q64. Setting 123.4 C read back as 396.55 K, and after `reboot yes-really` (uptime reset to 10 s) the value was still 396.55 K.
 
 ### [x] M8 - SHAKE standby (flash: yes, nice-to-have, lowest priority)
 
@@ -175,3 +178,11 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - `pio run` passes.
 - Verified on V2.2 hardware: `shake adc` reports about 3.27 V at rest and about 2.20 V with the handle upside down; the 2.5 V threshold detects both states.
 - Verified on V2.2 hardware: with 5/10/15 s times and a 300 C setpoint, the phase goes ACTIVE -> RAMP (linear 250 to 150 C) -> STANDBY2 -> EXPIRED; motion during RAMP returns to ACTIVE and resets the timer; `heater on` resets the timer after expiry.
+
+### [ ] M9 - Setpoint clamp (flash: yes)
+
+- Clamp every write to `REGISTER_TEMPERATURE_HEATER_TARGET` to 273.15-723.15 K (0-450 C) in the minion write path.
+- Clamp the CLI `setpoint` value to the same range.
+- The Main processor UI clamps the same range for the touch zones (Main processor M4).
+- Flash and verify: a write of 1000 K reads back as 723.15 K, a write of 200 K reads back as 273.15 K, and a normal setpoint is unchanged.
+- `pio run` passes.

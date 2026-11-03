@@ -21,6 +21,7 @@ namespace {
         {"LINK_TIMEOUT", REGISTER_LINK_TIMEOUT, "u32", 4, true},
         {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
         {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
+        {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
@@ -164,6 +165,10 @@ float HeatControllerClass::getTemperatureTip(void) {
 
 float HeatControllerClass::getTemperatureNTC(void) {
     return readRegister_float(REGISTER_TEMPERATURE_NTC);
+}
+
+float HeatControllerClass::getHeaterDuty(void) {
+    return readRegister_float(REGISTER_HEATER_DUTY);
 }
 
 const char *HeatControllerClass::getFirmwareVersion(void) {
