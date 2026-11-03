@@ -10,6 +10,8 @@
 #include <esp32-hal-cpu.h>
 
 #include "App.h"
+#include "Audio.h"
+#include "AudioCommands.h"
 #include "DisplayCommands.h"
 #include "EventLog.h"
 #include "HeatCommands.h"
@@ -65,9 +67,11 @@ void AppSetup(void) {
     ota_commands::registerCommands(serialCli);
     display_commands::registerCommands(serialCli);
     ui_commands::registerCommands(serialCli);
+    audio_commands::registerCommands(serialCli);
 
     DisplaySetup();
     UiSetup();
+    AudioSetup();
 
     WificSetup();
 
@@ -86,6 +90,7 @@ void AppLoop(void) {
     WiFicLoop();
     WebservercLoop();
     DisplayLoop();
+    AudioLoop();
 
     while (Serial.available() > 0) {
         serialCli.feed(static_cast<char>(Serial.read()));

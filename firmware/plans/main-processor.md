@@ -33,6 +33,8 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - The I2S registers are removed in Heat controller M2; the ESP32 stops using them in M5/M6. The remaining minion protocol change (link supervision, INT_LINK_TIMEOUT) lands in the same integration session as milestone M7 of the Heat controller plan, so the two processors never disagree about the register map.
 - Link supervision: the ESP32 reads REGISTER_HEATER_STATE at least once per 5 seconds. The SAMD21 forces the heater off when no I2C transaction arrives within 5 seconds and raises the `INT_LINK_TIMEOUT` flag; heating resumes automatically when communication resumes. The two MCUs cannot reset each other; the SAMD21 owns heater safety.
 - A Serial CLI is a development requirement, not a product feature: it is always compiled in, never prints periodically, and only responds to commands plus one-shot events. It is the `SerialCli` module, shared with the Heat controller project.
+- M5 audio: native ESP-IDF I2S driver, no external audio library. The MAX98357A gain table comes from the `main` branch `I2SGPIO.cpp`: 6 dB = GAIN0 high/GAIN1 input, 9 dB = both input, 12 dB = GAIN0 low/GAIN1 input, 15 dB = GAIN0 input/GAIN1 low. 3 dB is not reachable because the amplifier runs on 5 V. SD enable = input, shutdown = output low. The default gain is 9 dB. The agent tests only 6 dB; the user verifies 9/12/15 dB.
+- M5 playback: a main-loop state machine at 16 kHz mono 16-bit with 256-sample chunks and a zero-timeout write gate. The DMA buffer is doubled to 12 descriptors of 240 frames and prefilled at tone start, so a slow main-loop pass does not drain it. No FreeRTOS task. Spoken feedback is deferred to a later milestone.
 - Code style is clang-format with the project `.clang-format` (LLVM base, 4 spaces, `BreakBeforeBraces: Custom` with only `BeforeLambdaBody: false`, which means Attach/K&R, `InsertBraces: true`, no column limit). Every `.cpp` and `.h` in `Heat controller/`, `Main processor/` and `lib/` is formatted with it; `lib/.clang-format` is a copy so the shared libraries use the same style.
 
 ## Test strategy
@@ -128,13 +130,16 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - `pio run` passes.
 - Verified on V2.2 hardware: the home panel shows `TIP`, `SET`, the tip value with a real `°`, the heater duty and the three buttons; `ui zones` lists `POWER 16,140 96x84`, `PLUS 112,140 96x84`, `MINUS 208,140 96x84`; `ui press` on each zone changes the setpoint by 5 C and toggles the heater; `ui setpoint 500` clamps to 450.0 and `ui setpoint -10` to 0.0. `heat regs` lists `0x42 HEATER_DUTY`; with the heater on it reads 80-95%, with the heater off 0%. The tip value and setpoint use `%5.1f` so the decimal point stays put, and the fields are drawn with a background color so a value update does not flash. The touch config swaps `y_min`/`y_max` because the XPT2046 is mounted 180 degrees to the panel. A touch press or release only sets `stateDirty`, so the button strip redraws without wiping the readout, and each button is diffed on its own pressed state so pressing one does not repaint the other two. A setpoint set from the UI is persisted by the heat controller and survives a heat-controller reboot. Flash 1,364,311 bytes (20.8%).
 
-### [ ] M5 - I2S speaker (flash: yes)
+### [x] M5 - I2S speaker (flash: yes)
 
-- Wire the MAX98357A: BCK IO25, WS IO26, DATA IO27, SD IO33, gain pins IO13/IO14.
-- Drive gain and mute directly from the ESP32; implement spoken feedback or at minimum amplifier mute control.
-- Flash and verify the amplifier mutes and unmutes on command.
-- CLI: `audio` (SD/mute state, gain pins, gain in dB, playing), `audio gain <3|6|9|12|15>`, `audio mute|unmute`, `audio test` (play a test tone once).
+- Configure the MAX98357A pins: BCK IO25, WS IO26, DATA IO27, SD IO33, GAIN0 IO13, GAIN1 IO14. The module is on the PCB; the firmware only configures the pins.
+- Drive gain and mute directly from the ESP32 with the gain table from the `main` branch `I2SGPIO.cpp`: 6 dB = GAIN0 high/GAIN1 input, 9 dB = both input, 12 dB = GAIN0 low/GAIN1 input, 15 dB = GAIN0 input/GAIN1 low. 3 dB is not reachable because the amplifier runs on 5 V. SD enable = input, shutdown = output low. The default gain is 9 dB.
+- Play a test tone with a main-loop state machine: 16 kHz mono 16-bit, 256-sample chunks, a zero-timeout write gate. The DMA buffer is doubled to 12 descriptors of 240 frames and prefilled at tone start. No FreeRTOS task. Spoken feedback is deferred to a later milestone.
+- Safety: the agent tests only 6 dB; the user verifies 9/12/15 dB.
+- Flash and verify the amplifier mutes and unmutes on command, and the test tone plays at 6 dB.
+- CLI: `audio` (enabled, gain in dB, gain pin states, SD state, I2S state, sample rate, playing, bytes written, stalls, last error), `audio gain <6|9|12|15>`, `audio mute|unmute`, `audio test` (1 kHz, 200 ms, 10% amplitude), `audio tone <freq 20-7000> <ms 10-5000> [<amplitude 1-100>]`, `audio pins` (raw pin modes and levels). The tone upper limit is 7000 Hz because the 16 kHz sample rate has an 8 kHz Nyquist limit; 8000 Hz is silent and above it aliases.
 - `pio run` passes.
+- Verified on V2.2 hardware: `audio` reports I2S ready, gain 9 dB and SD output low; `audio unmute` enables the amplifier; `audio gain 6` gives GAIN0 output high and GAIN1 input; `audio test` plays a 1 kHz tone; `audio mute` silences it; `audio pins` matches the gain table. The user verified 9, 12 and 15 dB. The doubled DMA buffer and the prefill remove the initial stutter. Flash 1,423,632 bytes (21.2%).
 
 ### [x] M6 - Heat controller link (flash: yes, joint with Heat controller M7)
 
