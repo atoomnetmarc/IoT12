@@ -15,6 +15,10 @@ void DisplaySetup(void);
 // Draw the home panel when a displayed value changes.
 void DisplayLoop(void);
 
+// Mark the displayed values dirty so the next DisplayLoop() re-reads them and
+// redraws only the fields that changed. This never wipes the whole panel.
+void DisplayRequestDraw(void);
+
 // Name of the display driver in use.
 const char *DisplayDriverName(void);
 
@@ -36,8 +40,11 @@ void DisplaySetBacklight(uint8_t level);
 // Switch the backlight on or off, keeping the configured level.
 void DisplaySetPower(bool on);
 
-// Draw a color bar test pattern once.
-void DisplayTestPattern(void);
+// Draw the panel edge and a rectangle inset by margin pixels, to measure the
+// visible area under the bezel. Stays on screen until DisplayBoxStop().
+void DisplayDrawBox(uint16_t margin);
+void DisplayBoxStop(void);
+bool DisplayBoxActive(void);
 
 // Milliseconds of the last completed home panel draw.
 uint32_t DisplayLastDrawMs(void);

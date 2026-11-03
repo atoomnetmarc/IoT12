@@ -19,11 +19,17 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - Display and touch run on LovyanGFX; the UI is touch-driven.
 - Panel: ILI9341 2.8" 320x240 (SKU MSP2807) with XPT2046 resistive touch on the same SPI bus, separate CS. Rotation 1 (landscape) is confirmed on hardware. Backlight is IO32 through LEDC PWM at 5 kHz, 8-bit. Touch calibration constants live in the code; `touch` prints raw and mapped coordinates so they can be tuned on the bench.
 - The display SPI bus is full-duplex (`spi_3wire = false`): the XPT2046 shares MISO with the panel, and a half-duplex bus returns no touch data. The touch configuration repeats the SCLK/MOSI/MISO pins so the bus is never re-initialized with default pins.
-- The home panel redraws only when a displayed value changes; there is no periodic redraw. The tip and setpoint values are formatted to a fixed width of six characters and drawn with an explicit background color, so a value update repaints only its own glyph cells. The heater and link fields have a fixed rectangle that is cleared before drawing. `display test` holds the test pattern for 3 seconds.
+- The home panel redraws only when a displayed value changes; there is no periodic redraw. The tip and setpoint values are formatted to a fixed width of six characters and drawn with an explicit background color, so a value update repaints only its own glyph cells. The heater and link fields are cleared only when the link state changes, because that is when the text format changes.
 - The rotary encoder code (IoAbstraction switches/encoder, PIN_ROT_*) is removed; IO16/IO17/IO33 have no function on V2.2.
 - Settings on the Heat controller are JSON; the ESP32 reads and writes them through the I2C minion protocol.
 - The ESP32 drives the I2S gain pins (IO13/IO14) and SD (IO33) directly; the REGISTER_I2S_* minion registers are obsolete.
-- The first UI iteration is a single home screen with setpoint +/- touch zones, tip temperature, and heater state indicator.
+- The first UI iteration is a single home screen with setpoint +/- touch zones, tip temperature, a heater state indicator, and a POWER zone.
+- Touch UI: `src/app/Ui.cpp` owns the zones, the hit-test and the actions; `display.cpp` stays a pure draw and hardware module. `UiLoop()` runs before `DisplayLoop()`; the UI writes the setpoint and calls `DisplayRequestDraw()`, and the display's read-and-diff draws the result.
+- Touch input: the IRQ line gates the read. `TouchRead()` runs only while the IRQ is low, with a 20 ms sample interval and a 30 ms debounce.
+- Setpoint interaction: a tap changes the setpoint by 5 C; a hold repeats after 500 ms and then every 150 ms. Every step writes `REGISTER_TEMPERATURE_HEATER_TARGET` immediately, so the panel never shows a value the heater does not have.
+- Setpoint limits: 0-450 C (273.15-723.15 K). The UI clamps the touch zones and the heat controller clamps every write to the target register as the hard limit.
+- Heater control: the home screen has a POWER zone that writes `REGISTER_HEATER_STATE` through `setHeaterState`, next to the heater state indicator.
+- `ui press <x> <y>` injects a synthetic tap through the same hit-test as a real touch, one-shot, and prints the zone and the action.
 - The I2S registers are removed in Heat controller M2; the ESP32 stops using them in M5/M6. The remaining minion protocol change (link supervision, INT_LINK_TIMEOUT) lands in the same integration session as milestone M7 of the Heat controller plan, so the two processors never disagree about the register map.
 - Link supervision: the ESP32 reads REGISTER_HEATER_STATE at least once per 5 seconds. The SAMD21 forces the heater off when no I2C transaction arrives within 5 seconds and raises the `INT_LINK_TIMEOUT` flag; heating resumes automatically when communication resumes. The two MCUs cannot reset each other; the SAMD21 owns heater safety.
 - A Serial CLI is a development requirement, not a product feature: it is always compiled in, never prints periodically, and only responds to commands plus one-shot events. It is the `SerialCli` module, shared with the Heat controller project.
@@ -103,16 +109,24 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Replace the U8g2 84x48 drawing code with a 320x240 LovyanGFX panel; keep the existing data source (HeatController temperatures and state).
 - Remove the custom `u8x8_byte_arduino_hw_spi_custom` yield hack together with U8g2.
 - First flash onto V2.2 hardware: verify the display shows the home panel and the backlight switches on.
-- CLI: extend `display` to LovyanGFX (driver, resolution, rotation, backlight, last draw time), `display backlight <0-255>`, `display on|off`, `display test` (draw a test pattern once); add `touch` (raw coordinates, pressed state).
+- CLI: extend `display` to LovyanGFX (driver, resolution, rotation, backlight, last draw time), `display backlight <0-255>`, `display on|off`, `display box <margin>|off` (bezel measurement); add `touch` (raw coordinates, pressed state).
 - `pio run` passes.
-- Verified on V2.2 hardware: `version` reports `FLASH_MB: 16`, `display` reports 320x240 rotation 1, the home panel is visible, `display test` shows the color bars, `display backlight 64` dims the panel, and `touch` reports `IRQ: high` when idle and raw/mapped coordinates when pressed (raw about 1900/1500 maps to about 110/130).
+- Verified on V2.2 hardware: `version` reports `FLASH_MB: 16`, `display` reports 320x240 rotation 1, the home panel is visible, `display box 16` draws the bezel inset, `display backlight 64` dims the panel, and `touch` reports `IRQ: high` when idle and raw/mapped coordinates when pressed (raw about 1900/1500 maps to about 110/130).
 
-### [ ] M4 - Touch UI (flash: yes)
+### [x] M4 - Touch UI (flash: yes)
 
-- Build a single home screen: setpoint adjustment with +/- touch zones, tip temperature, and heater on/off state indicator.
-- Flash and verify the touch zones respond and the setpoint changes are visible.
-- CLI: `ui` (current screen, setpoint, heater state, last touch event), `ui setpoint <celsius>`, `ui press <x> <y>` (inject a touch event to validate hit zones without a finger), `ui zones` (list touch zones and bounds).
+- Add `src/app/Ui.cpp` with `include/Ui.h`: the zone table, the hit-test, the press/release/repeat state machine, and the actions. `display.cpp` stays a pure draw and hardware module; `display.h` gains `DisplayRequestDraw()`. The Variant C button rects live in `Ui.h`, so the display and the hit-test use the same numbers.
+- Build a single home screen: tip temperature, setpoint, heater state indicator, a POWER zone, and the setpoint +/- zones.
+- A tap changes the setpoint by 5 C. A hold repeats after 500 ms and then every 150 ms. Every step writes `REGISTER_TEMPERATURE_HEATER_TARGET` immediately.
+- Clamp the setpoint to 0-450 C (273.15-723.15 K) in the UI. The heat controller clamps the same range as the hard limit (Heat controller M9).
+- The POWER zone writes `REGISTER_HEATER_STATE` through `setHeaterState`; the indicator shows the PWM duty from `REGISTER_HEATER_DUTY 0x42` (green `37%`) while the heater is on, and `OFF` when it is off.
+- Layout and fonts: Variant C, three equal 96x84 buttons in the bottom strip and a readout on top, all inside the 16 px bezel safe area. The face is Logisoso (U8g2), 46 for the tip value and 24 for everything else, because it carries a real `°` (U+00B0) that no GFX font does. LovyanGFX reads the `u8g2_font_*` arrays directly through `lgfx::U8g2font`, so the U8g2 `lib_deps` stays.
+- Read the touch panel only while the IRQ line is low, with a 20 ms sample interval and a 30 ms debounce.
+- `UiLoop()` runs before `DisplayLoop()` in the application loop. The UI writes the setpoint and calls `DisplayRequestDraw()`; the display's read-and-diff draws the result. `DisplayRequestDraw()` sets `stateDirty`, not `drawRequested`, so a touch only redraws the changed fields and never wipes the whole panel.
+- Flash and verify the touch zones respond, the setpoint changes are visible, the POWER zone switches the heater, and a hold repeats.
+- CLI: `ui` (current screen, setpoint, heater state, last touch event), `ui setpoint <celsius>`, `ui press <x> <y>` (a synthetic tap through the same hit-test, one-shot, prints the zone and the action), `ui zones` (list touch zones and bounds).
 - `pio run` passes.
+- Verified on V2.2 hardware: the home panel shows `TIP`, `SET`, the tip value with a real `°`, the heater duty and the three buttons; `ui zones` lists `POWER 16,140 96x84`, `PLUS 112,140 96x84`, `MINUS 208,140 96x84`; `ui press` on each zone changes the setpoint by 5 C and toggles the heater; `ui setpoint 500` clamps to 450.0 and `ui setpoint -10` to 0.0. `heat regs` lists `0x42 HEATER_DUTY`; with the heater on it reads 80-95%, with the heater off 0%. The tip value and setpoint use `%5.1f` so the decimal point stays put, and the fields are drawn with a background color so a value update does not flash. The touch config swaps `y_min`/`y_max` because the XPT2046 is mounted 180 degrees to the panel. A touch press or release only sets `stateDirty`, so the button strip redraws without wiping the readout, and each button is diffed on its own pressed state so pressing one does not repaint the other two. A setpoint set from the UI is persisted by the heat controller and survives a heat-controller reboot. Flash 1,364,311 bytes (20.8%).
 
 ### [ ] M5 - I2S speaker (flash: yes)
 
@@ -141,6 +155,7 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 
 ### [ ] M7 - Network services cleanup (flash: yes)
 
+- Already landed during M4: register `0x42 HEATER_DUTY` (read-only `float`, actual PWM duty in percent) on both the Main processor and the Heat controller, so the home screen shows the real output instead of the word `ON`. This is the first piece of the M7 minion-protocol work.
 - Keep WiFi, OTA, and webserver on core 3.x (event migration already done).
 - Move settings read/write for the Heat controller through the minion protocol into the webserver where applicable.
 - Flash and verify a settings change made over the webserver reaches the Heat controller and persists.

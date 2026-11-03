@@ -44,14 +44,31 @@ namespace {
             return;
         }
 
-        if (argc >= 2 && strcmp(argv[1], "test") == 0) {
-            DisplayTestPattern();
-            cli.write("TEST: drawn\r\n");
+        if (argc >= 2 && strcmp(argv[1], "box") == 0) {
+            if (argc >= 3 && strcmp(argv[2], "off") == 0) {
+                DisplayBoxStop();
+                cli_format::keyText(cli, "BOX", "off");
+                return;
+            }
+
+            if (argc < 3) {
+                cli.write("Usage: display box <margin 0-119>|off\r\n");
+                return;
+            }
+
+            int margin = atoi(argv[2]);
+            if (margin < 0 || margin > 119) {
+                cli.write("Usage: display box <margin 0-119>|off\r\n");
+                return;
+            }
+
+            DisplayDrawBox(static_cast<uint16_t>(margin));
+            cli_format::keyUInt(cli, "BOX_MARGIN", static_cast<uint32_t>(margin));
             return;
         }
 
         if (argc >= 2) {
-            cli.write("Usage: display [backlight <0-255>|on|off|test]\r\n");
+            cli.write("Usage: display [backlight <0-255>|on|off|box <margin>|off]\r\n");
             return;
         }
 
@@ -83,7 +100,7 @@ namespace {
 
 namespace display_commands {
     void registerCommands(cli::SerialCli &cli) {
-        cli.registerCommand({"display", [&cli](int argc, char **argv) { cmdDisplay(cli, argc, argv); }, "display driver, resolution, backlight; display backlight <0-255>|on|off|test"});
+        cli.registerCommand({"display", [&cli](int argc, char **argv) { cmdDisplay(cli, argc, argv); }, "display driver, resolution, backlight; display backlight <0-255>|on|off|box <margin>|off"});
         cli.registerCommand({"touch", [&cli](int argc, char **argv) { cmdTouch(cli, argc, argv); }, "touch panel: pressed state, raw and mapped coordinates"});
     }
 }

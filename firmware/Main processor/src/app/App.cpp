@@ -19,6 +19,8 @@
 #include "OtaCommands.h"
 #include "SerialCli.h"
 #include "SystemCommands.h"
+#include "Ui.h"
+#include "UiCommands.h"
 #include "WebCommands.h"
 #include "WifiCommands.h"
 #include "config.h"
@@ -62,8 +64,10 @@ void AppSetup(void) {
     web_commands::registerCommands(serialCli);
     ota_commands::registerCommands(serialCli);
     display_commands::registerCommands(serialCli);
+    ui_commands::registerCommands(serialCli);
 
     DisplaySetup();
+    UiSetup();
 
     WificSetup();
 
@@ -77,6 +81,7 @@ void AppSetup(void) {
 
 void AppLoop(void) {
     HeatController.loop();
+    UiLoop();
 
     WiFicLoop();
     WebservercLoop();
