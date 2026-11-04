@@ -7,12 +7,6 @@
 
 #pragma once
 
-extern const char *ssid;
-extern const char *password;
-
-extern const char *otapassword;
-extern const char *otahostname;
-
 #define PIN_HEAT_INT 35
 
 #define PIN_I2S_CLK   25

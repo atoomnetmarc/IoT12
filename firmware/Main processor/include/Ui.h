@@ -11,18 +11,21 @@
 #include <stdint.h>
 
 /*
- * Touch UI for the Variant C home screen.
+ * Touch UI for the screen carousel.
  *
  * The geometry lives here because two modules need the same numbers: the
- * display draws the buttons and the UI hit-tests them. Everything is inside
+ * display draws the boxes and the UI hit-tests them. Everything is inside
  * the 16 px bezel safe area.
  */
 
 enum UiZone : uint8_t {
     UI_ZONE_NONE = 0,
+    UI_ZONE_PREV,
+    UI_ZONE_NEXT,
     UI_ZONE_POWER,
     UI_ZONE_PLUS,
     UI_ZONE_MINUS,
+    UI_ZONE_AP,
 };
 
 struct UiRect {
@@ -33,9 +36,12 @@ struct UiRect {
 };
 
 constexpr int16_t UI_SAFE_MARGIN = 16;
-constexpr UiRect UI_POWER_RECT = {16, 140, 96, 84};
-constexpr UiRect UI_PLUS_RECT = {112, 140, 96, 84};
-constexpr UiRect UI_MINUS_RECT = {208, 140, 96, 84};
+constexpr UiRect UI_PREV_RECT = {16, 16, 32, 32};
+constexpr UiRect UI_NEXT_RECT = {272, 16, 32, 32};
+constexpr UiRect UI_POWER_RECT = {16, 164, 96, 60};
+constexpr UiRect UI_PLUS_RECT = {112, 164, 96, 60};
+constexpr UiRect UI_MINUS_RECT = {208, 164, 96, 60};
+constexpr UiRect UI_AP_RECT = {16, 196, 288, 28};
 
 // Initialize the touch state machine.
 void UiSetup(void);
@@ -43,7 +49,7 @@ void UiSetup(void);
 // Sample the touch panel and run the press, hold and repeat state machine.
 void UiLoop(void);
 
-// Zone under a panel coordinate, or UI_ZONE_NONE.
+// Zone under a panel coordinate for the active screen, or UI_ZONE_NONE.
 UiZone UiHitTest(uint16_t x, uint16_t y);
 
 // Zone currently held down, or UI_ZONE_NONE.

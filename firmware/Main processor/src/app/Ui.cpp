@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 #include "HeatController.h"
+#include "WebServerService.h"
 #include "display.h"
 
 namespace {
@@ -31,9 +32,12 @@ namespace {
     };
 
     const ZoneInfo zones[] = {
+        {UI_ZONE_PREV, "PREV", UI_PREV_RECT},
+        {UI_ZONE_NEXT, "NEXT", UI_NEXT_RECT},
         {UI_ZONE_POWER, "POWER", UI_POWER_RECT},
         {UI_ZONE_PLUS, "PLUS", UI_PLUS_RECT},
         {UI_ZONE_MINUS, "MINUS", UI_MINUS_RECT},
+        {UI_ZONE_AP, "AP", UI_AP_RECT},
     };
 
     constexpr size_t ZONE_COUNT = sizeof(zones) / sizeof(zones[0]);
@@ -79,6 +83,25 @@ namespace {
     }
 
     void pressZone(UiZone zone) {
+        switch (zone) {
+            case UI_ZONE_PREV:
+                DisplayScreenPrev();
+                return;
+            case UI_ZONE_NEXT:
+                DisplayScreenNext();
+                return;
+            case UI_ZONE_AP:
+                if (web_server::portalActive()) {
+                    web_server::stopPortal();
+                } else {
+                    web_server::startPortal();
+                }
+                DisplayRequestDraw();
+                return;
+            default:
+                break;
+        }
+
         // Without a link the setpoint and the heater state are unknown, so a
         // touch must not write a value derived from a failed read.
         if (!HeatController.isCompatible()) {
@@ -88,17 +111,17 @@ namespace {
         activeZone = zone;
 
         switch (zone) {
-        case UI_ZONE_POWER:
-            toggleHeater();
-            break;
-        case UI_ZONE_PLUS:
-            stepSetpoint(SETPOINT_STEP_TENTHS);
-            break;
-        case UI_ZONE_MINUS:
-            stepSetpoint(-SETPOINT_STEP_TENTHS);
-            break;
-        default:
-            break;
+            case UI_ZONE_POWER:
+                toggleHeater();
+                break;
+            case UI_ZONE_PLUS:
+                stepSetpoint(SETPOINT_STEP_TENTHS);
+                break;
+            case UI_ZONE_MINUS:
+                stepSetpoint(-SETPOINT_STEP_TENTHS);
+                break;
+            default:
+                break;
         }
     }
 
@@ -180,11 +203,25 @@ void UiLoop(void) {
 }
 
 UiZone UiHitTest(uint16_t x, uint16_t y) {
+    DisplayScreen screen = DisplayScreenGet();
+
     for (size_t i = 0; i < ZONE_COUNT; ++i) {
+        UiZone zone = zones[i].zone;
+
+        // The setpoint and heater zones belong to the home screen only.
+        if ((zone == UI_ZONE_POWER || zone == UI_ZONE_PLUS || zone == UI_ZONE_MINUS) && screen != DISPLAY_SCREEN_HOME) {
+            continue;
+        }
+
+        // The AP toggle belongs to the network screen only.
+        if (zone == UI_ZONE_AP && screen != DISPLAY_SCREEN_NETWORK) {
+            continue;
+        }
+
         const UiRect &r = zones[i].rect;
 
         if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) {
-            return zones[i].zone;
+            return zone;
         }
     }
 

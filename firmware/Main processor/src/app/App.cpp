@@ -12,24 +12,22 @@
 #include "App.h"
 #include "Audio.h"
 #include "AudioCommands.h"
+#include "DeviceName.h"
 #include "DisplayCommands.h"
 #include "EventLog.h"
 #include "HeatCommands.h"
 #include "HeatController.h"
+#include "HomeWiFiService.h"
 #include "Log.h"
 #include "LogCommands.h"
-#include "OtaCommands.h"
+#include "NetCommands.h"
+#include "ScreenCommands.h"
 #include "SerialCli.h"
 #include "SystemCommands.h"
 #include "Ui.h"
 #include "UiCommands.h"
-#include "WebCommands.h"
-#include "WifiCommands.h"
-#include "config.h"
+#include "WebServerService.h"
 #include "display.h"
-#include "ota.h"
-#include "webserverc.h"
-#include "wific.h"
 
 static const char *tag = "App";
 
@@ -62,18 +60,15 @@ void AppSetup(void) {
     system_commands::registerCommands(serialCli);
     log_commands::registerCommands(serialCli);
     heat_commands::registerCommands(serialCli);
-    wifi_commands::registerCommands(serialCli);
-    web_commands::registerCommands(serialCli);
-    ota_commands::registerCommands(serialCli);
+    net_commands::registerCommands(serialCli);
     display_commands::registerCommands(serialCli);
     ui_commands::registerCommands(serialCli);
     audio_commands::registerCommands(serialCli);
+    screen_commands::registerCommands(serialCli);
 
     DisplaySetup();
     UiSetup();
     AudioSetup();
-
-    WificSetup();
 
     if (HeatController.init() == false) {
         eventlog::Log.record(eventlog::FAULT, 1);
@@ -81,14 +76,18 @@ void AppSetup(void) {
     } else {
         LOG_I(tag, "heat controller %s, compatible %s", HeatController.getFirmwareVersion(), HeatController.isCompatible() ? "yes" : "no");
     }
+
+    DeviceNameSetup();
+    home_wifi::setup();
+    web_server::setup();
 }
 
 void AppLoop(void) {
     HeatController.loop();
     UiLoop();
 
-    WiFicLoop();
-    WebservercLoop();
+    home_wifi::loop();
+    web_server::loop();
     DisplayLoop();
     AudioLoop();
 

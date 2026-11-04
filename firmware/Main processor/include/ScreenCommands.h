@@ -9,6 +9,6 @@
 
 #include "SerialCli.h"
 
-namespace web_commands {
+namespace screen_commands {
     void registerCommands(cli::SerialCli &cli);
 }

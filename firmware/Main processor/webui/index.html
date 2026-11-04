@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IoT12</title>
+    <link rel="stylesheet" href="style.css?v={{CACHE_BUST}}" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>IoT12</h1>
+        <p id="device-name">...</p>
+      </div>
+      <div class="header-status">
+        <span id="stream-status" class="stream-status">connecting</span>
+        <span id="badge" class="badge offline">connecting</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card live">
+        <h2>Live</h2>
+        <dl class="values">
+          <div class="tile">
+            <dt>Tip</dt>
+            <dd id="v-tip">--</dd>
+          </div>
+          <div class="tile">
+            <dt>Setpoint</dt>
+            <dd id="v-set">--</dd>
+          </div>
+          <div class="tile">
+            <dt>NTC</dt>
+            <dd id="v-ntc">--</dd>
+          </div>
+          <div class="tile">
+            <dt>Duty</dt>
+            <dd id="v-duty">--</dd>
+          </div>
+          <div class="tile">
+            <dt>Heater</dt>
+            <dd id="v-heater">--</dd>
+          </div>
+          <div class="tile">
+            <dt>Link</dt>
+            <dd id="v-link">--</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Device</h2>
+        <dl class="info">
+          <dt>Name</dt>
+          <dd id="d-name">...</dd>
+          <dt>Version</dt>
+          <dd id="d-version">...</dd>
+          <dt>Build</dt>
+          <dd id="d-build">...</dd>
+          <dt>Board</dt>
+          <dd id="d-board">...</dd>
+          <dt>Chip</dt>
+          <dd id="d-chip">...</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Network</h2>
+        <dl class="info">
+          <dt>State</dt>
+          <dd id="n-state">...</dd>
+          <dt>SSID</dt>
+          <dd id="n-ssid">...</dd>
+          <dt>IP</dt>
+          <dd id="n-ip">...</dd>
+          <dt>RSSI</dt>
+          <dd id="n-rssi">...</dd>
+          <dt>Uptime</dt>
+          <dd id="n-uptime">...</dd>
+          <dt>Heap</dt>
+          <dd id="n-heap">...</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Display</h2>
+        <div class="screenshot-area">
+          <canvas id="screenshot-canvas" width="320" height="240" style="display: none"></canvas>
+          <img id="screenshot-preview" class="screenshot-preview" alt="Touchscreen screenshot" style="display: none" />
+          <div class="screenshot-placeholder" id="screenshot-placeholder">Capture the touchscreen to check the layout.</div>
+        </div>
+        <button type="button" id="screenshot-capture">Capture</button>
+        <button type="button" id="screenshot-save" disabled>Save PNG</button>
+        <p id="screenshot-status"></p>
+      </section>
+
+      <section class="card portal-only hidden" id="wifi-card">
+        <h2>WiFi configuration</h2>
+        <form id="wifi-form">
+          <label>Network 1 SSID <input id="ssid1" maxlength="32" autocomplete="off" /></label>
+          <label>Password <input id="pass1" type="password" maxlength="64" autocomplete="new-password" /></label>
+          <label>Network 2 SSID <input id="ssid2" maxlength="32" autocomplete="off" /></label>
+          <label>Password <input id="pass2" type="password" maxlength="64" autocomplete="new-password" /></label>
+          <button type="submit" id="wifi-save">Save and connect</button>
+        </form>
+        <p id="wifi-status"></p>
+      </section>
+
+      <section class="card portal-only hidden" id="ota-card">
+        <h2>Firmware</h2>
+        <p>Upload a firmware .bin. The device reboots after a successful upload.</p>
+        <input type="file" id="ota-file" accept=".bin" />
+        <button type="button" id="ota-upload">Upload firmware</button>
+        <progress id="ota-progress" value="0" max="100"></progress>
+        <p id="ota-status"></p>
+      </section>
+    </main>
+
+    <script src="app.js?v={{CACHE_BUST}}"></script>
+  </body>
+</html>

@@ -36,6 +36,18 @@ Every fact traces to `hardware/Control Board/README.md` (pinout tables A1, J1, J
 - M5 audio: native ESP-IDF I2S driver, no external audio library. The MAX98357A gain table comes from the `main` branch `I2SGPIO.cpp`: 6 dB = GAIN0 high/GAIN1 input, 9 dB = both input, 12 dB = GAIN0 low/GAIN1 input, 15 dB = GAIN0 input/GAIN1 low. 3 dB is not reachable because the amplifier runs on 5 V. SD enable = input, shutdown = output low. The default gain is 9 dB. The agent tests only 6 dB; the user verifies 9/12/15 dB.
 - M5 playback: a main-loop state machine at 16 kHz mono 16-bit with 256-sample chunks and a zero-timeout write gate. The DMA buffer is doubled to 12 descriptors of 240 frames and prefilled at tone start, so a slow main-loop pass does not drain it. No FreeRTOS task. Spoken feedback is deferred to a later milestone.
 - Code style is clang-format with the project `.clang-format` (LLVM base, 4 spaces, `BreakBeforeBraces: Custom` with only `BeforeLambdaBody: false`, which means Attach/K&R, `InsertBraces: true`, no column limit). Every `.cpp` and `.h` in `Heat controller/`, `Main processor/` and `lib/` is formatted with it; `lib/.clang-format` is a copy so the shared libraries use the same style.
+- Network provisioning: no automatic AP. The AP starts from the touchscreen with SSID `iot12-<last 3 MAC bytes>`. WiFi credentials are a JSON network array in NVS. There is no compile-time network configuration and no `local_env.ini`.
+- AP and STA are mutually exclusive. The AP stops only on an explicit action from the touchscreen or from the page, never on a timer or on a successful STA connect.
+- The web stack is ESPAsyncWebServer with AsyncTCP. A handler that needs the minion bus posts a request to the main loop; it never touches I2C from the async task.
+- Web assets are split into `webui/index.html`, `webui/style.css` and `webui/app.js`, each gzipped into its own PROGMEM array by `tools/generate_webui_header.py`.
+- The page is read-only without a credential and shows every live value: tip temperature, setpoint, NTC temperature, supply voltage, iron current, heater state and duty, link state, WiFi state, IP and uptime. Writes require a credential and are out of scope for M7.
+- Live data uses Server-Sent Events through `AsyncEventSource`. The client receives the full state in one message on connect, and every push after that repeats the full state once per second from the heartbeat read. There are no deltas and no separate snapshot event: the payload is small, the client stays stateless, and a dropped message self-heals on the next second. The minion bus sees no extra traffic.
+- Discovery is mDNS `iot12-<last 3 MAC bytes>.local`; the touchscreen shows the IP as the fallback. The responder starts only after the station connects and stops before the AP mode switch, because every WiFi mode change destroys and recreates the lwIP netif and a responder that outlives it crashes on the next event.
+- One adaptive page serves the AP portal and the STA dashboard; the page detects portal mode from the `portal` field in the state stream.
+- The AP uses WPA2 with a one-time random password of 8 lowercase letters and 4 digits from `esp_random()`, stored in NVS and shown on the touchscreen.
+- OTA is a web upload allowed only while the AP portal is open. Upload over STA follows when a credential exists.
+- The touchscreen is a screen carousel: a 32 px header bar with a left arrow box at (16,16), a right arrow box at (272,16) and the screen title centered between them. The readout moves down to make room. The screens are Home, Network and Info, in that order, and the arrows wrap around the list.
+- NVS layout: namespace `iot12`, key `wifi_cfg` holds the JSON network array, key `ap_pass` holds the 12-character AP password. The AP SSID is `iot12-<last 3 MAC bytes>` computed at boot and never stored.
 
 ## Test strategy
 
@@ -158,11 +170,39 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Verified on V2.2 hardware: with the link timeout at 500 ms, the heat controller raises INT_LINK_TIMEOUT, the Main processor fetches the flag, reports the lost link, and re-writes HEATER_STATE, so heating resumes.
 - Verified on V2.2 hardware: `heat on|off` and `heat setpoint` return the write result, and `heat write` changes a register.
 
-### [ ] M7 - Network services cleanup (flash: yes)
+### [x] M7 - Network services (flash: yes)
 
-- Already landed during M4: register `0x42 HEATER_DUTY` (read-only `float`, actual PWM duty in percent) on both the Main processor and the Heat controller, so the home screen shows the real output instead of the word `ON`. This is the first piece of the M7 minion-protocol work.
-- Keep WiFi, OTA, and webserver on core 3.x (event migration already done).
-- Move settings read/write for the Heat controller through the minion protocol into the webserver where applicable.
-- Flash and verify a settings change made over the webserver reaches the Heat controller and persists.
-- CLI: extend `wifi`/`web`/`ota` with state, reconnect count, request count, last request, and partition info; add `settings` (proxy over the minion bus: `settings get <key>`, `settings set <key> <value>`, `settings file`) and `net` (combined wifi/web/ota summary).
+- Replace `wific`, `webserverc`, `ota` and `config` with the network services: `HomeWiFiService` (NVS network array, STA state machine), `WebServerService` (AsyncWebServer, portal, SSE), `WebConfigStore` (NVS JSON), `MdnsService` (responder lifecycle tied to the station connection), and `DeviceName` (`iot12-<last 3 MAC bytes>`).
+- Remove `local_env.ini` and the `WIFI_SSID`, `WIFI_PASSWORD`, `HOSTNAME` and `OTA_PASSWORD` build flags. The build has no compile-time network configuration.
+- Add `esp32async/AsyncTCP` and `esp32async/ESPAsyncWebServer` to `lib_deps`.
+- Add `webui/` and `tools/generate_webui_header.py`; register the generator in `extra_scripts`.
+- Touchscreen: a screen carousel with a 32 px header bar. The left arrow box sits at (16,16) and the right arrow box at (272,16), both 32x32, with the screen title centered between them. The home readout is a hero value centered at y=56, a hairline at y=116, and a status rail at y=120 with `SET` plus the setpoint on the left and `PWM` plus the heater status on the right. The three buttons sit at y=164..224 (60 px tall). The screens are Home, Network (AP start/stop, SSID, WPA2 password, AP IP, STA state) and Info (firmware version, uptime, IP, MAC, link state, I2C error counters). The arrows wrap around the list.
+- NVS: namespace `iot12`, key `wifi_cfg` (JSON `{"networks":[{"ssid":"...","pass":"..."}]}`) and key `ap_pass` (the 12-character AP password). The AP SSID is `iot12-<last 3 MAC bytes>` computed at boot and never stored.
+- SSE route `/api/stream`: the full state in one message on connect, then the full state again once per second from the heartbeat read. No deltas and no separate snapshot event.
+- The page owns the stream lifecycle: it closes the `EventSource` on error and retries itself with a 1 s to 15 s backoff, resetting the delay on every successful open. The browser's own retry is not used because it keeps the old URL and has no backoff, so a device that moved from the AP address to its station address would never be picked up. A retry also fires immediately when the page becomes visible again or the browser reports it is back online. The header shows the stream state (`live`, `connecting`, `retry in N s`).
+- The Live card is a 3x2 grid of tiles, each with the label above its value, so a label can never drift away from its number. Below 640 px the grid drops to two columns.
+- Read-only routes: `/api/status` (WiFi state, IP, RSSI, portal flag, uptime, heap), `/api/device` (version, git, build, board, chip), `/api/config` (SSIDs only, never passwords).
+- Screenshot route `/api/screenshot`: a chunked `application/octet-stream` of raw RGB565, 16 rows per strip, with `X-Screenshot-Width`, `X-Screenshot-Height` and `X-Screenshot-Format` headers. The page converts it to a canvas and a PNG, so the device never allocates a full framebuffer. The display mutex is held for the whole capture, so a draw cannot tear the image; the response owns a guard that releases the mutex also when the client disconnects early.
+- The home layout is the hero variant chosen on the device: the temperature is the single large value, the setpoint and heater status share a hairline-separated rail, and the buttons are 60 px tall. The heater status is four characters wide (`OFF`, `LOST` or the duty), so it never reaches the `PWM` label.
+- Write routes gated by the open portal: `/api/wifi` (save the network array to NVS) and `/api/ota` (firmware upload).
+- Keep register `0x42 HEATER_DUTY` in the state message so the page shows the real output.
+- Keep WiFi, OTA and the webserver on core 3.x; the event migration is already done.
+- CLI: extend `wifi`/`web`/`ota` with state, reconnect count, request count, last request, and partition info; add `net` (combined wifi/web/ota summary), `ap on|off` (start and stop the portal from the CLI), and `screen` (current screen, title and index), `screen next|prev|home` (drive the carousel from the CLI).
+- Settings read and write over the minion bus stay out of M7; they follow with the credential work.
+- Flash and verify: the touchscreen starts the AP, a laptop joins with the shown password, the portal saves a network, the device joins it, `iot12-<last 3 MAC bytes>.local` resolves, the page shows live values, and a firmware upload over the portal succeeds.
 - `pio run` passes.
+- Verified on V2.2 hardware: `version` reports 2026.11.1 on the 16 MB flash, `net` reports `WIFI: idle`, `PORTAL: off` and `OTA: idle`, `screen` reports `HOME` index 0 of 3, `screen next|prev|home` cycles the carousel, `ui zones` lists `PREV 16,16 32x32`, `NEXT 272,16 32x32`, `POWER 16,164 96x60`, `PLUS 112,164 96x60`, `MINUS 208,164 96x60` and `AP 16,196 288x28`, `ui press` on the arrow zones cycles the carousel, and `ui press` on the AP zone starts and stops the portal. `ap` reports the AP state, the SSID `iot12-<last 3 MAC bytes>`, the stored password and the AP IP, and `web` reports the same SSID and IP 192.168.4.1 while the portal is open. The portal save stores the network, the station connects, `iot12-<last 3 MAC bytes>.local` resolves, the page serves, and `/api/stream` pushes the live state once per second. A full portal cycle (`ap on`, `ap off`) stops and restarts the responder without a crash. The served `app.js` carries the retry logic and the header carries the stream status element, and two sequential stream connections both deliver the state frame with a stable heap. The served page carries the Display card and `/api/screenshot` returns 153,600 bytes of RGB565 with the expected headers. The home screen uses the hero layout and the capture shows the centered value, the hairline rail and the 60 px buttons. The laptop join and the OTA upload are the remaining bench checks.
+
+### [ ] M8 - Network and Info screen polish (flash: yes)
+
+- Give the Network and Info screens the same visual language as the home screen: a consistent label/value grid, a hairline separator, and the same 60 px button strip where a button is needed.
+- Network: show the AP state as a colored pill, the SSID and password in a copyable layout, and the STA state with the same status colors as the home rail.
+- Info: group the version, uptime, IP, MAC, link and I2C error counters into two columns so the six lines fit without crowding.
+- Verify with `/api/screenshot` on both screens and `pio run`.
+
+### [ ] M9 - Touchscreen calibration (flash: yes)
+
+- Add a calibration screen that asks for four corner taps, computes the XPT2046 raw-to-panel mapping, and stores it in NVS as the new default.
+- The current fixed `x_min`/`x_max`/`y_min`/`y_max` in the panel config become the fallback when no calibration is stored.
+- Add `touch calibrate` to the CLI and a `CALIBRATE` entry on the Info screen, so the small buttons can be re-aligned without a reflash.
+- Verify that a tap in the centre of each button reports the matching zone with `ui press` and on the device.

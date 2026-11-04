@@ -9,6 +9,6 @@
 
 #include "SerialCli.h"
 
-namespace ota_commands {
+namespace net_commands {
     void registerCommands(cli::SerialCli &cli);
 }

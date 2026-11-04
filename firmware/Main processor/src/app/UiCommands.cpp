@@ -12,6 +12,7 @@
 
 #include "CliFormat.h"
 #include "Ui.h"
+#include "display.h"
 
 namespace {
     void cmdUi(cli::SerialCli &cli, int argc, char **argv) {
@@ -63,7 +64,7 @@ namespace {
             return;
         }
 
-        cli_format::keyText(cli, "SCREEN", "home");
+        cli_format::keyText(cli, "SCREEN", DisplayScreenName(DisplayScreenGet()));
         cli_format::keyFloat(cli, "SETPOINT", UiSetpointTenths() / 10.0f, 1);
         cli_format::keyText(cli, "HEATER", UiHeaterOn() ? "on" : "off");
         cli_format::keyText(cli, "PRESSED", UiZoneName(UiPressedZone()));

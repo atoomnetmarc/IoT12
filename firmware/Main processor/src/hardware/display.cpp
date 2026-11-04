@@ -9,11 +9,20 @@
 
 #include <Arduino.h>
 #include <LovyanGFX.hpp>
-#include <math.h>
+#include <WiFi.h>
 #include <clib/u8g2.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <math.h>
 
 #include "HeatController.h"
+#include "HomeWiFiService.h"
 #include "Ui.h"
+#include "WebServerService.h"
+
+#ifndef PRODUCT_VERSION
+#define PRODUCT_VERSION "unknown"
+#endif
 
 namespace {
     constexpr int16_t PIN_TFT_CS = 15;
@@ -134,32 +143,68 @@ namespace {
     };
 
     /*
-     * Variant C geometry. The bezel hides 16 px on every edge, so every piece
-     * of UI stays inside this inset. The top 124 px is the readout, the bottom
-     * 84 px is the three-button strip. The button rects live in Ui.h, because
-     * the touch hit-test uses the same numbers.
+     * Geometry. The bezel hides 16 px on every edge, so every piece of UI
+     * stays inside this inset. The top 32 px is the carousel header, the
+     * readout sits below it, and the bottom 84 px is the button strip.
      */
     constexpr int16_t SAFE_MARGIN = 16;
-    constexpr int16_t TIP_VALUE_X = 68;
-    constexpr int16_t TIP_VALUE_Y = 56;
-    constexpr int16_t SET_VALUE_X = 128;
-    constexpr int16_t SET_VALUE_Y = 16;
-    constexpr FieldRect TIP_VALUE_RECT = {16, 56, 288, 68};
-    constexpr FieldRect SET_VALUE_RECT = {128, 16, 72, 35};
-    constexpr FieldRect HEATER_RECT = {200, 16, 104, 35};
+    constexpr int16_t HEADER_Y = 16;
+    constexpr int16_t HEADER_H = 32;
+    constexpr int16_t TITLE_CENTER_X = 160;
+
+    constexpr FieldRect TIP_VALUE_RECT = {16, 56, 288, 56};
+    constexpr FieldRect SET_VALUE_RECT = {75, 120, 75, 30};
+    constexpr FieldRect HEATER_RECT = {213, 120, 91, 30};
 
     constexpr uint16_t COLOR_BUTTON = 0x18E3;    // dark blue-grey
     constexpr uint16_t COLOR_SEPARATOR = 0x4208; // dark grey
 
-    // drawRequested forces a full repaint (setup, leaving the font demo or the
-    // bezel box). stateDirty only makes the loop re-read the values and redraw
-    // the fields that changed, so a touch never wipes the whole panel.
+    // drawRequested forces a full repaint (setup, screen change or the bezel
+    // box). stateDirty only makes the loop re-read the values and redraw the
+    // fields that changed, so a touch never wipes the whole panel.
     bool drawRequested = true;
     bool stateDirty = false;
     uint32_t lastDrawMs = 0;
     uint8_t backlight = BACKLIGHT_DEFAULT;
     bool powerOn = true;
     HomeState lastState;
+    DisplayScreen currentScreen = DISPLAY_SCREEN_HOME;
+
+    /*
+     * The panel is shared between the main loop (drawing) and the AsyncTCP
+     * task (screenshot reads). LovyanGFX serializes individual SPI
+     * transactions, but not the LGFX object state, so the whole draw and the
+     * whole capture take this mutex. A null mutex means the allocation failed;
+     * the display then runs without the lock instead of staying blank.
+     */
+    SemaphoreHandle_t displayMutex = nullptr;
+
+    bool lockDisplay(uint32_t timeoutMs) {
+        if (displayMutex == nullptr) {
+            return true;
+        }
+        return xSemaphoreTake(displayMutex, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+    }
+
+    void unlockDisplay(void) {
+        if (displayMutex != nullptr) {
+            xSemaphoreGive(displayMutex);
+        }
+    }
+
+    // RAII guard, so every early return in DisplayLoop releases the panel.
+    struct DisplayLock {
+        bool held;
+
+        explicit DisplayLock(uint32_t timeoutMs) : held(lockDisplay(timeoutMs)) {
+        }
+
+        ~DisplayLock() {
+            if (held) {
+                unlockDisplay();
+            }
+        }
+    };
 
     /*
      * The UI face is Logisoso, a U8g2 font, so it carries a real degree sign
@@ -204,18 +249,51 @@ namespace {
         }
     }
 
-    // POWER is green while the heater is on, dark grey while it is off.
-    void drawPowerButton(bool heaterOn, bool pressed) {
-        uint16_t fill = pressed ? TFT_WHITE : (heaterOn ? TFT_GREEN : COLOR_BUTTON);
-        uint16_t text = (pressed || heaterOn) ? TFT_BLACK : TFT_WHITE;
+    // Draw one carousel arrow box. The chevron is drawn as two lines, so it
+    // does not depend on the font carrying an arrow glyph.
+    void drawArrowBox(const UiRect &rect, bool left, bool pressed) {
+        uint16_t fill = pressed ? TFT_WHITE : COLOR_BUTTON;
+        uint16_t glyph = pressed ? TFT_BLACK : TFT_WHITE;
+        int16_t cx = rect.x + rect.w / 2;
+        int16_t cy = rect.y + rect.h / 2;
+        int16_t dx = left ? 5 : -5;
 
-        drawButtonFrame(UI_POWER_RECT, fill, pressed);
+        drawButtonFrame(rect, fill, pressed);
+
+        lcd.drawLine(cx + dx, cy - 8, cx - dx, cy, glyph);
+        lcd.drawLine(cx - dx, cy, cx + dx, cy + 8, glyph);
+    }
+
+    // Draw the carousel header: two arrow boxes and the centered title.
+    void drawHeader(bool full) {
+        if (full) {
+            lcd.fillRect(0, 0, lcd.width(), HEADER_Y + HEADER_H + 4, TFT_BLACK);
+        }
+
+        drawArrowBox(UI_PREV_RECT, true, UiPressedZone() == UI_ZONE_PREV);
+        drawArrowBox(UI_NEXT_RECT, false, UiPressedZone() == UI_ZONE_NEXT);
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        lcd.drawString(DisplayScreenName(currentScreen), TITLE_CENTER_X, HEADER_Y + HEADER_H / 2);
+    }
+
+    // POWER is green while the heater is on, dark grey while it is off. A
+    // layout variant can keep the button dark and show the state with a dot.
+    void drawPowerButtonAt(const UiRect &rect, bool heaterOn, bool pressed, bool fillWhenOn) {
+        bool lit = heaterOn && fillWhenOn;
+        uint16_t fill = pressed ? TFT_WHITE : (lit ? TFT_GREEN : COLOR_BUTTON);
+        uint16_t text = (pressed || lit) ? TFT_BLACK : TFT_WHITE;
+
+        drawButtonFrame(rect, fill, pressed);
 
         lcd.setFont(&fontLogisoso24);
         lcd.setTextSize(1);
         lcd.setTextDatum(lgfx::textdatum_t::middle_center);
         lcd.setTextColor(text, fill);
-        lcd.drawString("POWER", UI_POWER_RECT.x + UI_POWER_RECT.w / 2, UI_POWER_RECT.y + UI_POWER_RECT.h / 2);
+        lcd.drawString("POWER", rect.x + rect.w / 2, rect.y + rect.h / 2);
     }
 
     // The step buttons draw their glyph as two bars, so they do not depend on
@@ -237,18 +315,103 @@ namespace {
         }
     }
 
-    // Draw the Variant C home panel: readout on top, three buttons below.
+    // Draw the big tip value at a fixed anchor. The caller clears the field
+    // when the link state changes, because the string width then changes.
+    void drawTipField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
+        char buffer[16];
+
+        if (state.linked) {
+            snprintf(buffer, sizeof(buffer), "%5.1f\xC2\xB0"
+                                             "C",
+                     state.tipTenths / 10.0f);
+        } else {
+            snprintf(buffer, sizeof(buffer), "--.-");
+        }
+
+        lcd.setFont(&fontLogisoso46);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(datum);
+        lcd.setTextColor(state.linked ? TFT_WHITE : TFT_DARKGREY, TFT_BLACK);
+        lcd.drawString(buffer, x, y);
+    }
+
+    void drawSetField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
+        char buffer[16];
+
+        if (state.linked) {
+            snprintf(buffer, sizeof(buffer), "%5.1f", state.setTenths / 10.0f);
+        } else {
+            snprintf(buffer, sizeof(buffer), "--.-");
+        }
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(datum);
+        lcd.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+        lcd.drawString(buffer, x, y);
+    }
+
+    void drawHeaterField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
+        char buffer[16];
+        // Four characters wide, so OFF, LOST and the duty share one cell width
+        // and the right-aligned value never reaches the PWM label.
+        const char *text = " OFF";
+        uint16_t color = TFT_DARKGREY;
+
+        if (!state.linked) {
+            text = "LOST";
+            color = TFT_RED;
+        } else if (state.heaterOn) {
+            snprintf(buffer, sizeof(buffer), "%3d%%", state.dutyPercent);
+            text = buffer;
+            color = TFT_GREEN;
+        }
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(datum);
+        lcd.setTextColor(color, TFT_BLACK);
+        lcd.drawString(text, x, y);
+    }
+
+    // Redraw only the buttons whose appearance changed, for any layout.
+    void drawHomeButtons(const HomeState &state, const HomeState &previous, bool full, const UiRect &power, const UiRect &plus, const UiRect &minus, bool fillPowerWhenOn) {
+        bool powerPressed = state.pressedZone == UI_ZONE_POWER;
+        bool plusPressed = state.pressedZone == UI_ZONE_PLUS;
+        bool minusPressed = state.pressedZone == UI_ZONE_MINUS;
+        bool powerPressedBefore = previous.pressedZone == UI_ZONE_POWER;
+        bool plusPressedBefore = previous.pressedZone == UI_ZONE_PLUS;
+        bool minusPressedBefore = previous.pressedZone == UI_ZONE_MINUS;
+
+        if (full || state.heaterOn != previous.heaterOn || powerPressed != powerPressedBefore) {
+            drawPowerButtonAt(power, state.heaterOn, powerPressed, fillPowerWhenOn);
+        }
+        if (full || plusPressed != plusPressedBefore) {
+            drawStepButton(plus, true, plusPressed);
+        }
+        if (full || minusPressed != minusPressedBefore) {
+            drawStepButton(minus, false, minusPressed);
+        }
+    }
+
+    // Draw the home panel: header, hero value, status rail and three buttons.
     // Only the fields that differ from the previous state are redrawn.
     void drawHome(const HomeState &state, const HomeState &previous, bool full) {
         if (full) {
             lcd.fillScreen(TFT_BLACK);
+        }
+
+        drawHeader(full);
+
+        if (full) {
+            lcd.drawFastHLine(SAFE_MARGIN, 116, lcd.width() - 2 * SAFE_MARGIN, COLOR_SEPARATOR);
 
             lcd.setFont(&fontLogisoso24);
             lcd.setTextSize(1);
             lcd.setTextDatum(lgfx::textdatum_t::top_left);
             lcd.setTextColor(TFT_DARKGREY, TFT_BLACK);
-            lcd.drawString("TIP", SAFE_MARGIN, SAFE_MARGIN);
-            lcd.drawString("SET", 72, SAFE_MARGIN);
+            lcd.drawString("SET", SAFE_MARGIN, 120);
+            lcd.drawString("PWM", 160, 120);
         }
 
         /*
@@ -258,93 +421,109 @@ namespace {
          * is only cleared when the format changes (link up or down).
          */
         if (full || state.tipTenths != previous.tipTenths || state.linked != previous.linked) {
-            char buffer[16];
-
             if (state.linked != previous.linked) {
                 clearField(TIP_VALUE_RECT);
             }
-
-            if (state.linked) {
-                // %5.1f keeps three integer digits, so the value never moves.
-                snprintf(buffer, sizeof(buffer), "%5.1f\xC2\xB0" "C", state.tipTenths / 10.0f);
-            } else {
-                snprintf(buffer, sizeof(buffer), "--.-");
-            }
-
-            lcd.setFont(&fontLogisoso46);
-            lcd.setTextSize(1);
-            lcd.setTextDatum(lgfx::textdatum_t::top_left);
-            lcd.setTextColor(state.linked ? TFT_WHITE : TFT_DARKGREY, TFT_BLACK);
-            lcd.drawString(buffer, TIP_VALUE_X, TIP_VALUE_Y);
+            drawTipField(state, 160, 56, lgfx::textdatum_t::top_center);
         }
 
         if (full || state.setTenths != previous.setTenths || state.linked != previous.linked) {
-            char buffer[16];
-
             if (state.linked != previous.linked) {
                 clearField(SET_VALUE_RECT);
             }
-
-            if (state.linked) {
-                snprintf(buffer, sizeof(buffer), "%5.1f", state.setTenths / 10.0f);
-            } else {
-                snprintf(buffer, sizeof(buffer), "--.-");
-            }
-
-            lcd.setFont(&fontLogisoso24);
-            lcd.setTextSize(1);
-            lcd.setTextDatum(lgfx::textdatum_t::top_left);
-            lcd.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-            lcd.drawString(buffer, SET_VALUE_X, SET_VALUE_Y);
+            // Right-aligned, so the value grows to the left and never touches
+            // the SET label when it crosses from two to three digits.
+            drawSetField(state, 150, 120, lgfx::textdatum_t::top_right);
         }
 
         if (full || state.heaterOn != previous.heaterOn || state.dutyPercent != previous.dutyPercent || state.linked != previous.linked) {
-            char buffer[16];
-            const char *text = "    OFF";
-            uint16_t color = TFT_DARKGREY;
-
-            if (!state.linked) {
-                text = "NO LINK";
-                color = TFT_RED;
-            } else if (state.heaterOn) {
-                // Pad to seven characters so the background band covers the
-                // previous value; the extra characters are blank spaces.
-                snprintf(buffer, sizeof(buffer), "   %3d%%", state.dutyPercent);
-                text = buffer;
-                color = TFT_GREEN;
-            }
-
             if (state.linked != previous.linked) {
                 clearField(HEATER_RECT);
             }
-
-            lcd.setFont(&fontLogisoso24);
-            lcd.setTextSize(1);
-            lcd.setTextDatum(lgfx::textdatum_t::top_right);
-            lcd.setTextColor(color, TFT_BLACK);
-            lcd.drawString(text, lcd.width() - SAFE_MARGIN, SAFE_MARGIN);
+            drawHeaterField(state, 304, 120, lgfx::textdatum_t::top_right);
         }
 
         /*
          * Redraw each button only when its own appearance changed. Repainting
          * the whole strip on every press made the other two buttons blink.
          */
-        bool powerPressed = state.pressedZone == UI_ZONE_POWER;
-        bool plusPressed = state.pressedZone == UI_ZONE_PLUS;
-        bool minusPressed = state.pressedZone == UI_ZONE_MINUS;
-        bool powerPressedBefore = previous.pressedZone == UI_ZONE_POWER;
-        bool plusPressedBefore = previous.pressedZone == UI_ZONE_PLUS;
-        bool minusPressedBefore = previous.pressedZone == UI_ZONE_MINUS;
+        drawHomeButtons(state, previous, full, UI_POWER_RECT, UI_PLUS_RECT, UI_MINUS_RECT, true);
+    }
 
-        if (full || state.heaterOn != previous.heaterOn || powerPressed != powerPressedBefore) {
-            drawPowerButton(state.heaterOn, powerPressed);
+    // Draw the network screen: AP state, identity and the AP toggle button.
+    void drawNetwork(bool full) {
+        if (full) {
+            lcd.fillScreen(TFT_BLACK);
         }
-        if (full || plusPressed != plusPressedBefore) {
-            drawStepButton(UI_PLUS_RECT, true, plusPressed);
+
+        drawHeader(full);
+
+        bool ap = web_server::portalActive();
+        char line[48];
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::top_left);
+        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+
+        snprintf(line, sizeof(line), "AP: %s", ap ? "ON" : "OFF");
+        lcd.drawString(line, SAFE_MARGIN, 56);
+
+        snprintf(line, sizeof(line), "SSID: %s", web_server::apSsid());
+        lcd.drawString(line, SAFE_MARGIN, 84);
+
+        snprintf(line, sizeof(line), "PASS: %s", web_server::apPassword());
+        lcd.drawString(line, SAFE_MARGIN, 112);
+
+        snprintf(line, sizeof(line), "AP IP: %s", ap ? web_server::apIp() : "-");
+        lcd.drawString(line, SAFE_MARGIN, 140);
+
+        snprintf(line, sizeof(line), "STA: %s", home_wifi::stateName(home_wifi::getState()));
+        lcd.drawString(line, SAFE_MARGIN, 168);
+
+        bool pressed = UiPressedZone() == UI_ZONE_AP;
+        uint16_t fill = pressed ? TFT_WHITE : (ap ? TFT_GREEN : COLOR_BUTTON);
+        uint16_t text = (pressed || ap) ? TFT_BLACK : TFT_WHITE;
+
+        drawButtonFrame(UI_AP_RECT, fill, pressed);
+
+        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+        lcd.setTextColor(text, fill);
+        lcd.drawString(ap ? "STOP AP" : "START AP", UI_AP_RECT.x + UI_AP_RECT.w / 2, UI_AP_RECT.y + UI_AP_RECT.h / 2);
+    }
+
+    // Draw the info screen: version, uptime, network identity and link health.
+    void drawInfo(bool full) {
+        if (full) {
+            lcd.fillScreen(TFT_BLACK);
         }
-        if (full || minusPressed != minusPressedBefore) {
-            drawStepButton(UI_MINUS_RECT, false, minusPressed);
-        }
+
+        drawHeader(full);
+
+        char line[48];
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::top_left);
+        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+
+        snprintf(line, sizeof(line), "VER: %s", PRODUCT_VERSION);
+        lcd.drawString(line, SAFE_MARGIN, 56);
+
+        snprintf(line, sizeof(line), "UPTIME: %lu s", static_cast<unsigned long>(millis() / 1000U));
+        lcd.drawString(line, SAFE_MARGIN, 84);
+
+        snprintf(line, sizeof(line), "IP: %s", WiFi.localIP().toString().c_str());
+        lcd.drawString(line, SAFE_MARGIN, 112);
+
+        snprintf(line, sizeof(line), "MAC: %s", WiFi.macAddress().c_str());
+        lcd.drawString(line, SAFE_MARGIN, 140);
+
+        snprintf(line, sizeof(line), "LINK: %s", HeatController.isCompatible() ? "OK" : "LOST");
+        lcd.drawString(line, SAFE_MARGIN, 168);
+
+        snprintf(line, sizeof(line), "I2C ERR: %lu", static_cast<unsigned long>(HeatController.errorCount()));
+        lcd.drawString(line, SAFE_MARGIN, 196);
     }
 
     // Draw the panel edge and a rectangle inset by margin pixels.
@@ -372,14 +551,16 @@ namespace {
         lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
         lcd.drawString(text, w / 2, h / 2);
     }
-
 }
 
 void DisplaySetup(void) {
+    displayMutex = xSemaphoreCreateMutex();
+
     lcd.init();
     lcd.setRotation(ROTATION);
     lcd.setBrightness(backlight);
     lcd.fillScreen(TFT_BLACK);
+    currentScreen = DISPLAY_SCREEN_HOME;
     drawRequested = true;
 }
 
@@ -388,21 +569,84 @@ void DisplayLoop(void) {
         return;
     }
 
-    HomeState state = readHomeState();
-    if (!drawRequested && !stateDirty && state == lastState) {
+    // A screenshot holds the panel for the whole capture; skip this frame.
+    DisplayLock lock(0);
+    if (!lock.held) {
         return;
     }
 
-    drawHome(state, lastState, drawRequested);
+    uint32_t now = millis();
+
+    if (currentScreen == DISPLAY_SCREEN_HOME) {
+        HomeState state = readHomeState();
+        if (!drawRequested && !stateDirty && state == lastState) {
+            return;
+        }
+
+        drawHome(state, lastState, drawRequested);
+        lastState = state;
+    } else {
+        // The network and info screens show slowly changing values, so a
+        // one-second refresh is enough and keeps the code simple.
+        if (!drawRequested && !stateDirty && now - lastDrawMs < 1000) {
+            return;
+        }
+
+        if (currentScreen == DISPLAY_SCREEN_NETWORK) {
+            drawNetwork(drawRequested);
+        } else {
+            drawInfo(drawRequested);
+        }
+    }
+
     drawRequested = false;
     stateDirty = false;
-    lastState = state;
-    lastDrawMs = millis();
+    lastDrawMs = now;
 }
 
 void DisplayRequestDraw(void) {
     // Only re-evaluate the fields. A full repaint would flash the panel.
     stateDirty = true;
+}
+
+void DisplayScreenNext(void) {
+    currentScreen = static_cast<DisplayScreen>((static_cast<uint8_t>(currentScreen) + 1) % DisplayScreenCount());
+    drawRequested = true;
+}
+
+void DisplayScreenPrev(void) {
+    currentScreen = static_cast<DisplayScreen>((static_cast<uint8_t>(currentScreen) + DisplayScreenCount() - 1) % DisplayScreenCount());
+    drawRequested = true;
+}
+
+void DisplayScreenSet(DisplayScreen screen) {
+    if (screen >= DisplayScreenCount()) {
+        return;
+    }
+
+    currentScreen = screen;
+    drawRequested = true;
+}
+
+DisplayScreen DisplayScreenGet(void) {
+    return currentScreen;
+}
+
+const char *DisplayScreenName(DisplayScreen screen) {
+    switch (screen) {
+        case DISPLAY_SCREEN_HOME:
+            return "HOME";
+        case DISPLAY_SCREEN_NETWORK:
+            return "NETWORK";
+        case DISPLAY_SCREEN_INFO:
+            return "INFO";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+size_t DisplayScreenCount(void) {
+    return 3;
 }
 
 const char *DisplayDriverName(void) {
@@ -483,4 +727,16 @@ bool TouchRead(uint16_t *x, uint16_t *y, uint16_t *rawX, uint16_t *rawY) {
 
 bool TouchIrqLevel(void) {
     return digitalRead(PIN_TOUCH_IRQ) == HIGH;
+}
+
+bool DisplayScreenshotBegin(uint32_t timeoutMs) {
+    return lockDisplay(timeoutMs);
+}
+
+void DisplayScreenshotRead(uint16_t y, uint16_t h, uint16_t *dst) {
+    lcd.readRect(0, y, lcd.width(), h, dst);
+}
+
+void DisplayScreenshotEnd(void) {
+    unlockDisplay();
 }
