@@ -247,13 +247,7 @@ bool WireMinionClass::writeRegister(uint8_t reg, const uint8_t *data, uint8_t le
 
     if (reg == REGISTER_TEMPERATURE_HEATER_TARGET && length == sizeof(float_union.m_bytes)) {
         memcpy(float_union.m_bytes, data, sizeof(float_union.m_bytes));
-
-        // Max temperature is 725K;
-        if (float_union.m_float > 725) {
-            float_union.m_float = 725;
-        }
-
-        Setting.targetTemperatureHeater = float_union.m_float;
+        Setting.setTargetTemperatureHeater(float_union.m_float);
         Setting.save();
         return true;
     }

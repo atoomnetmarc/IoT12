@@ -19,6 +19,14 @@ namespace setting_files {
     constexpr const char *BACKUP = "/settings.json.bak";
 }
 
+/*
+ * The target temperature range in Kelvin, equal to 0-450 C.
+ */
+namespace setting_limits {
+    constexpr float TARGET_TEMPERATURE_MIN_K = 273.15f;
+    constexpr float TARGET_TEMPERATURE_MAX_K = 723.15f;
+}
+
 enum HEATER_STATE : uint8_t {
     OFF = 0x00,
     ON = 0x01,
@@ -39,6 +47,8 @@ public:
 
     bool get(const char *key, float &value) const;
     bool set(const char *key, float value);
+
+    void setTargetTemperatureHeater(float kelvin);
 
     size_t keyCount(void) const;
     const char *keyAt(size_t index) const;

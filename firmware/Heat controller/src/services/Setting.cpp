@@ -134,6 +134,19 @@ bool SettingClass::get(const char *key, float &value) const {
     return false;
 }
 
+// Clamps the target temperature to the supported range and stores it.
+void SettingClass::setTargetTemperatureHeater(float kelvin) {
+    if (kelvin < setting_limits::TARGET_TEMPERATURE_MIN_K) {
+        kelvin = setting_limits::TARGET_TEMPERATURE_MIN_K;
+    }
+
+    if (kelvin > setting_limits::TARGET_TEMPERATURE_MAX_K) {
+        kelvin = setting_limits::TARGET_TEMPERATURE_MAX_K;
+    }
+
+    targetTemperatureHeater = kelvin;
+}
+
 bool SettingClass::set(const char *key, float value) {
     for (const Field &field : FIELDS) {
         if (strcmp(field.name, key) == 0) {

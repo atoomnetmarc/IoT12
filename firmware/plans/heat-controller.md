@@ -179,10 +179,11 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - Verified on V2.2 hardware: `shake adc` reports about 3.27 V at rest and about 2.20 V with the handle upside down; the 2.5 V threshold detects both states.
 - Verified on V2.2 hardware: with 5/10/15 s times and a 300 C setpoint, the phase goes ACTIVE -> RAMP (linear 250 to 150 C) -> STANDBY2 -> EXPIRED; motion during RAMP returns to ACTIVE and resets the timer; `heater on` resets the timer after expiry.
 
-### [ ] M9 - Setpoint clamp (flash: yes)
+### [x] M9 - Setpoint clamp (flash: yes)
 
 - Clamp every write to `REGISTER_TEMPERATURE_HEATER_TARGET` to 273.15-723.15 K (0-450 C) in the minion write path.
 - Clamp the CLI `setpoint` value to the same range.
 - The Main processor UI clamps the same range for the touch zones (Main processor M4).
 - Flash and verify: a write of 1000 K reads back as 723.15 K, a write of 200 K reads back as 273.15 K, and a normal setpoint is unchanged.
 - `pio run` passes.
+- Verified on V2.2 hardware: `heat write 0x80` with 1000 K reads back `9a c9 34 44` (723.15 K), with 200 K reads back `33 93 88 43` (273.15 K), and with 573.15 K reads back unchanged. `setpoint 1000` and `setpoint 451` report 450.00, `setpoint -100` reports 0.00, and `setpoint 300` reports 300.00.

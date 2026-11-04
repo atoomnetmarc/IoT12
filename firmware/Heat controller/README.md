@@ -103,7 +103,7 @@ The time in milliseconds without a heartbeat before the heat controller forces t
 
 ### 0x80: Target Tip Temperature
 
-Maximum allowed value: 725K (451.85°C)
+Allowed range: 273.15-723.15K (0-450 C). A value outside the range is clamped to the nearest limit.
 
 ### 0xF8, 0xF9: Test Constants
 

@@ -68,7 +68,7 @@ namespace {
 
     void cmdSetpoint(cli::SerialCli &cli, int argc, char **argv) {
         if (argc >= 2) {
-            Setting.targetTemperatureHeater = static_cast<float>(atof(argv[1])) + 273.15f;
+            Setting.setTargetTemperatureHeater(static_cast<float>(atof(argv[1])) + 273.15f);
             Setting.save();
         }
 
