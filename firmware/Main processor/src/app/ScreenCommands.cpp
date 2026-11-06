@@ -25,8 +25,10 @@ namespace {
                 DisplayScreenSet(DISPLAY_SCREEN_NETWORK);
             } else if (strcmp(argv[1], "info") == 0) {
                 DisplayScreenSet(DISPLAY_SCREEN_INFO);
+            } else if (strcmp(argv[1], "touch") == 0) {
+                DisplayScreenSet(DISPLAY_SCREEN_TOUCH);
             } else {
-                cli.write("Usage: screen [next|prev|home|network|info]\r\n");
+                cli.write("Usage: screen [next|prev|home|network|info|touch]\r\n");
                 return;
             }
         }
@@ -39,6 +41,6 @@ namespace {
 
 namespace screen_commands {
     void registerCommands(cli::SerialCli &cli) {
-        cli.registerCommand({"screen", [&cli](int argc, char **argv) { cmdScreen(cli, argc, argv); }, "carousel screen; screen next|prev|home"});
+        cli.registerCommand({"screen", [&cli](int argc, char **argv) { cmdScreen(cli, argc, argv); }, "carousel screen; screen next|prev|home|network|info|touch"});
     }
 }

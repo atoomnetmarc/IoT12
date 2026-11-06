@@ -19,6 +19,8 @@
 #include "HeatController.h"
 #include "HomeWiFiService.h"
 #include "LifetimeStats.h"
+#include "TouchCalibration.h"
+#include "TouchTest.h"
 #include "Ui.h"
 #include "WebServerService.h"
 
@@ -36,6 +38,27 @@ namespace {
     constexpr int16_t PIN_TFT_LED = 32;
     constexpr int16_t PIN_TOUCH_CS = 5;
     constexpr int16_t PIN_TOUCH_IRQ = 34;
+
+    /*
+     * Nominal raw corners of the touch panel, measured on V2.2 hardware. The
+     * XPT2046 x reading depends slightly on y, so the four corners are kept
+     * independent instead of a rectangle. The order is native (0,0), (0,319),
+     * (239,0) and (239,319).
+     */
+    constexpr uint16_t TOUCH_P0_X = 120;
+    constexpr uint16_t TOUCH_P0_Y = 3600;
+    constexpr uint16_t TOUCH_P1_X = 210;
+    constexpr uint16_t TOUCH_P1_Y = 170;
+    constexpr uint16_t TOUCH_P2_X = 3860;
+    constexpr uint16_t TOUCH_P2_Y = 3645;
+    constexpr uint16_t TOUCH_P3_X = 3900;
+    constexpr uint16_t TOUCH_P3_Y = 175;
+
+    // Rectangle bounds of the four corners, for the panel config fallback.
+    constexpr uint16_t TOUCH_X_MIN = TOUCH_P0_X;
+    constexpr uint16_t TOUCH_X_MAX = TOUCH_P3_X;
+    constexpr uint16_t TOUCH_Y_MIN = TOUCH_P2_Y;
+    constexpr uint16_t TOUCH_Y_MAX = TOUCH_P1_Y;
 
     constexpr uint8_t ROTATION = 1;
     constexpr uint8_t BACKLIGHT_DEFAULT = 255;
@@ -91,12 +114,12 @@ namespace {
 
             {
                 auto cfg = _touch.config();
-                cfg.x_min = 300;
-                cfg.x_max = 3900;
+                cfg.x_min = TOUCH_X_MIN;
+                cfg.x_max = TOUCH_X_MAX;
                 // The touch panel's raw y axis runs opposite to the display x
                 // axis, so swap the range to mirror the mapped x back.
-                cfg.y_min = 3900;
-                cfg.y_max = 300;
+                cfg.y_min = TOUCH_Y_MIN;
+                cfg.y_max = TOUCH_Y_MAX;
                 cfg.pin_cs = PIN_TOUCH_CS;
                 cfg.pin_int = PIN_TOUCH_IRQ;
                 cfg.spi_host = SPI3_HOST;
@@ -265,7 +288,7 @@ namespace {
      * blink and the clear never reaches the label on the same row. A null
      * previous means the row is already blank.
      */
-    void drawValue(const char *value, const char *previous, int16_t y, uint16_t color) {
+    void drawValue(const char *value, const char *previous, int16_t y, uint16_t color, int16_t height) {
         lcd.setFont(&fontLogisoso24);
         lcd.setTextSize(1);
         lcd.setTextDatum(lgfx::textdatum_t::middle_right);
@@ -278,7 +301,7 @@ namespace {
             int16_t previousLeft = right - lcd.textWidth(previous);
 
             if (previousLeft < left) {
-                lcd.fillRect(previousLeft, y, left - previousLeft, VALUE_H, TFT_BLACK);
+                lcd.fillRect(previousLeft, y, left - previousLeft, height, TFT_BLACK);
             }
         }
 
@@ -287,8 +310,8 @@ namespace {
 
     // Draw a label on the left and a right-aligned value on the same row. The
     // value goes first, so its clear never eats into the label.
-    void drawLabelValue(const char *label, const char *value, const char *previous, int16_t y, uint16_t valueColor) {
-        drawValue(value, previous, y, valueColor);
+    void drawLabelValue(const char *label, const char *value, const char *previous, int16_t y, uint16_t valueColor, int16_t height) {
+        drawValue(value, previous, y, valueColor, height);
 
         lcd.setFont(&fontLogisoso24);
         lcd.setTextSize(1);
@@ -589,11 +612,11 @@ namespace {
         }
 
         if (full || strcmp(state.ssid, previous.ssid) != 0) {
-            drawLabelValue("SSID", state.ssid, full ? nullptr : previous.ssid, 56, TFT_WHITE);
+            drawLabelValue("SSID", state.ssid, full ? nullptr : previous.ssid, 56, TFT_WHITE, VALUE_H);
         }
 
         if (full || strcmp(state.pass, previous.pass) != 0) {
-            drawLabelValue("PASS", state.pass, full ? nullptr : previous.pass, 92, TFT_WHITE);
+            drawLabelValue("PASS", state.pass, full ? nullptr : previous.pass, 92, TFT_WHITE, VALUE_H);
         }
 
         if (full || strcmp(state.linkLabel, previous.linkLabel) != 0 || strcmp(state.linkValue, previous.linkValue) != 0) {
@@ -602,7 +625,7 @@ namespace {
             if (strcmp(state.linkLabel, previous.linkLabel) != 0) {
                 lcd.fillRect(SAFE_MARGIN, 128, LABEL_COLUMN_W, VALUE_H, TFT_BLACK);
             }
-            drawLabelValue(state.linkLabel, state.linkValue, full ? nullptr : previous.linkValue, 128, TFT_WHITE);
+            drawLabelValue(state.linkLabel, state.linkValue, full ? nullptr : previous.linkValue, 128, TFT_WHITE, VALUE_H);
         }
 
         if (full || state.ap != previous.ap || state.pressedZone != previous.pressedZone) {
@@ -665,25 +688,25 @@ namespace {
         }
 
         if (full || strcmp(state.version, previous.version) != 0) {
-            drawLabelValue("VER", state.version, full ? nullptr : previous.version, 56, TFT_WHITE);
+            drawLabelValue("VER", state.version, full ? nullptr : previous.version, 56, TFT_WHITE, VALUE_H);
         }
 
         if (full || state.session != previous.session) {
             formatDuration(state.session, value, sizeof(value));
             formatDuration(previous.session, previousValue, sizeof(previousValue));
-            drawLabelValue("UPTIME", value, full ? nullptr : previousValue, 100, TFT_WHITE);
+            drawLabelValue("UPTIME", value, full ? nullptr : previousValue, 100, TFT_WHITE, VALUE_H);
         }
 
         if (full || state.total != previous.total) {
             formatDuration(state.total, value, sizeof(value));
             formatDuration(previous.total, previousValue, sizeof(previousValue));
-            drawLabelValue("TOTAL", value, full ? nullptr : previousValue, 144, TFT_WHITE);
+            drawLabelValue("TOTAL", value, full ? nullptr : previousValue, 144, TFT_WHITE, VALUE_H);
         }
 
         if (full || state.boots != previous.boots) {
             snprintf(value, sizeof(value), "%lu", static_cast<unsigned long>(state.boots));
             snprintf(previousValue, sizeof(previousValue), "%lu", static_cast<unsigned long>(previous.boots));
-            drawLabelValue("BOOTS", value, full ? nullptr : previousValue, 188, TFT_WHITE);
+            drawLabelValue("BOOTS", value, full ? nullptr : previousValue, 188, TFT_WHITE, VALUE_H);
         }
     }
 
@@ -712,6 +735,252 @@ namespace {
         lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
         lcd.drawString(text, w / 2, h / 2);
     }
+
+    // Values the touch screen shows.
+    struct TouchState {
+        bool stored = false;
+        uint16_t values[8] = {};
+        UiZone pressedZone = UI_ZONE_NONE;
+    };
+
+    // Compare every displayed value, so DisplayLoop can skip an unchanged frame.
+    bool operator==(const TouchState &a, const TouchState &b) {
+        if (a.stored != b.stored || a.pressedZone != b.pressedZone) {
+            return false;
+        }
+
+        for (size_t i = 0; i < 8; ++i) {
+            if (a.values[i] != b.values[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    TouchState lastTouchState;
+
+    // Read the stored calibration values.
+    TouchState readTouchState(void) {
+        TouchState state;
+
+        state.stored = touch_calibration::stored();
+        for (size_t i = 0; i < 8; ++i) {
+            state.values[i] = touch_calibration::valueAt(i);
+        }
+        state.pressedZone = UiPressedZone();
+
+        return state;
+    }
+
+    // Draw a labelled action button. CAL and TEST share the AP and + geometry.
+    void drawActionButton(const UiRect &rect, const char *label, bool pressed) {
+        uint16_t fill = pressed ? TFT_WHITE : COLOR_BUTTON;
+        uint16_t text = pressed ? TFT_BLACK : TFT_WHITE;
+
+        drawButtonFrame(rect, fill, pressed);
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+        lcd.setTextColor(text, fill);
+        lcd.drawString(label, rect.x + rect.w / 2, rect.y + rect.h / 2);
+    }
+
+    // Draw the touch screen: four corner pairs, the CAL button and the TEST button.
+    void drawTouch(const TouchState &state, const TouchState &previous, bool full) {
+        if (full) {
+            lcd.fillScreen(TFT_BLACK);
+        }
+
+        drawHeader(full);
+
+        if (full) {
+            lcd.drawFastHLine(SAFE_MARGIN, 48, lcd.width() - 2 * SAFE_MARGIN, COLOR_SEPARATOR);
+        }
+
+        for (uint8_t i = 0; i < 4; ++i) {
+            char label[4];
+            char value[16];
+            char previousValue[16];
+
+            snprintf(label, sizeof(label), "P%u", i);
+            snprintf(value, sizeof(value), "%u,%u", state.values[i * 2], state.values[i * 2 + 1]);
+            snprintf(previousValue, sizeof(previousValue), "%u,%u", previous.values[i * 2], previous.values[i * 2 + 1]);
+
+            if (full || state.values[i * 2] != previous.values[i * 2] || state.values[i * 2 + 1] != previous.values[i * 2 + 1]) {
+                drawLabelValue(label, value, full ? nullptr : previousValue, 52 + i * 28, TFT_WHITE, 28);
+            }
+        }
+
+        if (full || state.pressedZone != previous.pressedZone) {
+            drawActionButton(UI_CAL_RECT, "CAL", state.pressedZone == UI_ZONE_CAL);
+            drawActionButton(UI_TEST_RECT, "TEST", state.pressedZone == UI_ZONE_TEST);
+        }
+    }
+
+    // Draw the touch test screen: title, last point, crosshair and EXIT button.
+    // The text and the button are drawn after the crosshair, so they stay
+    // readable when the finger is on top of them.
+    void drawTouchTest(bool havePoint, uint16_t x, uint16_t y, uint16_t rawX, uint16_t rawY, bool exitPressed) {
+        lcd.fillScreen(TFT_BLACK);
+
+        if (havePoint) {
+            lcd.drawCircle(x, y, 12, TFT_YELLOW);
+            lcd.drawFastHLine(x - 16, y, 32, TFT_YELLOW);
+            lcd.drawFastVLine(x, y - 16, 32, TFT_YELLOW);
+        }
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        lcd.drawString("TEST", 160, 32);
+
+        char line1[24];
+        char line2[24];
+
+        if (havePoint) {
+            snprintf(line1, sizeof(line1), "X %u Y %u", x, y);
+            snprintf(line2, sizeof(line2), "raw %u %u", rawX, rawY);
+        } else {
+            snprintf(line1, sizeof(line1), "touch the panel");
+            snprintf(line2, sizeof(line2), "EXIT to stop");
+        }
+
+        lcd.drawString(line1, 160, 64);
+        lcd.drawString(line2, 160, 92);
+
+        drawActionButton(UI_EXIT_RECT, "EXIT", exitPressed);
+    }
+
+    // Two-line explanation for a calibration step, using the home screen font.
+    void drawCalibrationText(const char *line1, const char *line2) {
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        lcd.drawString(line1, 160, 100);
+        lcd.drawString(line2, 160, 136);
+    }
+
+    const char *CALIBRATION_WHY[4][2] = {
+        {"Touch origin", "press for 1 second"},
+        {"X scale", "press for 1 second"},
+        {"Y scale", "press for 1 second"},
+        {"Check the map", "press for 1 second"},
+    };
+
+    const char *VALIDATION_WHY[4][2] = {
+        {"Tap top left", "to prove the map"},
+        {"Tap top right", "to prove the map"},
+        {"Tap bottom left", "to prove the map"},
+        {"Tap bottom right", "to prove the map"},
+    };
+}
+
+void DisplayTouchCalibrationApply(const uint16_t values[8]) {
+    uint16_t copy[8];
+
+    memcpy(copy, values, sizeof(copy));
+    lcd.setTouchCalibrate(copy);
+}
+
+void DisplayTouchCalibrationFallback(uint16_t values[8]) {
+    values[0] = TOUCH_P0_X;
+    values[1] = TOUCH_P0_Y;
+    values[2] = TOUCH_P1_X;
+    values[3] = TOUCH_P1_Y;
+    values[4] = TOUCH_P2_X;
+    values[5] = TOUCH_P2_Y;
+    values[6] = TOUCH_P3_X;
+    values[7] = TOUCH_P3_Y;
+}
+
+void DisplayCalibrationBegin(void) {
+    DisplayLock lock(100);
+    if (!lock.held) {
+        return;
+    }
+
+    lcd.fillScreen(TFT_BLACK);
+}
+
+void DisplayCalibrationTarget(uint8_t index, bool pressed, bool ready) {
+    if (index >= 4) {
+        return;
+    }
+
+    DisplayLock lock(100);
+    if (!lock.held) {
+        return;
+    }
+
+    lcd.fillScreen(TFT_BLACK);
+
+    const touch_calibration::Rect &r = touch_calibration::TARGET_RECTS[index];
+    int16_t cx = r.x + r.w / 2;
+    int16_t cy = r.y + r.h / 2;
+    uint16_t color = ready ? TFT_GREEN : (pressed ? TFT_YELLOW : TFT_WHITE);
+
+    lcd.drawCircle(cx, cy, 12, color);
+    lcd.drawFastHLine(cx - 16, cy, 32, color);
+    lcd.drawFastVLine(cx, cy - 16, 32, color);
+    drawCalibrationText(CALIBRATION_WHY[index][0], CALIBRATION_WHY[index][1]);
+}
+
+void DisplayCalibrationValidation(uint8_t index, bool pressed, bool hit) {
+    if (index >= 4) {
+        return;
+    }
+
+    DisplayLock lock(100);
+    if (!lock.held) {
+        return;
+    }
+
+    lcd.fillScreen(TFT_BLACK);
+
+    const touch_calibration::Rect &r = touch_calibration::VALIDATION_RECTS[index];
+    UiRect rect = {r.x, r.y, r.w, r.h};
+    uint16_t fill = hit ? TFT_GREEN : (pressed ? TFT_WHITE : COLOR_BUTTON);
+    uint16_t text = (hit || pressed) ? TFT_BLACK : TFT_WHITE;
+
+    drawButtonFrame(rect, fill, pressed);
+
+    lcd.setFont(&fontLogisoso24);
+    lcd.setTextSize(1);
+    lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+    lcd.setTextColor(text, fill);
+    lcd.drawString("OK", rect.x + rect.w / 2, rect.y + rect.h / 2);
+    drawCalibrationText(VALIDATION_WHY[index][0], VALIDATION_WHY[index][1]);
+}
+
+void DisplayCalibrationMessage(const char *line1, const char *line2) {
+    DisplayLock lock(100);
+    if (!lock.held) {
+        return;
+    }
+
+    lcd.fillScreen(TFT_BLACK);
+    drawCalibrationText(line1, line2);
+}
+
+void DisplayCalibrationEnd(void) {
+    drawRequested = true;
+}
+
+void DisplayTouchTestDraw(bool havePoint, uint16_t x, uint16_t y, uint16_t rawX, uint16_t rawY, bool exitPressed) {
+    DisplayLock lock(100);
+    if (!lock.held) {
+        return;
+    }
+
+    drawTouchTest(havePoint, x, y, rawX, rawY, exitPressed);
+}
+
+void DisplayTouchTestEnd(void) {
+    drawRequested = true;
 }
 
 void DisplaySetup(void) {
@@ -727,6 +996,16 @@ void DisplaySetup(void) {
 
 void DisplayLoop(void) {
     if (boxActive) {
+        return;
+    }
+
+    // The calibration mode owns the panel.
+    if (touch_calibration::active()) {
+        return;
+    }
+
+    // The touch test mode owns the panel.
+    if (touch_test::active()) {
         return;
     }
 
@@ -754,6 +1033,14 @@ void DisplayLoop(void) {
 
         drawNetwork(state, lastNetworkState, drawRequested);
         lastNetworkState = state;
+    } else if (currentScreen == DISPLAY_SCREEN_TOUCH) {
+        TouchState state = readTouchState();
+        if (!drawRequested && !stateDirty && state == lastTouchState) {
+            return;
+        }
+
+        drawTouch(state, lastTouchState, drawRequested);
+        lastTouchState = state;
     } else {
         InfoState state = readInfoState();
         if (!drawRequested && !stateDirty && state == lastInfoState) {
@@ -805,13 +1092,15 @@ const char *DisplayScreenName(DisplayScreen screen) {
             return "NETWORK";
         case DISPLAY_SCREEN_INFO:
             return "INFO";
+        case DISPLAY_SCREEN_TOUCH:
+            return "TOUCH";
         default:
             return "UNKNOWN";
     }
 }
 
 size_t DisplayScreenCount(void) {
-    return 3;
+    return 4;
 }
 
 const char *DisplayDriverName(void) {

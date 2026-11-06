@@ -15,6 +15,7 @@ enum DisplayScreen : uint8_t {
     DISPLAY_SCREEN_HOME = 0,
     DISPLAY_SCREEN_NETWORK,
     DISPLAY_SCREEN_INFO,
+    DISPLAY_SCREEN_TOUCH,
 };
 
 // Initialize the panel, touch controller and backlight.
@@ -81,3 +82,25 @@ bool TouchRead(uint16_t *x, uint16_t *y, uint16_t *rawX, uint16_t *rawY);
 
 // Level of the touch IRQ line, which is active low.
 bool TouchIrqLevel(void);
+
+// Apply eight raw corner values to the touch mapping.
+void DisplayTouchCalibrationApply(const uint16_t values[8]);
+
+// Fill eight raw corner values from the panel config fallback.
+void DisplayTouchCalibrationFallback(uint16_t values[8]);
+
+// Calibration screen. Begin() clears the panel, Target() and Validation() draw
+// one step, Message() shows a two-line status, End() returns to the carousel.
+// Target() shows white when idle, yellow while pressed and green when the
+// minimum hold time has passed.
+void DisplayCalibrationBegin(void);
+void DisplayCalibrationTarget(uint8_t index, bool pressed, bool ready);
+void DisplayCalibrationValidation(uint8_t index, bool pressed, bool hit);
+void DisplayCalibrationMessage(const char *line1, const char *line2);
+void DisplayCalibrationEnd(void);
+
+// Touch test screen. Draw() repaints the whole screen with the last touch
+// point, or without a crosshair when havePoint is false. End() returns to the
+// carousel.
+void DisplayTouchTestDraw(bool havePoint, uint16_t x, uint16_t y, uint16_t rawX, uint16_t rawY, bool exitPressed);
+void DisplayTouchTestEnd(void);

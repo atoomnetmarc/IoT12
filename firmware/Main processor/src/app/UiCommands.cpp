@@ -69,6 +69,12 @@ namespace {
         cli_format::keyText(cli, "HEATER", UiHeaterOn() ? "on" : "off");
         cli_format::keyText(cli, "PRESSED", UiZoneName(UiPressedZone()));
         cli_format::keyText(cli, "LAST_EVENT", UiLastEvent());
+        cli_format::keyUInt(cli, "LAST_RAW_X", UiLastRawX());
+        cli_format::keyUInt(cli, "LAST_RAW_Y", UiLastRawY());
+        cli_format::keyUInt(cli, "LAST_X", UiLastX());
+        cli_format::keyUInt(cli, "LAST_Y", UiLastY());
+        cli_format::keyText(cli, "LAST_ZONE", UiZoneName(UiLastZone()));
+        cli_format::keyUInt(cli, "LAST_MS", UiLastMs());
     }
 }
 

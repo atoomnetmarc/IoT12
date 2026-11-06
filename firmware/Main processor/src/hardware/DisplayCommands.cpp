@@ -11,6 +11,8 @@
 #include <cstring>
 
 #include "CliFormat.h"
+#include "TouchCalibration.h"
+#include "TouchTest.h"
 #include "display.h"
 
 namespace {
@@ -80,8 +82,35 @@ namespace {
     }
 
     void cmdTouch(cli::SerialCli &cli, int argc, char **argv) {
-        (void)argc;
-        (void)argv;
+        if (argc >= 2 && strcmp(argv[1], "calibrate") == 0) {
+            if (argc >= 3 && strcmp(argv[2], "abort") == 0) {
+                touch_calibration::abort();
+                cli_format::keyText(cli, "CALIBRATION", "aborted");
+                return;
+            }
+
+            if (argc >= 3 && strcmp(argv[2], "reset") == 0) {
+                touch_calibration::reset();
+                cli_format::keyText(cli, "CALIBRATION", "reset");
+                return;
+            }
+
+            bool started = touch_calibration::start();
+            cli_format::keyText(cli, "CALIBRATION", started ? "started" : "busy");
+            return;
+        }
+
+        if (argc >= 2 && strcmp(argv[1], "test") == 0) {
+            if (argc >= 3 && strcmp(argv[2], "stop") == 0) {
+                touch_test::stop();
+                cli_format::keyText(cli, "TEST", "stopped");
+                return;
+            }
+
+            bool started = touch_test::start();
+            cli_format::keyText(cli, "TEST", started ? "started" : "busy");
+            return;
+        }
 
         uint16_t x = 0;
         uint16_t y = 0;
@@ -95,12 +124,19 @@ namespace {
         cli_format::keyUInt(cli, "RAW_Y", rawY);
         cli_format::keyUInt(cli, "X", x);
         cli_format::keyUInt(cli, "Y", y);
+        cli_format::keyText(cli, "STORED", touch_calibration::stored() ? "yes" : "no");
+        cli_format::keyText(cli, "STEP", touch_calibration::stepName());
+        cli_format::keyText(cli, "TEST", touch_test::active() ? "yes" : "no");
+
+        for (size_t i = 0; i < touch_calibration::valueCount(); i += 2) {
+            cli.writef("P%u: %u,%u\r\n", static_cast<unsigned>(i / 2), touch_calibration::valueAt(i), touch_calibration::valueAt(i + 1));
+        }
     }
 }
 
 namespace display_commands {
     void registerCommands(cli::SerialCli &cli) {
         cli.registerCommand({"display", [&cli](int argc, char **argv) { cmdDisplay(cli, argc, argv); }, "display driver, resolution, backlight; display backlight <0-255>|on|off|box <margin>|off"});
-        cli.registerCommand({"touch", [&cli](int argc, char **argv) { cmdTouch(cli, argc, argv); }, "touch panel: pressed state, raw and mapped coordinates"});
+        cli.registerCommand({"touch", [&cli](int argc, char **argv) { cmdTouch(cli, argc, argv); }, "touch panel: state, raw and mapped coordinates; touch calibrate|abort|reset|test|test stop"});
     }
 }

@@ -26,6 +26,8 @@
 #include "SerialCli.h"
 #include "StatsCommands.h"
 #include "SystemCommands.h"
+#include "TouchCalibration.h"
+#include "TouchTest.h"
 #include "Ui.h"
 #include "UiCommands.h"
 #include "WebServerService.h"
@@ -72,6 +74,8 @@ void AppSetup(void) {
     stats_commands::registerCommands(serialCli);
 
     DisplaySetup();
+    touch_calibration::setup();
+    touch_test::setup();
     UiSetup();
     AudioSetup();
 
@@ -90,6 +94,8 @@ void AppSetup(void) {
 void AppLoop(void) {
     HeatController.loop();
     UiLoop();
+    touch_calibration::loop();
+    touch_test::loop();
     lifetime_stats::loop();
 
     home_wifi::loop();

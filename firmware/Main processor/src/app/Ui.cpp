@@ -12,6 +12,8 @@
 #include <stdio.h>
 
 #include "HeatController.h"
+#include "TouchCalibration.h"
+#include "TouchTest.h"
 #include "WebServerService.h"
 #include "display.h"
 
@@ -38,6 +40,8 @@ namespace {
         {UI_ZONE_PLUS, "PLUS", UI_PLUS_RECT},
         {UI_ZONE_MINUS, "MINUS", UI_MINUS_RECT},
         {UI_ZONE_AP, "AP", UI_AP_RECT},
+        {UI_ZONE_CAL, "CAL", UI_CAL_RECT},
+        {UI_ZONE_TEST, "TEST", UI_TEST_RECT},
     };
 
     constexpr size_t ZONE_COUNT = sizeof(zones) / sizeof(zones[0]);
@@ -52,6 +56,12 @@ namespace {
     uint32_t pressStartMs = 0;
     uint32_t lastRepeatMs = 0;
     char lastEvent[24] = "none";
+    uint16_t lastRawX = 0;
+    uint16_t lastRawY = 0;
+    uint16_t lastX = 0;
+    uint16_t lastY = 0;
+    UiZone lastZone = UI_ZONE_NONE;
+    uint32_t lastMs = 0;
 
     int16_t clampSetpoint(int16_t tenths) {
         if (tenths < SETPOINT_MIN_TENTHS) {
@@ -96,6 +106,14 @@ namespace {
                 } else {
                     web_server::startPortal();
                 }
+                DisplayRequestDraw();
+                return;
+            case UI_ZONE_CAL:
+                touch_calibration::start();
+                DisplayRequestDraw();
+                return;
+            case UI_ZONE_TEST:
+                touch_test::start();
                 DisplayRequestDraw();
                 return;
             default:
@@ -159,6 +177,16 @@ void UiLoop(void) {
         return;
     }
 
+    // The calibration mode owns the touch panel.
+    if (touch_calibration::active()) {
+        return;
+    }
+
+    // The touch test mode owns the touch panel.
+    if (touch_test::active()) {
+        return;
+    }
+
     uint32_t now = millis();
 
     if (now - lastSampleMs < TOUCH_SAMPLE_MS) {
@@ -169,9 +197,11 @@ void UiLoop(void) {
     bool down = false;
     uint16_t x = 0;
     uint16_t y = 0;
+    uint16_t rawX = 0;
+    uint16_t rawY = 0;
 
     if (!TouchIrqLevel()) {
-        down = TouchRead(&x, &y, nullptr, nullptr);
+        down = TouchRead(&x, &y, &rawX, &rawY);
     }
 
     if (down != rawDown) {
@@ -186,6 +216,12 @@ void UiLoop(void) {
             pressedZone = UiHitTest(x, y);
             pressStartMs = now;
             lastRepeatMs = now;
+            lastRawX = rawX;
+            lastRawY = rawY;
+            lastX = x;
+            lastY = y;
+            lastZone = pressedZone;
+            lastMs = now;
             snprintf(lastEvent, sizeof(lastEvent), "press %s", UiZoneName(pressedZone));
             pressZone(pressedZone);
             DisplayRequestDraw();
@@ -215,6 +251,16 @@ UiZone UiHitTest(uint16_t x, uint16_t y) {
 
         // The AP toggle belongs to the network screen only.
         if (zone == UI_ZONE_AP && screen != DISPLAY_SCREEN_NETWORK) {
+            continue;
+        }
+
+        // The CAL action belongs to the touch screen only.
+        if (zone == UI_ZONE_CAL && screen != DISPLAY_SCREEN_TOUCH) {
+            continue;
+        }
+
+        // The TEST action belongs to the touch screen only.
+        if (zone == UI_ZONE_TEST && screen != DISPLAY_SCREEN_TOUCH) {
             continue;
         }
 
@@ -274,6 +320,30 @@ bool UiHeaterOn(void) {
 
 const char *UiLastEvent(void) {
     return lastEvent;
+}
+
+uint16_t UiLastRawX(void) {
+    return lastRawX;
+}
+
+uint16_t UiLastRawY(void) {
+    return lastRawY;
+}
+
+uint16_t UiLastX(void) {
+    return lastX;
+}
+
+uint16_t UiLastY(void) {
+    return lastY;
+}
+
+UiZone UiLastZone(void) {
+    return lastZone;
+}
+
+uint32_t UiLastMs(void) {
+    return lastMs;
 }
 
 void UiSetSetpointTenths(int16_t tenths) {

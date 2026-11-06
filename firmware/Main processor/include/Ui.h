@@ -28,6 +28,8 @@ enum UiZone : uint8_t {
     UI_ZONE_PLUS,
     UI_ZONE_MINUS,
     UI_ZONE_AP,
+    UI_ZONE_CAL,
+    UI_ZONE_TEST,
 };
 
 struct UiRect {
@@ -44,6 +46,9 @@ constexpr UiRect UI_POWER_RECT = {16, 164, 96, 60};
 constexpr UiRect UI_PLUS_RECT = {112, 164, 96, 60};
 constexpr UiRect UI_MINUS_RECT = {208, 164, 96, 60};
 constexpr UiRect UI_AP_RECT = {112, 164, 96, 60};
+constexpr UiRect UI_CAL_RECT = {112, 164, 96, 60};
+constexpr UiRect UI_TEST_RECT = {208, 164, 96, 60};
+constexpr UiRect UI_EXIT_RECT = {208, 164, 96, 60};
 
 // Initialize the touch state machine.
 void UiSetup(void);
@@ -75,6 +80,14 @@ bool UiHeaterOn(void);
 
 // Last touch event, for the CLI.
 const char *UiLastEvent(void);
+
+// Last real touch, for the CLI.
+uint16_t UiLastRawX(void);
+uint16_t UiLastRawY(void);
+uint16_t UiLastX(void);
+uint16_t UiLastY(void);
+UiZone UiLastZone(void);
+uint32_t UiLastMs(void);
 
 // Clamp and write a setpoint in tenths of a degree Celsius.
 void UiSetSetpointTenths(int16_t tenths);
