@@ -10,23 +10,20 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include <ADS1115_WE.h>
 #include "config.h"
+#include <ADS1115_WE.h>
 
-class ADCExternalClass
-{
+class ADCExternalClass {
 public:
     ADCExternalClass();
     void init(void);
-    void loop(void);
     float readChannel(uint8_t channel);
-    void requestDump(void);
+    void readChannelRaw(uint8_t channel, int16_t &raw, float &volts);
 
     static void convReadyAlert(void);
+
 private:
-    volatile bool dumpPending = false;
     volatile bool convReady = false;
 };
 
 extern ADCExternalClass ADCExternal;
-

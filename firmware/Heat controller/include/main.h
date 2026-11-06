@@ -9,4 +9,3 @@
 
 extern volatile float tAmbient;
 extern volatile float tTip;
-

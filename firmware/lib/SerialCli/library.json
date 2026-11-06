@@ -1,0 +1,11 @@
+{
+  "name": "SerialCli",
+  "version": "1.0.0",
+  "description": "Arduino-free push-driven serial command line: runtime command registration, in-place tokenization, no heap.",
+  "keywords": "cli, serial, command",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src"
+  }
+}

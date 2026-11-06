@@ -1,0 +1,339 @@
+/*
+ *
+ * Copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+#include <Arduino.h>
+
+#include <QuickPID.h>
+
+#include <NTC.h>
+#include <Thermocouple.h>
+
+#include "AdcExternal.h"
+#include "EventLog.h"
+#include "Heater.h"
+#include "Setting.h"
+#include "Shake.h"
+#include "WireMinion.h"
+#include "config.h"
+
+HeaterClass::HeaterClass() {
+}
+
+NTC ntc;
+Thermocouple thermocouple;
+
+float tAmbient = 0;
+float tTip = 0;
+float tTarget = 0;
+float vVINHeatOn = 0;
+float vVINHeatOff = 0;
+float iIronPowerOff = 0;
+float iIronPowerOn = 0;
+float vNTC = 0;
+float vThermocouple = 0;
+uint32_t adcReadMs = 0;
+uint32_t cycleCount = 0;
+uint32_t lastCycleMs = 0;
+
+float heatingFrequency = 5; // This many times per second go through heating and measure cycle.
+#define DIV_TCC 1
+uint32_t timeHeatingOffMeasureTempUs = 20000; // You have this long to measure things while heating is off.
+uint32_t timeHeatingCooldownUs = 1000;        // When heater is 100% on, stop heating this many time before going into off state. This is needed because the heating circuitry needs time to turn off before starting measuring off state.
+
+uint32_t periodHeatAllowed;
+uint32_t periodHeatDisabled;
+uint32_t periodHeatEnabled = 0;
+float heatfactor = 0;
+
+volatile bool eventHeatOff = false;
+volatile bool eventHeatOn = false;
+volatile bool heaterInhibited = false;
+
+/*
+https://en.wikipedia.org/wiki/PID_controller#Manual_tuning
+
+451C, Kp start of oscillation: 0.025
+
+*/
+float Kp = 0.01, Ki = 0.005, Kd = 0.0001;
+
+QuickPID myQuickPID(&tTip, &heatfactor, &tTarget, Kp, Ki, Kd, QuickPID::Action::direct);
+
+void HeaterClass::init(void) {
+    myQuickPID.SetOutputLimits(0, 1);
+    myQuickPID.SetMode(QuickPID::Control::automatic);
+
+    ntc.SetParameters(3.3,
+                      Setting.resistanceNTCPullUp,
+                      10000,
+                      25 + 273.15,
+                      3950);
+
+    // Configure TCC0
+
+    // F: TCC0/WO[2], PA18, D10
+
+    uint32_t totalPeriod = (F_CPU / DIV_TCC / heatingFrequency) - 1;
+
+    // Max 24-bit period.
+    if (totalPeriod > 1 << 24) {
+        totalPeriod = 1 << 24;
+    }
+
+    periodHeatDisabled = timeHeatingOffMeasureTempUs * (F_CPU / DIV_TCC / 1000000);
+    periodHeatAllowed = totalPeriod - periodHeatDisabled;
+
+    // Enable and configure generic clock generator 4
+    GCLK->GENCTRL.reg = GCLK_GENCTRL_IDC |         // Improve duty cycle
+                        GCLK_GENCTRL_GENEN |       // Enable generic clock gen
+                        GCLK_GENCTRL_SRC_DFLL48M | // Select 48MHz as source
+                        GCLK_GENCTRL_ID(4);        // Select GCLK4
+    while (GCLK->STATUS.bit.SYNCBUSY)
+        ; // Wait for synchronization
+
+    // Set clock divider of 1 to generic clock generator 4
+    GCLK->GENDIV.reg = GCLK_GENDIV_DIV(DIV_TCC) | // Divide 48 MHz by 1
+                       GCLK_GENDIV_ID(4);         // Apply to GCLK4 4
+    while (GCLK->STATUS.bit.SYNCBUSY)
+        ; // Wait for synchronization
+
+    // Enable GCLK4 and connect it to TCC0 and TCC1
+    GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN |       // Enable generic clock
+                        GCLK_CLKCTRL_GEN_GCLK4 |   // Select GCLK4
+                        GCLK_CLKCTRL_ID_TCC0_TCC1; // Feed GCLK4 to TCC0/1
+    while (GCLK->STATUS.bit.SYNCBUSY)
+        ; // Wait for synchronization
+
+    // Divide counter by 1 giving 48 MHz (20.83 ns) on each TCC0 tick
+    TCC0->CTRLA.reg |= TCC_CTRLA_PRESCALER(TCC_CTRLA_PRESCALER_DIV1_Val);
+
+    // Use "Normal PWM" (single-slope PWM): count up to PER, match on CC[n]
+    TCC0->WAVE.reg = TCC_WAVE_WAVEGEN_NPWM; // Select NPWM as waveform
+    while (TCC0->SYNCBUSY.bit.WAVE)
+        ; // Wait for synchronization
+
+    // Set the period (the number to count to (TOP) before resetting timer)
+    TCC0->PER.reg = periodHeatAllowed;
+    while (TCC0->SYNCBUSY.bit.PER)
+        ;
+
+    // Set PWM signal off
+    // n for CC[n] is determined by n = x % 4 where x is from WO[x]
+    TCC0->CC[2].reg = 0;
+    while (TCC0->SYNCBUSY.bit.CC2)
+        ;
+
+    // Configure PA18 (D10) to be output
+    PORT->Group[PORTA].DIRSET.reg = PORT_PA18; // Set pin as output
+    PORT->Group[PORTA].OUTCLR.reg = PORT_PA18; // Set pin to low
+
+    // Enable the port multiplexer for PA18
+    PORT->Group[PORTA].PINCFG[18].reg |= PORT_PINCFG_PMUXEN;
+
+    // Connect TCC0 timer to PA18. Function F is TCC0/WO[2] for PA18.
+    // Odd pin num (2*n + 1): use PMUXO
+    // Even pin num (2*n): use PMUXE
+    PORT->Group[PORTA].PMUX[9].reg = PORT_PMUX_PMUXE_F;
+
+    TCC0->INTENSET.reg =
+        TCC_INTENSET_CNT;
+
+    NVIC_EnableIRQ(TCC0_IRQn);
+
+    // Enable output (start PWM)
+    TCC0->CTRLA.reg |= (TCC_CTRLA_ENABLE);
+    while (TCC0->SYNCBUSY.bit.ENABLE)
+        ; // Wait for synchronization
+
+    // Enable the 24V rail. 24V_ON is a slow relay signal; HEAT_PWM does the switching.
+    pinMode(PIN_24V_ON, OUTPUT);
+    digitalWrite(PIN_24V_ON, HIGH);
+}
+
+void TCC0_Handler() {
+    if (TCC0->INTFLAG.bit.CNT) {
+        TCC0->INTFLAG.bit.CNT = 1;
+
+        static uint8_t state = 0;
+
+        if (state == 0) {
+            // Current state is (possible) heating, next state is off for measure.
+            if (periodHeatEnabled > 0) {
+                eventHeatOn = true;
+            }
+
+            state = 1;
+            TCC0->PERB.reg = periodHeatDisabled;
+            while (TCC0->SYNCBUSY.bit.PERB)
+                ;
+            TCC0->CCB[2].reg = 0;
+            while (TCC0->SYNCBUSY.bit.CCB2)
+                ;
+        } else {
+            eventHeatOff = true;
+            state = 0;
+            TCC0->PERB.reg = periodHeatAllowed;
+
+            if (heatfactor > 1) {
+                heatfactor = 1;
+            }
+
+            if (heatfactor < 0) {
+                heatfactor = 0;
+            }
+
+            if (heaterInhibited || Setting.heaterState != HEATER_STATE::ON) {
+                heatfactor = 0;
+            }
+
+            periodHeatEnabled = (periodHeatAllowed - (timeHeatingCooldownUs * (F_CPU / DIV_TCC / 1000000))) * heatfactor;
+
+            while (TCC0->SYNCBUSY.bit.PERB)
+                ;
+            TCC0->CCB[2].reg = periodHeatEnabled;
+            while (TCC0->SYNCBUSY.bit.CCB2)
+                ;
+        }
+    }
+}
+
+float readThermocoupleVoltage() {
+    float v = ADCExternal.readChannel(AIN_EXTERNAL_ADC_TEMP) / Setting.gainHeaterTemperatureAmplifier;
+    v -= Setting.thermocoupleInputOffsetVoltage;
+    return v;
+}
+
+float readVin() {
+    return ADCExternal.readChannel(AIN_EXTERNAL_ADC_VIN) / Setting.gainVSupplyResistorDivider;
+}
+
+void HeaterClass::loop(void) {
+
+    if (eventHeatOn) {
+        eventHeatOn = false;
+
+        // Heater must be on long enough to read iron current.
+        if (heatfactor > 0.2) {
+            delayMicroseconds(500);
+            vVINHeatOn = readVin();
+            iIronPowerOn = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+
+            WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_B);
+        }
+    }
+
+    if (eventHeatOff) {
+        eventHeatOff = false;
+
+        unsigned long start = millis();
+        vNTC = ADCExternal.readChannel(AIN_EXTERNAL_ADC_NTC);
+        vVINHeatOff = readVin();
+        iIronPowerOff = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
+        vThermocouple = readThermocoupleVoltage();
+        unsigned long stop = millis();
+        adcReadMs = stop - start;
+
+        // About 80% of the thermal energy arrives at the tip.
+        float heatTransferCoreTipFactor = 0.82;
+
+        float Tthermocouple = thermocouple.GetTemperature(vThermocouple);
+        tAmbient = ntc.GetTemperature(vNTC);
+
+        tTip = (Tthermocouple * heatTransferCoreTipFactor) + tAmbient;
+
+        WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_A);
+
+        if (Setting.heaterState == HEATER_STATE::ON && !heaterInhibited) {
+            tTarget = Shake.targetTemperature();
+        } else {
+            tTarget = 0;
+        }
+
+        if (isnan(tAmbient)) {
+            heatfactor = 0;
+            Setting.heaterState = HEATER_STATE::OFF;
+            eventlog::Log.record(eventlog::FAULT, 1);
+        } else {
+            myQuickPID.Compute();
+        }
+
+        cycleCount++;
+        lastCycleMs = millis();
+    }
+
+    static HEATER_STATE lastHeaterState = HEATER_STATE::OFF;
+    if (Setting.heaterState != lastHeaterState) {
+        if (Setting.heaterState == HEATER_STATE::ON) {
+            Shake.reset();
+        }
+
+        lastHeaterState = Setting.heaterState;
+        eventlog::Log.record(lastHeaterState == HEATER_STATE::ON ? eventlog::HEATER_ON : eventlog::HEATER_OFF, 0);
+    }
+
+    if (Shake.expired() && Setting.heaterState == HEATER_STATE::ON) {
+        Setting.heaterState = HEATER_STATE::OFF;
+    }
+}
+
+void HeaterClass::setGains(float kp, float ki, float kd) {
+    Kp = kp;
+    Ki = ki;
+    Kd = kd;
+    myQuickPID.SetTunings(kp, ki, kd);
+}
+
+void HeaterClass::setInhibit(bool inhibit) {
+    if (heaterInhibited == inhibit) {
+        return;
+    }
+
+    noInterrupts();
+    heaterInhibited = inhibit;
+
+    if (inhibit) {
+        heatfactor = 0;
+        periodHeatEnabled = 0;
+        TCC0->CCB[2].reg = 0;
+        while (TCC0->SYNCBUSY.bit.CCB2) {
+        }
+    }
+
+    interrupts();
+}
+
+HeaterStatus HeaterClass::status(void) {
+    HeaterStatus status;
+
+    status.vNTC = vNTC;
+    status.tAmbientK = tAmbient;
+    status.tAmbientC = tAmbient - 273.15f;
+    status.vThermocouple = vThermocouple;
+    status.tTipC = tTip - 273.15f;
+    status.tTargetC = tTarget > 0 ? tTarget - 273.15f : 0.0f;
+    status.vVINHeatOff = vVINHeatOff;
+    status.vVINHeatOn = vVINHeatOn;
+    status.iIronPowerOff = iIronPowerOff;
+    status.iIronPowerOn = iIronPowerOn;
+    status.rTip = iIronPowerOn != 0 ? vVINHeatOn / iIronPowerOn : 0;
+    status.rSupply = iIronPowerOn != 0 ? (vVINHeatOff - vVINHeatOn) / iIronPowerOn : 0;
+    status.heatfactor = heatfactor;
+    status.pTerm = myQuickPID.GetPterm();
+    status.iTerm = myQuickPID.GetIterm();
+    status.dTerm = myQuickPID.GetDterm();
+    status.kp = Kp;
+    status.ki = Ki;
+    status.kd = Kd;
+    status.adcReadMs = adcReadMs;
+    status.cycleCount = cycleCount;
+    status.lastCycleMs = lastCycleMs;
+    status.pwmDuty = periodHeatEnabled;
+    status.pwmPeriod = periodHeatAllowed;
+
+    return status;
+}
+
+HeaterClass Heater;

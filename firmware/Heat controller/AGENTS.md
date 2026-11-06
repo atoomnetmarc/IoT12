@@ -47,3 +47,4 @@ All detailed coding rules are in this file. Key reminders:
 - Every function must have a (possibly 1-line) description of what it does
 - Before writing new code, search for existing functionality to prevent code duplication
 - No hard line-wrapping in markdown: All sentences of a single paragraph belong on one line.
+- Run [`../tools/bump-version.sh`](tools/bump-version.sh) on a code change commit.

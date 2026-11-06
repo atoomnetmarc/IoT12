@@ -1,0 +1,11 @@
+{
+  "name": "EventLog",
+  "version": "1.0.0",
+  "description": "Arduino-free ring buffer of one-shot events. Recording never prints; live printing is opt-in.",
+  "keywords": "event, log, ringbuffer",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src"
+  }
+}

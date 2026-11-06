@@ -26,45 +26,38 @@ The firmware version register is the only register that must be read. All other 
 
 | Register | RW  |        Size | Default | Saved in NVRAM | Unit | Description                   |
 | -------: | --- | ----------: | ------: | -------------- | ---: | ----------------------------- |
-|     0x00 | R   |    uint32_t |         |                |      | Firmware version              |
+|     0x00 | R   | 16-byte str |         |                |      | Firmware version              |
 |     0x01 | R   | 4x uint32_t |         |                |      | SAMD21 128-bit serial number  |
 |     0x10 | R   |    uint32_t |         |                |      | Interrupt reason              |
 |     0x11 | RW  |     uint8_t |    0x00 | N              |      | Heating state                 |
+|     0x12 | RW  |    uint32_t |    5000 | N              |   ms | Link supervision timeout      |
 |     0x40 | R   |       float |         |                |    K | Current tip temperature       |
 |     0x41 | R   |       float |         |                |    K | Ambient temperature           |
+|     0x42 | R   |       float |         |                |    % | Actual PWM duty               |
+|     0x43 | R   |       float |         |                |    V | Supply voltage, heater off    |
+|     0x44 | R   |       float |         |                |    A | Iron current, heater on       |
 |     0x80 | RW  |       float |  373.15 | Y              |    K | Target tip temperature        |
 |     0xA0 | RW  |       float |  0.0449 | Y              |      | Gain of Vin resistor divider  |
 |     0xA1 | RW  |       float |   106.1 | Y              |      | Gain of temperature amplifier |
 |     0xA2 | RW  |       float |    50.4 | Y              |      | Gain of current amplifier     |
 |     0x90 | RW  |       float |   10000 | Y              |    Ω | NTC pullup resistor           |
 |     0x91 | RW  |       float |   0.005 | Y              |    Ω | Heater shunt resistor         |
-|     0xF0 | RW  |     uint8_t |    0x02 | Y              |      | I2S gain                      |
-|     0xF1 | RW  |     uint8_t |    0x00 | N              |      | I2S enable                    |
 |     0xF8 | R   |    uint16_t |  0x1234 |                |      | A constant                    |
 |     0xF9 | R   |       float |    3.14 |                |      | Mmmm, pi                      |
 
 ### 0x00: Firmware Version
 
-Stored as a 32-bit integer with the bit format:
-`0bXXXXXXXXX XXYYYYYYYYY YYYYYYZZZZZZ`
-Presented as "X.Y.Z" where:
+A 16-byte NUL-terminated ASCII string in Calendar Versioning format `YYYY.MM.Micro`, for example `2026.10.1`.
 
-- X: 11-bit major version (0-2047)
-- Y: 15-bit minor version (0-32767)
-- Z: 6-bit patch version (0-63)
+- `YYYY`: year
+- `MM`: month
+- `Micro`: release counter within the month, reset to 1 when the month changes
 
-Version range: 0.0.0 to 2047.32767.63
-Follows [Semantic Versioning](https://semver.org/) principles:
-
-- Major version (X) changes indicate breaking changes
-- Minor version (Y) changes add backward-compatible features
-- Patch version (Z) changes are backward-compatible bug fixes
-
-The master must:
+The Heat controller and the Main processor must report the same version to cooperate. The master must:
 
 1. Read this register during initialization
-2. Halt communication if major version is incompatible
-3. Only allow register writes when compatible firmware is detected
+2. Compare the string with its own version
+3. Refuse register writes when the strings differ
 
 ### 0x01: Serial Number
 
@@ -76,12 +69,13 @@ Unique 128-bit SAMD21 microcontroller serial number represented as four consecut
 
 #### Bit Definitions:
 
-| Bit  | Name | Description                    |
-| ---- | ---- | ------------------------------ |
-| 31   | Z    | Heat controller rebooted       |
-| 30   | Y    | Group A measurements available |
-| 29   | X    | Group B measurements available |
-| 28-0 |      | Reserved (ignore if set)       |
+| Bit  | Name | Description                     |
+| ---- | ---- | ------------------------------- |
+| 31   | Z    | Heat controller rebooted        |
+| 30   | Y    | Group A measurements available  |
+| 29   | X    | Group B measurements available  |
+| 28   | W    | Link timeout, heater forced off |
+| 27-0 |      | Reserved (ignore if set)        |
 
 #### Handling Requirements:
 
@@ -104,24 +98,15 @@ Unique 128-bit SAMD21 microcontroller serial number represented as four consecut
 | 0x00  | Off   |
 | 0x01  | On    |
 
+A read of this register is the link heartbeat. See "Link Supervision" below.
+
+### 0x12: Link Supervision Timeout
+
+The time in milliseconds without a heartbeat before the heat controller forces the heater off. The default is 5000 ms. The value is not saved in NVRAM.
+
 ### 0x80: Target Tip Temperature
 
-Maximum allowed value: 725K (451.85°C)
-
-### 0xF0: I2S Gain
-
-| Value | Gain |
-| ----- | ---- |
-| 0x02  | 9dB  |
-| 0x03  | 12dB |
-| 0x04  | 15dB |
-
-### 0xF1: I2S Enable
-
-| Value | State    |
-| ----- | -------- |
-| 0x00  | Disabled |
-| 0x01  | Enabled  |
+Allowed range: 273.15-723.15K (0-450 C). A value outside the range is clamped to the nearest limit.
 
 ### 0xF8, 0xF9: Test Constants
 
@@ -129,6 +114,37 @@ Fixed values for verifying little-endian multibyte transfers:
 
 - 0xF8: uint16_t (0x1234)
 - 0xF9: float (π ≈ 3.14)
+
+# Link Supervision
+
+The heat controller owns heater safety. The master must read register 0x11 (heating state) at least once per 5 seconds. That read is the heartbeat: it restarts the supervision timer. No other register read or write restarts the timer.
+
+When no heartbeat arrives within the timeout (register 0x12, default 5000 ms), the heat controller:
+
+1. Forces the heating state to 0x00 (off).
+2. Raises bit 28 (INT_LINK_TIMEOUT) in the interrupt register and asserts HEAT_INT.
+
+The master reads register 0x10 to fetch and clear the flag, reports the lost link, and writes register 0x11 again after communication resumes. Heating resumes on that write. The two controllers cannot reset each other.
+
+# SHAKE Standby
+
+The SHAKE input (PA04/A3 and PB09/A2, tied together) is read with the SAMD21 internal ADC against the 3.3 V supply reference, with a 2.5 V threshold, a 10 ms sample interval, and a 20 ms software debounce. Both pins are inputs without pull. The ball switch pulls the line to about 2.17 V, which is above the digital input threshold, so the ADC is used instead of a plain GPIO read. After the last motion the heater target follows a three-phase schedule:
+
+1. At `shakeStage1Ms` the target drops to `min(setpoint, standbyTemperatureHeater)`.
+2. The target ramps linearly to `min(setpoint, standbyTemperatureHeater2)` at `shakeStage2Ms`.
+3. The target holds the second value until `shakeOffMs`, then the heater turns off.
+
+Motion before `shakeOffMs` returns the target to the setpoint and restarts the timer. After `shakeOffMs` a shake does not re-enable the heater; `heater on` does and restarts the timer. The target is capped at the setpoint so the iron never heats above it.
+
+The two temperatures and three times are stored in `/settings.json` as `standbyTemperatureHeater`, `standbyTemperatureHeater2`, `shakeStage1Ms`, `shakeStage2Ms`, and `shakeOffMs`.
+
+The `shake adc` command reads the internal ADC on A3 and A2 against the 3.3 V supply reference for diagnostics.
+
+# Settings Storage
+
+The registers marked "Saved in NVRAM" are stored in `/settings.json` on the LittleFS volume of the W25Q64 SPI flash. The target temperature is in K (kelvin), the same unit as register 0x80.
+
+A save copies `/settings.json` to `/settings.json.bak` and then writes the new `/settings.json`. That means the backup is always the last completed save. On boot `/settings.json` is read first; `/settings.json.bak` is read only when the primary file is missing or invalid. A key that is missing from the file keeps its default.
 
 # Fuse Configuration
 

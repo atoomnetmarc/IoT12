@@ -1,0 +1,11 @@
+{
+  "name": "Log",
+  "version": "1.0.0",
+  "description": "Arduino-free leveled logger with per-call tags and a runtime level, in the ESP-IDF output shape.",
+  "keywords": "log, logger, level, tag",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src"
+  }
+}

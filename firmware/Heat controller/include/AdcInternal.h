@@ -8,21 +8,17 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Wire.h>
 
-#include "config.h"
-
-class ADCInternalClass
-{
+/*
+ * Read-only diagnostic for the SAMD21 internal ADC. The ADS1115 is the
+ * measurement source of truth; this class reads the same analog nets so the
+ * two paths can be compared. It never feeds the heater control loop.
+ */
+class ADCInternalClass {
 public:
-    ADCInternalClass();
     void init(void);
-    void loop(void);
     float readChannel(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2);
-    void requestDump(void);
-private:
-    volatile bool dumpPending = false;
+    float readChannelVdd(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2);
 };
 
 extern ADCInternalClass ADCInternal;
-

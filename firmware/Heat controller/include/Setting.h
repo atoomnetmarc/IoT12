@@ -7,80 +7,77 @@
 
 #pragma once
 
-#include "I2SGPIO.h"
+#include <stddef.h>
+#include <stdint.h>
 
-//Settings are stored in EEPROM from address 0x0400 to 0x0FFF. 0x0000 to 0x03FF are kept free.
-#define ROM_START 0x0400
+/*
+ * The settings file and its backup. The primary file wins; the backup is read
+ * only when the primary is missing or invalid.
+ */
+namespace setting_files {
+    constexpr const char *PRIMARY = "/settings.json";
+    constexpr const char *BACKUP = "/settings.json.bak";
+}
 
-typedef struct __attribute__((packed))
-{
-    uint16_t settingSize;
-    uint32_t settingCRC; //Provides some protection against data corruption, but does nothing in case the fields of this stuct are shuffled.
+/*
+ * The target temperature range in Kelvin, equal to 0-450 C.
+ */
+namespace setting_limits {
+    constexpr float TARGET_TEMPERATURE_MIN_K = 273.15f;
+    constexpr float TARGET_TEMPERATURE_MAX_K = 723.15f;
+}
 
-    /*
-
-    Be carefull to only add new members to the end of the struct in order to be backward compatible with older settings structs stored in EEPROM.
-
-    The variables of initial git commit are shuffled once to hide the non-sortability of future members.
-
-    Resist sorting members.
-
-    */
-
-    float resistanceNTCPullUp;
-    float gainHeaterCurrentAmplifier;
-    MAX98357_GAIN i2sGain;
-    float gainHeaterTemperatureAmplifier;
-    float gainVSupplyResistorDivider;
-    float targetTemperatureHeater;
-    float resistanceHeaterShunt;
-    float thermocoupleInputOffsetVoltage;
-
-} Setting_t;
-
-union Setting_u
-{
-    Setting_t m_Setting;
-    uint8_t m_bytes[sizeof(Setting_t)];
-};
-
-enum HEATER_STATE : uint8_t
-{
+enum HEATER_STATE : uint8_t {
     OFF = 0x00,
     ON = 0x01,
 };
 
-class SettingClass
-{
+/*
+ * Settings live in /settings.json on the LittleFS volume. The JSON keys are the
+ * member names, so the file, the CLI and the tests use one name per setting.
+ */
+class SettingClass {
 public:
-    SettingClass();
     void init(void);
     void loop(void);
     void defaults(void);
-    void save();
+    void load(void);
+    void save(void);
+    void saveNow(void);
+
+    bool get(const char *key, float &value) const;
+    bool set(const char *key, float value);
+
+    void setTargetTemperatureHeater(float kelvin);
+
+    size_t keyCount(void) const;
+    const char *keyAt(size_t index) const;
+
+    uint32_t fileSize(const char *path);
+    bool fileValid(const char *path);
 
     HEATER_STATE heaterState = HEATER_STATE::OFF;
-    float targetTemperatureHeater;
 
+    float targetTemperatureHeater;
     float gainVSupplyResistorDivider;
     float gainHeaterTemperatureAmplifier;
     float gainHeaterCurrentAmplifier;
-
     float resistanceHeaterShunt;
     float resistanceNTCPullUp;
-
-    MAX98357_GAIN i2sGain;
-
     float thermocoupleInputOffsetVoltage;
+    float standbyTemperatureHeater;
+    float standbyTemperatureHeater2;
+    float shakeStage1Ms;
+    float shakeStage2Ms;
+    float shakeOffMs;
 
 private:
-    void _save();
-    void _load(bool defaults);
-
-    Setting_t _getDefaults(void);
+    void _save(void);
+    void _load(bool useDefaults);
+    bool _backup(void);
+    bool _applyFile(const char *path);
 
     bool _saveRequested = false;
 };
 
 extern SettingClass Setting;
-
