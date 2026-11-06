@@ -140,6 +140,7 @@ main {
 .values dd {
   font-size: 1.9rem;
   font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
