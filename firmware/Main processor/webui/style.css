@@ -251,10 +251,17 @@ progress {
 }
 
 #wifi-status,
-#ota-status {
+#ota-status,
+#lock-status {
   min-height: 1.2em;
   margin-top: 12px;
   font-size: 0.9rem;
+}
+
+#regenerate-password {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  color: var(--portal);
+  word-break: break-all;
 }
 
 .hidden {

@@ -1,5 +1,8 @@
 const $ = (id) => document.getElementById(id);
 
+let unlocked = false;
+let portalActive = false;
+
 function setText(id, text) {
   const el = $(id);
   if (el) {
@@ -40,8 +43,20 @@ function applyState(state) {
     badge.className = "badge offline";
   }
 
-  document.querySelectorAll(".portal-only").forEach((el) => {
-    el.classList.toggle("hidden", !state.portal);
+  portalActive = Boolean(state.portal);
+  document.querySelectorAll(".station-only").forEach((el) => {
+    el.classList.toggle("hidden", portalActive);
+  });
+  applyAccess();
+}
+
+function applyAccess() {
+  const locked = !unlocked;
+  $("lock-form").classList.toggle("hidden", !locked);
+  $("lock-now").classList.toggle("hidden", locked);
+  $("regenerate").classList.toggle("hidden", locked);
+  document.querySelectorAll(".write-card").forEach((el) => {
+    el.classList.toggle("hidden", !(unlocked || portalActive));
   });
 }
 
@@ -169,6 +184,98 @@ async function loadConfig() {
   }
 }
 
+async function loadSession() {
+  try {
+    const res = await fetch("/api/session");
+    const session = await res.json();
+    unlocked = Boolean(session.unlocked);
+  } catch (error) {
+    unlocked = false;
+  }
+  applyAccess();
+}
+
+$("lock-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const status = $("lock-status");
+  const button = $("lock-button");
+  const password = $("lock-pass").value;
+
+  status.textContent = "";
+  status.className = "";
+  button.disabled = true;
+  button.textContent = "Unlocking...";
+
+  try {
+    const res = await fetch("/api/login", { method: "POST", body: password });
+    if (!res.ok) {
+      throw new Error("wrong password");
+    }
+    unlocked = true;
+    $("lock-pass").value = "";
+    status.textContent = "Unlocked.";
+    status.className = "ok";
+  } catch (error) {
+    status.textContent = "Wrong password.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Unlock";
+    applyAccess();
+  }
+});
+
+$("lock-now").addEventListener("click", async () => {
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } catch (error) {
+    /* the cookie is cleared on the next successful request */
+  }
+
+  unlocked = false;
+  $("lock-status").textContent = "Locked.";
+  $("lock-status").className = "";
+  $("regenerate-password").classList.add("hidden");
+  applyAccess();
+});
+
+$("regenerate").addEventListener("click", async () => {
+  const status = $("lock-status");
+  const output = $("regenerate-password");
+  const button = $("regenerate");
+
+  status.textContent = "";
+  status.className = "";
+  output.classList.add("hidden");
+  button.disabled = true;
+  button.textContent = "Regenerating...";
+
+  try {
+    const res = await fetch("/api/regenerate", { method: "POST" });
+    if (res.status === 401) {
+      unlocked = false;
+      throw new Error("locked");
+    }
+    if (!res.ok) {
+      throw new Error("regenerate failed");
+    }
+    const result = await res.json();
+    output.textContent = "New AP password: " + result.password + " (shown once)";
+    output.classList.remove("hidden");
+    status.textContent = "Password changed. Other browsers are locked out.";
+    status.className = "ok";
+    unlocked = true;
+  } catch (error) {
+    status.textContent = "Regenerate failed.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Regenerate AP password";
+    applyAccess();
+  }
+});
+
 $("wifi-form").addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -195,6 +302,11 @@ $("wifi-form").addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ networks }),
     });
+    if (res.status === 401) {
+      unlocked = false;
+      applyAccess();
+      throw new Error("locked");
+    }
     if (!res.ok) {
       throw new Error("save failed");
     }
@@ -238,6 +350,12 @@ $("ota-upload").addEventListener("click", () => {
     if (xhr.status === 200) {
       status.textContent = "Upload success, rebooting...";
       status.className = "ok";
+    } else if (xhr.status === 401) {
+      unlocked = false;
+      applyAccess();
+      status.textContent = "Locked. Unlock first.";
+      status.className = "error";
+      button.disabled = false;
     } else {
       status.textContent = "Upload failed: " + (xhr.responseText || "unknown error");
       status.className = "error";
@@ -345,5 +463,6 @@ $("screenshot-save").addEventListener("click", () => {
   document.body.removeChild(a);
 });
 
+loadSession();
 loadDevice();
 loadConfig();

@@ -12,6 +12,7 @@
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
 #include <WiFi.h>
+#include <esp_system.h>
 
 #include <cstring>
 #include <memory>
@@ -46,6 +47,13 @@ namespace {
     bool serverRunning = false;
     volatile bool portal = false;
     volatile bool portalStopRequested = false;
+    bool wifiReloadRequested = false;
+
+    constexpr const char *SESSION_COOKIE = "iot12_session";
+    constexpr size_t SESSION_TOKEN_LEN = 32;
+
+    char sessionToken[SESSION_TOKEN_LEN + 1] = {0};
+    bool sessionTokenValid = false;
 
     uint32_t requestCountValue = 0;
     char lastUriValue[32] = {0};
@@ -66,6 +74,94 @@ namespace {
     void noteRequest(AsyncWebServerRequest *request) {
         requestCountValue++;
         snprintf(lastUriValue, sizeof(lastUriValue), "%s", request->url().c_str());
+    }
+
+    // Generate a new random session token.
+    void generateSessionToken(void) {
+        for (size_t i = 0; i < SESSION_TOKEN_LEN; i += 8) {
+            snprintf(sessionToken + i, SESSION_TOKEN_LEN + 1 - i, "%08x", static_cast<unsigned int>(esp_random()));
+        }
+        sessionTokenValid = true;
+    }
+
+    // Compare a candidate token with the session token in constant time.
+    bool tokenMatches(const char *candidate) {
+        if (!sessionTokenValid || candidate == nullptr || strlen(candidate) != SESSION_TOKEN_LEN) {
+            return false;
+        }
+
+        unsigned char diff = 0;
+        for (size_t i = 0; i < SESSION_TOKEN_LEN; i++) {
+            diff |= static_cast<unsigned char>(candidate[i] ^ sessionToken[i]);
+        }
+        return diff == 0;
+    }
+
+    // Read the session token from the Cookie header.
+    bool cookieToken(AsyncWebServerRequest *request, char *out, size_t outSize) {
+        const AsyncWebHeader *header = request->getHeader("Cookie");
+        if (header == nullptr) {
+            return false;
+        }
+
+        String cookies = header->value();
+        int start = cookies.indexOf(SESSION_COOKIE);
+
+        while (start >= 0) {
+            bool atStart = start == 0 || cookies[start - 1] == ';' || cookies[start - 1] == ' ';
+            int after = start + strlen(SESSION_COOKIE);
+            bool hasEquals = after < static_cast<int>(cookies.length()) && cookies[after] == '=';
+            if (atStart && hasEquals) {
+                break;
+            }
+            start = cookies.indexOf(SESSION_COOKIE, start + 1);
+        }
+
+        if (start < 0) {
+            return false;
+        }
+
+        start += strlen(SESSION_COOKIE);
+        if (start >= static_cast<int>(cookies.length()) || cookies[start] != '=') {
+            return false;
+        }
+        start++;
+
+        int end = cookies.indexOf(';', start);
+        String value = end < 0 ? cookies.substring(start) : cookies.substring(start, end);
+        value.trim();
+
+        if (value.length() == 0 || value.length() >= outSize) {
+            return false;
+        }
+
+        snprintf(out, outSize, "%s", value.c_str());
+        return true;
+    }
+
+    // True when the request may change settings: the portal is open, or the
+    // session cookie matches the device token.
+    bool isUnlocked(AsyncWebServerRequest *request) {
+        if (portal) {
+            return true;
+        }
+
+        char token[SESSION_TOKEN_LEN + 1];
+        if (!cookieToken(request, token, sizeof(token))) {
+            return false;
+        }
+
+        return tokenMatches(token);
+    }
+
+    // Add the session cookie to a response.
+    void addSessionCookie(AsyncWebServerResponse *response) {
+        response->addHeader("Set-Cookie", String(SESSION_COOKIE) + "=" + sessionToken + "; Path=/; HttpOnly; SameSite=Strict");
+    }
+
+    // Expire the session cookie in the browser.
+    void addExpiredSessionCookie(AsyncWebServerResponse *response) {
+        response->addHeader("Set-Cookie", String(SESSION_COOKIE) + "=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
     }
 
     // Build the full state message that the page receives every second.
@@ -121,12 +217,12 @@ namespace {
         memcpy(body + index, data, len);
     }
 
-    // Save the network array and stop the portal so the device reconnects.
+    // Save the network array and reconnect.
     void handleWifiPost(AsyncWebServerRequest *request) {
         noteRequest(request);
 
-        if (!portal) {
-            request->send(403, "application/json", "{\"ok\":false,\"error\":\"portal not active\"}");
+        if (!isUnlocked(request)) {
+            request->send(401, "application/json", "{\"ok\":false,\"error\":\"locked\"}");
             return;
         }
 
@@ -150,18 +246,21 @@ namespace {
 
         LOG_I(tag, "saved %d network(s)", count);
         request->send(200, "application/json", "{\"ok\":true}");
-        portalStopRequested = true;
+
+        if (portal) {
+            portalStopRequested = true;
+        } else {
+            wifiReloadRequested = true;
+        }
     }
 
     // Stage one firmware chunk into the update partition.
     void handleOtaBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-        (void)request;
-
-        if (!portal) {
-            return;
-        }
-
         if (index == 0) {
+            if (!isUnlocked(request)) {
+                return;
+            }
+
             otaRunning = true;
             otaProgressValue = 0;
             otaErrorValue = 0;
@@ -195,8 +294,8 @@ namespace {
     void handleOtaPost(AsyncWebServerRequest *request) {
         noteRequest(request);
 
-        if (!portal) {
-            request->send(403, "text/plain", "Portal not active");
+        if (!isUnlocked(request)) {
+            request->send(401, "text/plain", "Locked");
             return;
         }
 
@@ -222,6 +321,78 @@ namespace {
         eventlog::Log.record(eventlog::OTA_END, 0);
         request->send(200, "text/plain", "Firmware upload success, rebooting...");
         otaRebootAtMs = millis() + 2000;
+    }
+
+    // Check the password and set the session cookie.
+    void handleLoginPost(AsyncWebServerRequest *request) {
+        noteRequest(request);
+
+        const auto *body = static_cast<const char *>(request->_tempObject);
+        if (apPassValue[0] == '\0' || body == nullptr || strcmp(body, apPassValue) != 0) {
+            request->send(401, "application/json", "{\"ok\":false,\"error\":\"wrong password\"}");
+            return;
+        }
+
+        if (!sessionTokenValid) {
+            generateSessionToken();
+        }
+
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"ok\":true}");
+        addSessionCookie(response);
+        request->send(response);
+    }
+
+    // Clear the session cookie in the browser; the device token stays valid.
+    void handleLogoutPost(AsyncWebServerRequest *request) {
+        noteRequest(request);
+
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"ok\":true}");
+        addExpiredSessionCookie(response);
+        request->send(response);
+    }
+
+    // Report whether the request carries a valid session cookie.
+    void handleSessionGet(AsyncWebServerRequest *request) {
+        noteRequest(request);
+
+        char json[32];
+        snprintf(json, sizeof(json), "{\"unlocked\":%s}", isUnlocked(request) ? "true" : "false");
+        request->send(200, "application/json", json);
+    }
+
+    // Replace the AP password, rotate the session token and return the new password.
+    void handleRegeneratePost(AsyncWebServerRequest *request) {
+        noteRequest(request);
+
+        if (!isUnlocked(request)) {
+            request->send(401, "application/json", "{\"ok\":false,\"error\":\"locked\"}");
+            return;
+        }
+
+        if (portal) {
+            request->send(403, "application/json", "{\"ok\":false,\"error\":\"portal active\"}");
+            return;
+        }
+
+        char newPass[web_config::AP_PASS_LEN];
+        web_config::generateApPassword(newPass, sizeof(newPass));
+
+        if (!web_config::saveApPassword(newPass)) {
+            request->send(500, "application/json", "{\"ok\":false,\"error\":\"nvs write failed\"}");
+            return;
+        }
+
+        snprintf(apPassValue, sizeof(apPassValue), "%s", newPass);
+        generateSessionToken();
+
+        char json[64];
+        snprintf(json, sizeof(json), "{\"ok\":true,\"password\":\"%s\"}", newPass);
+
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
+        addSessionCookie(response);
+        request->send(response);
+
+        LOG_I(tag, "AP password regenerated");
     }
 
     // Release the panel when the response is destroyed, also on a client
@@ -356,8 +527,16 @@ namespace {
 
         server.on("/api/screenshot", HTTP_GET, [](AsyncWebServerRequest *request) { handleScreenshot(request); });
 
+        server.on("/api/session", HTTP_GET, [](AsyncWebServerRequest *request) { handleSessionGet(request); });
+
+        server.on("/api/login", HTTP_POST, [](AsyncWebServerRequest *request) { handleLoginPost(request); }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) { handleBody(request, data, len, index, total); });
+
+        server.on("/api/logout", HTTP_POST, [](AsyncWebServerRequest *request) { handleLogoutPost(request); });
+
+        server.on("/api/regenerate", HTTP_POST, [](AsyncWebServerRequest *request) { handleRegeneratePost(request); });
+
         server.on("/api/wifi", HTTP_POST, [](AsyncWebServerRequest *request) { handleWifiPost(request); }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-                      if (portal) {
+                      if (isUnlocked(request)) {
                           handleBody(request, data, len, index, total);
                       } });
 
@@ -404,6 +583,12 @@ namespace web_server {
         if (portalStopRequested) {
             portalStopRequested = false;
             stopPortal();
+            home_wifi::reload();
+            home_wifi::request();
+        }
+
+        if (wifiReloadRequested) {
+            wifiReloadRequested = false;
             home_wifi::reload();
             home_wifi::request();
         }

@@ -263,19 +263,27 @@ namespace web_config {
         return written == strlen(pass);
     }
 
+    void generateApPassword(char *out, size_t outSize) {
+        if (out == nullptr || outSize < AP_PASS_LEN) {
+            return;
+        }
+
+        for (size_t i = 0; i < 8; i++) {
+            out[i] = static_cast<char>('a' + esp_random() % 26U);
+        }
+        for (size_t i = 8; i < 12; i++) {
+            out[i] = static_cast<char>('0' + esp_random() % 10U);
+        }
+        out[12] = '\0';
+    }
+
     bool ensureApPassword(char *out, size_t outSize) {
         if (loadApPassword(out, outSize)) {
             return true;
         }
 
         char pass[AP_PASS_LEN];
-        for (size_t i = 0; i < 8; i++) {
-            pass[i] = static_cast<char>('a' + esp_random() % 26U);
-        }
-        for (size_t i = 8; i < 12; i++) {
-            pass[i] = static_cast<char>('0' + esp_random() % 10U);
-        }
-        pass[12] = '\0';
+        generateApPassword(pass, sizeof(pass));
 
         if (!saveApPassword(pass)) {
             return false;

@@ -42,15 +42,21 @@ The web server serves the page and these routes:
 | `/api/device`   | GET    | Name, version, git commit, build time, board, chip               |
 | `/api/config`   | GET    | Configured network SSIDs                                         |
 | `/api/screenshot` | GET  | RGB565 screenshot of the display                                 |
-| `/api/wifi`     | POST   | Save the network list and reconnect                              |
-| `/api/ota`      | POST   | Upload a firmware image                                          |
+| `/api/session`  | GET    | Whether the request carries a valid session cookie               |
+| `/api/login`    | POST   | Check the AP password and set the session cookie                 |
+| `/api/logout`   | POST   | Clear the session cookie in the browser                          |
+| `/api/regenerate` | POST | Replace the AP password and rotate the session token             |
+| `/api/wifi`     | POST   | Save the network list and reconnect; requires unlock in station mode |
+| `/api/ota`      | POST   | Upload a firmware image; requires unlock in station mode         |
 | `/api/stream`   | GET    | Server-sent events with the live state                           |
+
+The write routes are open in portal mode, because the client already proved the AP password to join the access point. In station mode the page unlocks with the AP password and receives an HttpOnly session cookie. The cookie is valid until the device reboots. Logout clears the cookie in that browser. Regenerating the AP password rotates the session token, so every other browser is locked out.
 
 The live state carries tip, setpoint, NTC, duty, supply voltage, iron current, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime and heap.
 
 ## Storage
 
-The lifetime counters and the touch calibration are stored in NVS. The network list and the access point password are stored in NVS through the web configuration store.
+The lifetime counters and the touch calibration are stored in NVS. The network list and the access point password are stored in NVS through the web configuration store. The access point password also unlocks the webui in station mode.
 
 ## Serial CLI
 

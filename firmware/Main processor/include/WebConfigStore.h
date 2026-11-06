@@ -50,6 +50,9 @@ namespace web_config {
     // Store the AP password.
     bool saveApPassword(const char *pass);
 
+    // Generate a 12-character AP password: 8 lowercase letters and 4 digits.
+    void generateApPassword(char *out, size_t outSize);
+
     // Load the AP password, or generate and store a new one.
     bool ensureApPassword(char *out, size_t outSize);
 

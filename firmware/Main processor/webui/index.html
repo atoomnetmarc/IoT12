@@ -93,6 +93,18 @@
         </dl>
       </section>
 
+      <section class="card station-only" id="lock-card">
+        <h2>Access</h2>
+        <form id="lock-form">
+          <label>AP password <input id="lock-pass" type="password" autocomplete="current-password" /></label>
+          <button type="submit" id="lock-button">Unlock</button>
+        </form>
+        <button type="button" id="lock-now" class="hidden">Lock</button>
+        <button type="button" id="regenerate" class="hidden">Regenerate AP password</button>
+        <p id="lock-status"></p>
+        <p id="regenerate-password" class="hidden"></p>
+      </section>
+
       <section class="card">
         <h2>Display</h2>
         <div class="screenshot-area">
@@ -105,7 +117,7 @@
         <p id="screenshot-status"></p>
       </section>
 
-      <section class="card portal-only hidden" id="wifi-card">
+      <section class="card write-card hidden" id="wifi-card">
         <h2>WiFi configuration</h2>
         <form id="wifi-form">
           <label>Network 1 SSID <input id="ssid1" maxlength="32" autocomplete="off" /></label>
@@ -117,7 +129,7 @@
         <p id="wifi-status"></p>
       </section>
 
-      <section class="card portal-only hidden" id="ota-card">
+      <section class="card write-card hidden" id="ota-card">
         <h2>Firmware</h2>
         <p>Upload a firmware .bin. The device reboots after a successful upload.</p>
         <input type="file" id="ota-file" accept=".bin" />
