@@ -52,7 +52,10 @@ namespace {
         }
 
         Setting.saveNow();
-        cli_format::keyFloat(cli, key, value, DECIMALS);
+
+        float stored = 0;
+        Setting.get(key, stored);
+        cli_format::keyFloat(cli, key, stored, DECIMALS);
     }
 
     void fileInfo(cli::SerialCli &cli) {

@@ -33,6 +33,9 @@ The firmware version register is the only register that must be read. All other 
 |     0x12 | RW  |    uint32_t |    5000 | N              |   ms | Link supervision timeout      |
 |     0x40 | R   |       float |         |                |    K | Current tip temperature       |
 |     0x41 | R   |       float |         |                |    K | Ambient temperature           |
+|     0x42 | R   |       float |         |                |    % | Actual PWM duty               |
+|     0x43 | R   |       float |         |                |    V | Supply voltage, heater off    |
+|     0x44 | R   |       float |         |                |    A | Iron current, heater on       |
 |     0x80 | RW  |       float |  373.15 | Y              |    K | Target tip temperature        |
 |     0xA0 | RW  |       float |  0.0449 | Y              |      | Gain of Vin resistor divider  |
 |     0xA1 | RW  |       float |   106.1 | Y              |      | Gain of temperature amplifier |

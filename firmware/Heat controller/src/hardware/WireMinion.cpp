@@ -26,6 +26,8 @@ namespace {
         {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
         {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
         {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
+        {"SUPPLY_VOLTAGE", REGISTER_SUPPLY_VOLTAGE, "float", 4, false},
+        {"IRON_CURRENT", REGISTER_IRON_CURRENT, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
@@ -178,6 +180,16 @@ uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLen
         // Actual PWM duty in percent, so the display can show the real output.
         HeaterStatus status = Heater.status();
         float_union.m_float = status.pwmPeriod > 0 ? (100.0f * status.pwmDuty / status.pwmPeriod) : 0.0f;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_SUPPLY_VOLTAGE) {
+        // Supply voltage measured with the heater off, in volts.
+        float_union.m_float = Heater.status().vVINHeatOff;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_IRON_CURRENT) {
+        // Iron current measured with the heater on, in amperes.
+        float_union.m_float = Heater.status().iIronPowerOn;
         length = sizeof(float_union.m_bytes);
         memcpy(dest, float_union.m_bytes, length);
     } else if (reg == REGISTER_VERSION) {

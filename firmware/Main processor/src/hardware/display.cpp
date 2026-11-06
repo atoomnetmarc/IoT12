@@ -648,12 +648,13 @@ namespace {
 
     InfoState lastInfoState;
 
-    // Format a duration as "27h 14m", or "14m 03s" below one hour.
-    void formatDuration(uint32_t seconds, char *buffer, size_t size) {
+    // Format a duration as "27h 14m", or "14m 03s" below one hour. forceHours
+    // keeps the hour form for a total that is below one hour.
+    void formatDuration(uint32_t seconds, char *buffer, size_t size, bool forceHours) {
         uint32_t hours = seconds / 3600U;
         uint32_t minutes = (seconds / 60U) % 60U;
 
-        if (hours > 0) {
+        if (forceHours || hours > 0) {
             snprintf(buffer, size, "%luh %02lum", static_cast<unsigned long>(hours), static_cast<unsigned long>(minutes));
         } else {
             snprintf(buffer, size, "%lum %02lus", static_cast<unsigned long>(minutes), static_cast<unsigned long>(seconds % 60U));
@@ -692,14 +693,14 @@ namespace {
         }
 
         if (full || state.session != previous.session) {
-            formatDuration(state.session, value, sizeof(value));
-            formatDuration(previous.session, previousValue, sizeof(previousValue));
+            formatDuration(state.session, value, sizeof(value), false);
+            formatDuration(previous.session, previousValue, sizeof(previousValue), false);
             drawLabelValue("UPTIME", value, full ? nullptr : previousValue, 100, TFT_WHITE, VALUE_H);
         }
 
         if (full || state.total != previous.total) {
-            formatDuration(state.total, value, sizeof(value));
-            formatDuration(previous.total, previousValue, sizeof(previousValue));
+            formatDuration(state.total, value, sizeof(value), true);
+            formatDuration(previous.total, previousValue, sizeof(previousValue), true);
             drawLabelValue("TOTAL", value, full ? nullptr : previousValue, 144, TFT_WHITE, VALUE_H);
         }
 

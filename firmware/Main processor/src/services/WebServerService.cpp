@@ -30,6 +30,10 @@
 #define PRODUCT_VERSION "unknown"
 #endif
 
+#ifndef GIT_COMMIT
+#define GIT_COMMIT "unknown"
+#endif
+
 static const char *tag = "Web";
 
 namespace {
@@ -50,7 +54,7 @@ namespace {
     char apPassValue[web_config::AP_PASS_LEN] = {0};
     char apIpValue[16] = {0};
 
-    char stateJson[640] = {0};
+    char stateJson[768] = {0};
     uint32_t lastStreamMs = 0;
 
     bool otaRunning = false;
@@ -72,12 +76,15 @@ namespace {
 
         snprintf(stateJson, sizeof(stateJson),
                  "{\"tip\":%.1f,\"set\":%.1f,\"ntc\":%.1f,\"duty\":%.1f,"
+                 "\"vin\":%.2f,\"current\":%.2f,"
                  "\"heater\":%s,\"linked\":%s,\"wifi\":\"%s\",\"ssid\":\"%s\","
                  "\"ip\":\"%s\",\"rssi\":%d,\"portal\":%s,\"uptime\":%lu,\"heap\":%u}",
                  HeatController.getTemperatureTip() - 273.15f,
                  HeatController.getTargetTemperature() - 273.15f,
                  HeatController.getTemperatureNTC() - 273.15f,
                  HeatController.getHeaterDuty(),
+                 HeatController.getSupplyVoltage(),
+                 HeatController.getIronCurrent(),
                  heater ? "true" : "false",
                  linked ? "true" : "false",
                  home_wifi::stateName(home_wifi::getState()),
@@ -320,11 +327,11 @@ namespace {
         server.on("/api/device", HTTP_GET, [](AsyncWebServerRequest *request) {
             noteRequest(request);
 
-            char json[256];
+            char json[320];
             snprintf(json, sizeof(json),
-                     "{\"name\":\"%s\",\"version\":\"%s\",\"build\":\"%s\","
+                     "{\"name\":\"%s\",\"version\":\"%s\",\"git\":\"%s\",\"build\":\"%s\","
                      "\"board\":\"%s\",\"chip\":\"%s\"}",
-                     DeviceNameGet(), PRODUCT_VERSION, __DATE__ " " __TIME__,
+                     DeviceNameGet(), PRODUCT_VERSION, GIT_COMMIT, __DATE__ " " __TIME__,
                      "esp32dev", ESP.getChipModel());
             request->send(200, "application/json", json);
         });

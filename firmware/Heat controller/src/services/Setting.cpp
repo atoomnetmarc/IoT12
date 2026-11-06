@@ -148,6 +148,12 @@ void SettingClass::setTargetTemperatureHeater(float kelvin) {
 }
 
 bool SettingClass::set(const char *key, float value) {
+    // The target temperature has a limit, so it does not use the direct member write.
+    if (strcmp(key, "targetTemperatureHeater") == 0) {
+        setTargetTemperatureHeater(value);
+        return true;
+    }
+
     for (const Field &field : FIELDS) {
         if (strcmp(field.name, key) == 0) {
             this->*(field.member) = value;

@@ -16,6 +16,8 @@ function applyState(state) {
   setText("v-set", fmt(state.set, 1) + " C");
   setText("v-ntc", fmt(state.ntc, 1) + " C");
   setText("v-duty", fmt(state.duty, 0) + " %");
+  setText("v-vin", fmt(state.vin, 2) + " V");
+  setText("v-current", fmt(state.current, 2) + " A");
   setText("v-heater", state.heater ? "ON" : "OFF");
   setText("v-link", state.linked ? "OK" : "LOST");
 
@@ -143,6 +145,7 @@ async function loadDevice() {
     setText("device-name", dev.name || "");
     setText("d-name", dev.name || "?");
     setText("d-version", dev.version || "?");
+    setText("d-git", dev.git || "?");
     setText("d-build", dev.build || "?");
     setText("d-board", dev.board || "?");
     setText("d-chip", dev.chip || "?");

@@ -27,6 +27,8 @@
 #define REGISTER_TEMPERATURE_HEATER 0x40
 #define REGISTER_TEMPERATURE_NTC    0x41
 #define REGISTER_HEATER_DUTY        0x42
+#define REGISTER_SUPPLY_VOLTAGE     0x43
+#define REGISTER_IRON_CURRENT       0x44
 
 // Configuration
 #define REGISTER_TEMPERATURE_HEATER_TARGET         0x80
@@ -119,6 +121,8 @@ public:
     float getTemperatureTip(void);
     float getTemperatureNTC(void);
     float getHeaterDuty(void);
+    float getSupplyVoltage(void);
+    float getIronCurrent(void);
 
     const char *getFirmwareVersion(void);
     SerialNumber_t getSerialNumber(void);
