@@ -18,11 +18,13 @@
 #include "HeatCommands.h"
 #include "HeatController.h"
 #include "HomeWiFiService.h"
+#include "LifetimeStats.h"
 #include "Log.h"
 #include "LogCommands.h"
 #include "NetCommands.h"
 #include "ScreenCommands.h"
 #include "SerialCli.h"
+#include "StatsCommands.h"
 #include "SystemCommands.h"
 #include "Ui.h"
 #include "UiCommands.h"
@@ -57,6 +59,8 @@ void AppSetup(void) {
 
     LOG_I(tag, "boot: version %s, reset reason %d", PRODUCT_VERSION, static_cast<int>(esp_reset_reason()));
 
+    lifetime_stats::setup();
+
     system_commands::registerCommands(serialCli);
     log_commands::registerCommands(serialCli);
     heat_commands::registerCommands(serialCli);
@@ -65,6 +69,7 @@ void AppSetup(void) {
     ui_commands::registerCommands(serialCli);
     audio_commands::registerCommands(serialCli);
     screen_commands::registerCommands(serialCli);
+    stats_commands::registerCommands(serialCli);
 
     DisplaySetup();
     UiSetup();
@@ -85,6 +90,7 @@ void AppSetup(void) {
 void AppLoop(void) {
     HeatController.loop();
     UiLoop();
+    lifetime_stats::loop();
 
     home_wifi::loop();
     web_server::loop();

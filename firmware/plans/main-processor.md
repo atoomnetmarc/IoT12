@@ -193,12 +193,34 @@ A checked box means the milestone is committed; the `flash:` marker states wheth
 - `pio run` passes.
 - Verified on V2.2 hardware: `version` reports 2026.11.1 on the 16 MB flash, `net` reports `WIFI: idle`, `PORTAL: off` and `OTA: idle`, `screen` reports `HOME` index 0 of 3, `screen next|prev|home` cycles the carousel, `ui zones` lists `PREV 16,16 32x32`, `NEXT 272,16 32x32`, `POWER 16,164 96x60`, `PLUS 112,164 96x60`, `MINUS 208,164 96x60` and `AP 16,196 288x28`, `ui press` on the arrow zones cycles the carousel, and `ui press` on the AP zone starts and stops the portal. `ap` reports the AP state, the SSID `iot12-<last 3 MAC bytes>`, the stored password and the AP IP, and `web` reports the same SSID and IP 192.168.4.1 while the portal is open. The portal save stores the network, the station connects, `iot12-<last 3 MAC bytes>.local` resolves, the page serves, and `/api/stream` pushes the live state once per second. A full portal cycle (`ap on`, `ap off`) stops and restarts the responder without a crash. The served `app.js` carries the retry logic and the header carries the stream status element, and two sequential stream connections both deliver the state frame with a stable heap. The served page carries the Display card and `/api/screenshot` returns 153,600 bytes of RGB565 with the expected headers. The home screen uses the hero layout and the capture shows the centered value, the hairline rail and the 60 px buttons. The laptop join and the OTA upload are the remaining bench checks.
 
-### [ ] M8 - Network and Info screen polish (flash: yes)
+### [x] M8 - Network and Info screen layout (flash: yes)
 
-- Give the Network and Info screens the same visual language as the home screen: a consistent label/value grid, a hairline separator, and the same 60 px button strip where a button is needed.
-- Network: show the AP state as a colored pill, the SSID and password in a copyable layout, and the STA state with the same status colors as the home rail.
-- Info: group the version, uptime, IP, MAC, link and I2C error counters into two columns so the six lines fit without crowding.
+- Keep three carousel screens: Home, Network and Info. The layout variants are not added.
+- Network: the SSID, the WPA2 password and the link row take three rows at y=56, y=92 and y=128. The link row shows where the device is reachable: the label `AP` with the AP address while the portal is open, the label `STA` with the station address once the station is connected, and the label `STA` with the state name (`idle`, `scanning`, `connecting`) while it is not. Every value is white.
+- The AP button is 96x60 at (112,164), the same size and place as the middle Home button, and carries the text `AP`. The button is green while the portal is open and is the only coloured element on the screen. The link label ends at y=152, so the gap to the button is 12 px.
+- Info: four rows at y=56, y=100, y=144 and y=188 for the firmware version, the uptime, the IP address and the link state. The MAC address and the I2C error count are removed from the screen.
+- Both screens use Logisoso24 for the labels and the values. The labels are dark grey and the values are right-aligned at x=304. No other font is added.
+- A value is right-aligned, and only the cells that a wider previous value left behind are cleared, so a value that changes every second does not blink.
+- Both screens redraw only the rows whose value changed, against a cached state, in the same way as the Home screen. The one-second full repaint is removed.
+- The AP zone moves from (16,196) 288x28 to (112,164) 96x60, so `ui zones` reports the new rectangle.
+- `screen network` and `screen info` select the two screens directly, next to `screen next|prev|home`.
 - Verify with `/api/screenshot` on both screens and `pio run`.
+- Verified on V2.2 hardware: `screen` reports `HOME` index 0 of 3, `screen network` and `screen info` select the two screens, and `ui zones` reports `AP 112,164 96x60`. The Network capture shows `SSID iot12-f2ed3c` at 174 px, the password at 188 px and `STA 172.27.80.159` in white at y=56/92/128, with the 96x60 `AP` button below and 6 px of clear space between the rows. The Info capture shows `VER 2026.11.1`, `UPTIME`, `IP 172.27.80.159` and a green `LINK OK` at y=56/100/144/188.
+
+### [x] M8b - Lifetime uptime and boot counter (flash: yes)
+
+- The Info screen replaces the IP and link rows with the lifetime uptime and the boot count. The four rows are the firmware version, the session uptime, the lifetime uptime and the boot count at y=56, y=100, y=144 and y=188.
+- The IP row goes because the Network screen shows the station address. The link row goes because the Home screen shows the heat controller link as `--.-` and `LOST`.
+- The counters live in the NVS namespace `iot12` under the keys `boots` and `secs`. The heat controller flash is not used, so the minion register map does not change.
+- At boot the device reads both counters, adds one to the boot count and writes both back. A boot is rare, so this write costs nothing.
+- The session uptime comes from `esp_timer_get_time()`, which does not wrap at 49.7 days like `millis()`.
+- The device writes the lifetime uptime every 15 minutes. A power cut loses at most 15 minutes. The write is one NVS commit of 4 bytes, and the NVS wear leveling absorbs it.
+- The lifetime uptime is the stored value plus the session uptime, so the row ticks every second and is always correct.
+- The uptime format is `27h 14m` above one hour and `14m 03s` below it. The lifetime format is `1234h 56m`. The boot count is a plain integer.
+- The value clear uses the width of the previous value, so a ticking row never repaints its label. A fixed left limit reaches into the `UPTIME` and `TOTAL` labels and makes their last glyphs blink.
+- `stats` reports `BOOTS`, `TOTAL` and `SESSION`, `stats flush` writes the total now, and `stats reset` clears both counters.
+- Verify with `pio run`, `stats`, a reboot that increments `BOOTS`, and `/api/screenshot` on the Info screen.
+- Verified on V2.2 hardware: `pio run` passes at 23.0% flash and 17.3% RAM. `stats` reports `BOOTS: 4`, `TOTAL: 0` and `SESSION: 0` on the first boot after the flash. `stats flush` writes the total, and `reboot yes-really` moves `BOOTS` from 5 to 6 while `TOTAL` continues from the stored value plus the new session. The Info capture shows `VER 2026.11.1`, `UPTIME 0m 05s`, `TOTAL 0m 06s` and `BOOTS 9` at y=56/100/144/188. Two captures 1.3 s apart differ in the value cells and are pixel-identical in the label cells, so the labels do not blink. The 15-minute interval is code-verified; the flush path is hardware-verified.
 
 ### [ ] M9 - Touchscreen calibration (flash: yes)
 

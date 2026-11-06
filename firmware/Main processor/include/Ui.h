@@ -10,6 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "display.h"
+
 /*
  * Touch UI for the screen carousel.
  *
@@ -41,7 +43,7 @@ constexpr UiRect UI_NEXT_RECT = {272, 16, 32, 32};
 constexpr UiRect UI_POWER_RECT = {16, 164, 96, 60};
 constexpr UiRect UI_PLUS_RECT = {112, 164, 96, 60};
 constexpr UiRect UI_MINUS_RECT = {208, 164, 96, 60};
-constexpr UiRect UI_AP_RECT = {16, 196, 288, 28};
+constexpr UiRect UI_AP_RECT = {112, 164, 96, 60};
 
 // Initialize the touch state machine.
 void UiSetup(void);

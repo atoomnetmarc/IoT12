@@ -21,8 +21,12 @@ namespace {
                 DisplayScreenPrev();
             } else if (strcmp(argv[1], "home") == 0) {
                 DisplayScreenSet(DISPLAY_SCREEN_HOME);
+            } else if (strcmp(argv[1], "network") == 0) {
+                DisplayScreenSet(DISPLAY_SCREEN_NETWORK);
+            } else if (strcmp(argv[1], "info") == 0) {
+                DisplayScreenSet(DISPLAY_SCREEN_INFO);
             } else {
-                cli.write("Usage: screen [next|prev|home]\r\n");
+                cli.write("Usage: screen [next|prev|home|network|info]\r\n");
                 return;
             }
         }

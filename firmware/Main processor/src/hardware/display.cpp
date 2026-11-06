@@ -14,9 +14,11 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <math.h>
+#include <string.h>
 
 #include "HeatController.h"
 #include "HomeWiFiService.h"
+#include "LifetimeStats.h"
 #include "Ui.h"
 #include "WebServerService.h"
 
@@ -156,6 +158,13 @@ namespace {
     constexpr FieldRect SET_VALUE_RECT = {75, 120, 75, 30};
     constexpr FieldRect HEATER_RECT = {213, 120, 91, 30};
 
+    // Width of the label column on the Network and Info screens, and the height
+    // of one value row. The link label switches between AP and STA, so the
+    // column is cleared when the label changes. The widest label is UPTIME at
+    // 89 px, which ends at x=105.
+    constexpr int16_t LABEL_COLUMN_W = 64;
+    constexpr int16_t VALUE_H = 30;
+
     constexpr uint16_t COLOR_BUTTON = 0x18E3;    // dark blue-grey
     constexpr uint16_t COLOR_SEPARATOR = 0x4208; // dark grey
 
@@ -168,6 +177,7 @@ namespace {
     uint8_t backlight = BACKLIGHT_DEFAULT;
     bool powerOn = true;
     HomeState lastState;
+    UiZone lastHeaderPressed = UI_ZONE_NONE;
     DisplayScreen currentScreen = DISPLAY_SCREEN_HOME;
 
     /*
@@ -249,6 +259,59 @@ namespace {
         }
     }
 
+    /*
+     * Draw a right-aligned value. Only the cells that a wider previous value
+     * left behind are cleared, so a value that changes every second does not
+     * blink and the clear never reaches the label on the same row. A null
+     * previous means the row is already blank.
+     */
+    void drawValue(const char *value, const char *previous, int16_t y, uint16_t color) {
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::middle_right);
+        lcd.setTextColor(color, TFT_BLACK);
+
+        int16_t right = lcd.width() - SAFE_MARGIN;
+        int16_t left = right - lcd.textWidth(value);
+
+        if (previous != nullptr) {
+            int16_t previousLeft = right - lcd.textWidth(previous);
+
+            if (previousLeft < left) {
+                lcd.fillRect(previousLeft, y, left - previousLeft, VALUE_H, TFT_BLACK);
+            }
+        }
+
+        lcd.drawString(value, right, y + 12);
+    }
+
+    // Draw a label on the left and a right-aligned value on the same row. The
+    // value goes first, so its clear never eats into the label.
+    void drawLabelValue(const char *label, const char *value, const char *previous, int16_t y, uint16_t valueColor) {
+        drawValue(value, previous, y, valueColor);
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::top_left);
+        lcd.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        lcd.drawString(label, SAFE_MARGIN, y);
+    }
+
+    // Draw the AP toggle button. It is the same size and place as the middle
+    // home button, so the two screens share one button geometry.
+    void drawApButton(const UiRect &rect, bool ap, bool pressed) {
+        uint16_t fill = pressed ? TFT_WHITE : (ap ? TFT_GREEN : COLOR_BUTTON);
+        uint16_t text = (pressed || ap) ? TFT_BLACK : TFT_WHITE;
+
+        drawButtonFrame(rect, fill, pressed);
+
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+        lcd.setTextColor(text, fill);
+        lcd.drawString("AP", rect.x + rect.w / 2, rect.y + rect.h / 2);
+    }
+
     // Draw one carousel arrow box. The chevron is drawn as two lines, so it
     // does not depend on the font carrying an arrow glyph.
     void drawArrowBox(const UiRect &rect, bool left, bool pressed) {
@@ -264,20 +327,32 @@ namespace {
         lcd.drawLine(cx - dx, cy, cx + dx, cy + 8, glyph);
     }
 
-    // Draw the carousel header: two arrow boxes and the centered title.
+    // Draw the carousel header: two arrow boxes and the centered title. An
+    // arrow is only repainted when its pressed state changes, so a periodic
+    // field update never makes the header blink.
     void drawHeader(bool full) {
+        UiZone pressed = UiPressedZone();
+
         if (full) {
             lcd.fillRect(0, 0, lcd.width(), HEADER_Y + HEADER_H + 4, TFT_BLACK);
         }
 
-        drawArrowBox(UI_PREV_RECT, true, UiPressedZone() == UI_ZONE_PREV);
-        drawArrowBox(UI_NEXT_RECT, false, UiPressedZone() == UI_ZONE_NEXT);
+        if (full || pressed == UI_ZONE_PREV || lastHeaderPressed == UI_ZONE_PREV) {
+            drawArrowBox(UI_PREV_RECT, true, pressed == UI_ZONE_PREV);
+        }
+        if (full || pressed == UI_ZONE_NEXT || lastHeaderPressed == UI_ZONE_NEXT) {
+            drawArrowBox(UI_NEXT_RECT, false, pressed == UI_ZONE_NEXT);
+        }
 
-        lcd.setFont(&fontLogisoso24);
-        lcd.setTextSize(1);
-        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
-        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-        lcd.drawString(DisplayScreenName(currentScreen), TITLE_CENTER_X, HEADER_Y + HEADER_H / 2);
+        if (full) {
+            lcd.setFont(&fontLogisoso24);
+            lcd.setTextSize(1);
+            lcd.setTextDatum(lgfx::textdatum_t::middle_center);
+            lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+            lcd.drawString(DisplayScreenName(currentScreen), TITLE_CENTER_X, HEADER_Y + HEADER_H / 2);
+        }
+
+        lastHeaderPressed = pressed;
     }
 
     // POWER is green while the heater is on, dark grey while it is off. A
@@ -450,80 +525,166 @@ namespace {
         drawHomeButtons(state, previous, full, UI_POWER_RECT, UI_PLUS_RECT, UI_MINUS_RECT, true);
     }
 
-    // Draw the network screen: AP state, identity and the AP toggle button.
-    void drawNetwork(bool full) {
-        if (full) {
-            lcd.fillScreen(TFT_BLACK);
-        }
+    // Values the network screen shows.
+    struct NetworkState {
+        bool ap = false;
+        char ssid[33] = "";
+        char pass[17] = "";
+        char linkLabel[4] = "";
+        char linkValue[16] = "";
+        UiZone pressedZone = UI_ZONE_NONE;
+    };
 
-        drawHeader(full);
-
-        bool ap = web_server::portalActive();
-        char line[48];
-
-        lcd.setFont(&fontLogisoso24);
-        lcd.setTextSize(1);
-        lcd.setTextDatum(lgfx::textdatum_t::top_left);
-        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-
-        snprintf(line, sizeof(line), "AP: %s", ap ? "ON" : "OFF");
-        lcd.drawString(line, SAFE_MARGIN, 56);
-
-        snprintf(line, sizeof(line), "SSID: %s", web_server::apSsid());
-        lcd.drawString(line, SAFE_MARGIN, 84);
-
-        snprintf(line, sizeof(line), "PASS: %s", web_server::apPassword());
-        lcd.drawString(line, SAFE_MARGIN, 112);
-
-        snprintf(line, sizeof(line), "AP IP: %s", ap ? web_server::apIp() : "-");
-        lcd.drawString(line, SAFE_MARGIN, 140);
-
-        snprintf(line, sizeof(line), "STA: %s", home_wifi::stateName(home_wifi::getState()));
-        lcd.drawString(line, SAFE_MARGIN, 168);
-
-        bool pressed = UiPressedZone() == UI_ZONE_AP;
-        uint16_t fill = pressed ? TFT_WHITE : (ap ? TFT_GREEN : COLOR_BUTTON);
-        uint16_t text = (pressed || ap) ? TFT_BLACK : TFT_WHITE;
-
-        drawButtonFrame(UI_AP_RECT, fill, pressed);
-
-        lcd.setTextDatum(lgfx::textdatum_t::middle_center);
-        lcd.setTextColor(text, fill);
-        lcd.drawString(ap ? "STOP AP" : "START AP", UI_AP_RECT.x + UI_AP_RECT.w / 2, UI_AP_RECT.y + UI_AP_RECT.h / 2);
+    // Compare every displayed value, so DisplayLoop can skip an unchanged frame.
+    bool operator==(const NetworkState &a, const NetworkState &b) {
+        return a.ap == b.ap && strcmp(a.ssid, b.ssid) == 0 && strcmp(a.pass, b.pass) == 0 && strcmp(a.linkLabel, b.linkLabel) == 0 && strcmp(a.linkValue, b.linkValue) == 0 && a.pressedZone == b.pressedZone;
     }
 
-    // Draw the info screen: version, uptime, network identity and link health.
-    void drawInfo(bool full) {
+    NetworkState lastNetworkState;
+
+    /*
+     * Read the network values. The third row shows where the device is
+     * reachable: the AP address while the portal is open, the station address
+     * once the station is connected, and the state name while it is not.
+     */
+    NetworkState readNetworkState(void) {
+        NetworkState state;
+
+        state.ap = web_server::portalActive();
+        snprintf(state.ssid, sizeof(state.ssid), "%s", web_server::apSsid());
+        snprintf(state.pass, sizeof(state.pass), "%s", web_server::apPassword());
+        state.pressedZone = UiPressedZone();
+
+        if (state.ap) {
+            snprintf(state.linkLabel, sizeof(state.linkLabel), "AP");
+            snprintf(state.linkValue, sizeof(state.linkValue), "%s", web_server::apIp());
+        } else {
+            snprintf(state.linkLabel, sizeof(state.linkLabel), "STA");
+
+            if (home_wifi::getState() == home_wifi::State::CONNECTED) {
+                snprintf(state.linkValue, sizeof(state.linkValue), "%s", WiFi.localIP().toString().c_str());
+            } else {
+                snprintf(state.linkValue, sizeof(state.linkValue), "%s", home_wifi::stateName(home_wifi::getState()));
+            }
+        }
+
+        return state;
+    }
+
+    /*
+     * Draw the network screen. The SSID, the WPA2 password and the link row
+     * take the three rows, and the AP button sits in the middle slot of the
+     * button strip. The button colour carries the AP state, so no separate
+     * status row is needed. Only the rows whose value changed are redrawn.
+     */
+    void drawNetwork(const NetworkState &state, const NetworkState &previous, bool full) {
         if (full) {
             lcd.fillScreen(TFT_BLACK);
         }
 
         drawHeader(full);
 
-        char line[48];
+        if (full) {
+            lcd.drawFastHLine(SAFE_MARGIN, 52, lcd.width() - 2 * SAFE_MARGIN, COLOR_SEPARATOR);
+        }
 
-        lcd.setFont(&fontLogisoso24);
-        lcd.setTextSize(1);
-        lcd.setTextDatum(lgfx::textdatum_t::top_left);
-        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        if (full || strcmp(state.ssid, previous.ssid) != 0) {
+            drawLabelValue("SSID", state.ssid, full ? nullptr : previous.ssid, 56, TFT_WHITE);
+        }
 
-        snprintf(line, sizeof(line), "VER: %s", PRODUCT_VERSION);
-        lcd.drawString(line, SAFE_MARGIN, 56);
+        if (full || strcmp(state.pass, previous.pass) != 0) {
+            drawLabelValue("PASS", state.pass, full ? nullptr : previous.pass, 92, TFT_WHITE);
+        }
 
-        snprintf(line, sizeof(line), "UPTIME: %lu s", static_cast<unsigned long>(millis() / 1000U));
-        lcd.drawString(line, SAFE_MARGIN, 84);
+        if (full || strcmp(state.linkLabel, previous.linkLabel) != 0 || strcmp(state.linkValue, previous.linkValue) != 0) {
+            // The label switches between AP and STA, so clear the label column
+            // first; a shorter label would otherwise leave a glyph behind.
+            if (strcmp(state.linkLabel, previous.linkLabel) != 0) {
+                lcd.fillRect(SAFE_MARGIN, 128, LABEL_COLUMN_W, VALUE_H, TFT_BLACK);
+            }
+            drawLabelValue(state.linkLabel, state.linkValue, full ? nullptr : previous.linkValue, 128, TFT_WHITE);
+        }
 
-        snprintf(line, sizeof(line), "IP: %s", WiFi.localIP().toString().c_str());
-        lcd.drawString(line, SAFE_MARGIN, 112);
+        if (full || state.ap != previous.ap || state.pressedZone != previous.pressedZone) {
+            drawApButton(UI_AP_RECT, state.ap, state.pressedZone == UI_ZONE_AP);
+        }
+    }
 
-        snprintf(line, sizeof(line), "MAC: %s", WiFi.macAddress().c_str());
-        lcd.drawString(line, SAFE_MARGIN, 140);
+    // Values the info screen shows.
+    struct InfoState {
+        char version[16] = "";
+        uint32_t session = 0;
+        uint32_t total = 0;
+        uint32_t boots = 0;
+    };
 
-        snprintf(line, sizeof(line), "LINK: %s", HeatController.isCompatible() ? "OK" : "LOST");
-        lcd.drawString(line, SAFE_MARGIN, 168);
+    // Compare every displayed value, so DisplayLoop can skip an unchanged frame.
+    bool operator==(const InfoState &a, const InfoState &b) {
+        return strcmp(a.version, b.version) == 0 && a.session == b.session && a.total == b.total && a.boots == b.boots;
+    }
 
-        snprintf(line, sizeof(line), "I2C ERR: %lu", static_cast<unsigned long>(HeatController.errorCount()));
-        lcd.drawString(line, SAFE_MARGIN, 196);
+    InfoState lastInfoState;
+
+    // Format a duration as "27h 14m", or "14m 03s" below one hour.
+    void formatDuration(uint32_t seconds, char *buffer, size_t size) {
+        uint32_t hours = seconds / 3600U;
+        uint32_t minutes = (seconds / 60U) % 60U;
+
+        if (hours > 0) {
+            snprintf(buffer, size, "%luh %02lum", static_cast<unsigned long>(hours), static_cast<unsigned long>(minutes));
+        } else {
+            snprintf(buffer, size, "%lum %02lus", static_cast<unsigned long>(minutes), static_cast<unsigned long>(seconds % 60U));
+        }
+    }
+
+    // Read the info values.
+    InfoState readInfoState(void) {
+        InfoState state;
+
+        snprintf(state.version, sizeof(state.version), "%s", PRODUCT_VERSION);
+        state.session = lifetime_stats::sessionSeconds();
+        state.total = lifetime_stats::totalSeconds();
+        state.boots = lifetime_stats::bootCount();
+
+        return state;
+    }
+
+    // Draw the info screen. Only the rows whose value changed are redrawn.
+    void drawInfo(const InfoState &state, const InfoState &previous, bool full) {
+        char value[16];
+        char previousValue[16];
+
+        if (full) {
+            lcd.fillScreen(TFT_BLACK);
+        }
+
+        drawHeader(full);
+
+        if (full) {
+            lcd.drawFastHLine(SAFE_MARGIN, 52, lcd.width() - 2 * SAFE_MARGIN, COLOR_SEPARATOR);
+        }
+
+        if (full || strcmp(state.version, previous.version) != 0) {
+            drawLabelValue("VER", state.version, full ? nullptr : previous.version, 56, TFT_WHITE);
+        }
+
+        if (full || state.session != previous.session) {
+            formatDuration(state.session, value, sizeof(value));
+            formatDuration(previous.session, previousValue, sizeof(previousValue));
+            drawLabelValue("UPTIME", value, full ? nullptr : previousValue, 100, TFT_WHITE);
+        }
+
+        if (full || state.total != previous.total) {
+            formatDuration(state.total, value, sizeof(value));
+            formatDuration(previous.total, previousValue, sizeof(previousValue));
+            drawLabelValue("TOTAL", value, full ? nullptr : previousValue, 144, TFT_WHITE);
+        }
+
+        if (full || state.boots != previous.boots) {
+            snprintf(value, sizeof(value), "%lu", static_cast<unsigned long>(state.boots));
+            snprintf(previousValue, sizeof(previousValue), "%lu", static_cast<unsigned long>(previous.boots));
+            drawLabelValue("BOOTS", value, full ? nullptr : previousValue, 188, TFT_WHITE);
+        }
     }
 
     // Draw the panel edge and a rectangle inset by margin pixels.
@@ -585,18 +746,22 @@ void DisplayLoop(void) {
 
         drawHome(state, lastState, drawRequested);
         lastState = state;
-    } else {
-        // The network and info screens show slowly changing values, so a
-        // one-second refresh is enough and keeps the code simple.
-        if (!drawRequested && !stateDirty && now - lastDrawMs < 1000) {
+    } else if (currentScreen == DISPLAY_SCREEN_NETWORK) {
+        NetworkState state = readNetworkState();
+        if (!drawRequested && !stateDirty && state == lastNetworkState) {
             return;
         }
 
-        if (currentScreen == DISPLAY_SCREEN_NETWORK) {
-            drawNetwork(drawRequested);
-        } else {
-            drawInfo(drawRequested);
+        drawNetwork(state, lastNetworkState, drawRequested);
+        lastNetworkState = state;
+    } else {
+        InfoState state = readInfoState();
+        if (!drawRequested && !stateDirty && state == lastInfoState) {
+            return;
         }
+
+        drawInfo(state, lastInfoState, drawRequested);
+        lastInfoState = state;
     }
 
     drawRequested = false;
