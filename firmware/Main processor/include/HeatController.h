@@ -24,11 +24,18 @@
 #define FIRMWARE_VERSION_LENGTH 16
 
 // Measurements
-#define REGISTER_TEMPERATURE_HEATER 0x40
-#define REGISTER_TEMPERATURE_NTC    0x41
-#define REGISTER_HEATER_DUTY        0x42
-#define REGISTER_SUPPLY_VOLTAGE     0x43
-#define REGISTER_IRON_CURRENT       0x44
+#define REGISTER_TEMPERATURE_HEATER   0x40
+#define REGISTER_TEMPERATURE_NTC      0x41
+#define REGISTER_HEATER_DUTY          0x42
+#define REGISTER_SUPPLY_VOLTAGE       0x43
+#define REGISTER_IRON_CURRENT         0x44
+#define REGISTER_VOLTAGE_NTC          0x45
+#define REGISTER_VOLTAGE_THERMOCOUPLE 0x46
+#define REGISTER_VOLTAGE_VIN_ON       0x48
+#define REGISTER_CURRENT_IRON_OFF     0x49
+#define REGISTER_CURRENT_IRON_ON      0x4A
+#define REGISTER_RESISTANCE_TIP       0x4B
+#define REGISTER_RESISTANCE_SUPPLY    0x4C
 
 // Configuration
 #define REGISTER_TEMPERATURE_HEATER_TARGET         0x80
@@ -47,9 +54,8 @@
 #define INT_MEASUREMENTS_GROUP_B 29
 #define INT_LINK_TIMEOUT         28
 
-#define REGISTER_MAX_LENGTH     16
-#define HEARTBEAT_INTERVAL_MS   1000
-#define LINK_TIMEOUT_DEFAULT_MS 5000
+#define REGISTER_MAX_LENGTH   16
+#define HEARTBEAT_INTERVAL_MS 1000
 
 enum HEATER_STATE : uint8_t {
     OFF = 0x00,
@@ -123,6 +129,14 @@ public:
     float getHeaterDuty(void);
     float getSupplyVoltage(void);
     float getIronCurrent(void);
+    float getVoltageNTC(void);
+    float getVoltageThermocouple(void);
+    float getVoltageVinOn(void);
+    float getCurrentIronOff(void);
+    float getCurrentIronOn(void);
+    float getResistanceTip(void);
+    float getResistanceSupply(void);
+    float getGainHeaterTemperatureAmplifier(void);
 
     const char *getFirmwareVersion(void);
     SerialNumber_t getSerialNumber(void);
@@ -142,6 +156,7 @@ public:
 
     uint32_t linkAgeMs(void) const;
     bool linkTimedOut(void) const;
+    bool linkUp(void) const;
     uint32_t rewriteCount(void) const;
     uint32_t errorCount(void) const;
     uint32_t heartbeatCount(void) const;
@@ -163,6 +178,7 @@ private:
     uint32_t lastHeartbeatMs = 0;
     uint32_t lastInitAttemptMs = 0;
     bool linkTimedOutFlag = false;
+    bool linkUpValue = false;
     uint32_t rewriteCountValue = 0;
     uint32_t errorCountValue = 0;
     uint32_t heartbeatCountValue = 0;

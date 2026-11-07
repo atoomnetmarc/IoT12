@@ -24,6 +24,13 @@ namespace {
         {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
         {"SUPPLY_VOLTAGE", REGISTER_SUPPLY_VOLTAGE, "float", 4, false},
         {"IRON_CURRENT", REGISTER_IRON_CURRENT, "float", 4, false},
+        {"VOLTAGE_NTC", REGISTER_VOLTAGE_NTC, "float", 4, false},
+        {"VOLTAGE_THERMOCOUPLE", REGISTER_VOLTAGE_THERMOCOUPLE, "float", 4, false},
+        {"VOLTAGE_VIN_ON", REGISTER_VOLTAGE_VIN_ON, "float", 4, false},
+        {"CURRENT_IRON_OFF", REGISTER_CURRENT_IRON_OFF, "float", 4, false},
+        {"CURRENT_IRON_ON", REGISTER_CURRENT_IRON_ON, "float", 4, false},
+        {"RESISTANCE_TIP", REGISTER_RESISTANCE_TIP, "float", 4, false},
+        {"RESISTANCE_SUPPLY", REGISTER_RESISTANCE_SUPPLY, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
@@ -122,6 +129,7 @@ void HeatControllerClass::heartbeat(void) {
     }
 
     heartbeatCountValue++;
+    linkUpValue = true;
     cachedState = (HEATER_STATE)state;
 
     if (linkTimedOutFlag) {
@@ -179,6 +187,38 @@ float HeatControllerClass::getSupplyVoltage(void) {
 
 float HeatControllerClass::getIronCurrent(void) {
     return readRegister_float(REGISTER_IRON_CURRENT);
+}
+
+float HeatControllerClass::getVoltageNTC(void) {
+    return readRegister_float(REGISTER_VOLTAGE_NTC);
+}
+
+float HeatControllerClass::getVoltageThermocouple(void) {
+    return readRegister_float(REGISTER_VOLTAGE_THERMOCOUPLE);
+}
+
+float HeatControllerClass::getVoltageVinOn(void) {
+    return readRegister_float(REGISTER_VOLTAGE_VIN_ON);
+}
+
+float HeatControllerClass::getCurrentIronOff(void) {
+    return readRegister_float(REGISTER_CURRENT_IRON_OFF);
+}
+
+float HeatControllerClass::getCurrentIronOn(void) {
+    return readRegister_float(REGISTER_CURRENT_IRON_ON);
+}
+
+float HeatControllerClass::getResistanceTip(void) {
+    return readRegister_float(REGISTER_RESISTANCE_TIP);
+}
+
+float HeatControllerClass::getResistanceSupply(void) {
+    return readRegister_float(REGISTER_RESISTANCE_SUPPLY);
+}
+
+float HeatControllerClass::getGainHeaterTemperatureAmplifier(void) {
+    return readRegister_float(REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER);
 }
 
 const char *HeatControllerClass::getFirmwareVersion(void) {
@@ -259,6 +299,10 @@ bool HeatControllerClass::linkTimedOut(void) const {
     return linkTimedOutFlag;
 }
 
+bool HeatControllerClass::linkUp(void) const {
+    return linkUpValue && !linkTimedOutFlag;
+}
+
 uint32_t HeatControllerClass::rewriteCount(void) const {
     return rewriteCountValue;
 }
@@ -291,6 +335,7 @@ uint8_t HeatControllerClass::selectRegister(uint8_t r) {
 
 size_t HeatControllerClass::readRegisterArray(uint8_t r, uint8_t *dest, size_t len) {
     if (selectRegister(r) != 0) {
+        linkUpValue = false;
         return 0;
     }
 
@@ -300,24 +345,40 @@ size_t HeatControllerClass::readRegisterArray(uint8_t r, uint8_t *dest, size_t l
         dest[b] = b < got ? static_cast<uint8_t>(Wire.read()) : 0;
     }
 
+    if (got != len) {
+        linkUpValue = false;
+    }
+
     return got;
 }
 
 uint8_t HeatControllerClass::readRegister_uint8_t(uint8_t r) {
     uint8_t_u uint8_t_union;
-    readRegisterArray(r, uint8_t_union.m_bytes, sizeof(uint8_t_union.m_bytes));
+
+    if (readRegisterArray(r, uint8_t_union.m_bytes, sizeof(uint8_t_union.m_bytes)) != sizeof(uint8_t_union.m_bytes)) {
+        return 0;
+    }
+
     return uint8_t_union.m_uint8_t;
 }
 
 uint32_t HeatControllerClass::readRegister_uint32_t(uint8_t r) {
     uint32_t_u uint32_t_union;
-    readRegisterArray(r, uint32_t_union.m_bytes, sizeof(uint32_t_union.m_bytes));
+
+    if (readRegisterArray(r, uint32_t_union.m_bytes, sizeof(uint32_t_union.m_bytes)) != sizeof(uint32_t_union.m_bytes)) {
+        return 0;
+    }
+
     return uint32_t_union.m_uint32_t;
 }
 
 float HeatControllerClass::readRegister_float(uint8_t r) {
     float_u float_union;
-    readRegisterArray(r, float_union.m_bytes, sizeof(float_union.m_bytes));
+
+    if (readRegisterArray(r, float_union.m_bytes, sizeof(float_union.m_bytes)) != sizeof(float_union.m_bytes)) {
+        return NAN;
+    }
+
     return float_union.m_float;
 }
 

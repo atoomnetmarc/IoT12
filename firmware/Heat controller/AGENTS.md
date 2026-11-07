@@ -10,6 +10,7 @@
 - **Update docs on code change** - Check any `.md` file when the code changes. README.md and the docs/ rule files must stay in sync with the code.
 - **Language** - Write everything in English. Reply in the user's language.
 - **No doxing** - Never document absolute paths or real network names.
+- **Never enable the heater** - The agent must not send `heat on`, set a target temperature, or run any command that energizes the T12 tip. Only the human operator enables the heater. The agent may read measurements and change non-heating settings.
 - **Prove calculations** - Validate calculations with GCC or Python. Do not reason manually.
 - **X-Y problem?** - Ask the user about X. Do not propose a solution Y first.
 - **Ask questions** - Asking the user questions is allowed and encouraged. Prefer the `/grill-me` skill when it is available. Present ALL questions with multiple answer options. Use a table with one row per option and these columns: `Answer | Industry standard | Risk | Reward | Fits test-framework | Notes`. Read the relevant docs or code before you ask. Add a final row labeled "From scratch" to propose a custom alternative. After the table, state the recommended answer and explain why.

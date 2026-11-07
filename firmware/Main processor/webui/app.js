@@ -14,22 +14,49 @@ function fmt(value, digits) {
   return Number.isFinite(value) ? value.toFixed(digits) : "--";
 }
 
+// The firmware sends the state name; the long sentences live here.
+// Keep this table in sync with the HandleDiagnosis texts in the firmware.
+const HANDLE_TEXT = {
+  OK: { title: "Handle and tip are connected", action: "Ready to heat." },
+  NO_HANDLE: { title: "No handle is connected", action: "Connect the T12 handle to the station." },
+  NO_TIP: { title: "The T12 tip is not seated", action: "Press the tip firmly into the handle." },
+  SUPPLY_OFF: { title: "The 24 V supply is off", action: "Switch the 24 V supply on." },
+  LOSS: { title: "The heat controller is not responding", action: "Check the link cable and the heat controller." },
+};
+
 function applyState(state) {
   setText("v-tip", fmt(state.tip, 1) + " C");
   setText("v-set", fmt(state.set, 1) + " C");
   setText("v-ntc", fmt(state.ntc, 1) + " C");
   setText("v-duty", fmt(state.duty, 0) + " %");
-  setText("v-vin", fmt(state.vin, 2) + " V");
   setText("v-current", fmt(state.current, 2) + " A");
   setText("v-heater", state.heater ? "ON" : "OFF");
   setText("v-link", state.linked ? "OK" : "LOST");
+
+  const handle = HANDLE_TEXT[state.handle] || { title: state.handle || "--", action: "" };
+  setText("v-handle", handle.title);
+  setText("v-handle-action", handle.action);
+  const handleTile = $("v-handle-tile");
+  if (handleTile) {
+    handleTile.classList.toggle("ok", state.handle === "OK");
+    handleTile.classList.toggle("fault", state.handle !== "OK");
+  }
+
+  setText("v-ntc-v", fmt(state.ntc_v, 3) + " V");
+  setText("v-tc-mv", fmt(state.tc_mv, 1) + " mV");
+  setText("v-vin-off", fmt(state.vin_off, 2) + " V");
+  setText("v-vin-on", fmt(state.vin_on, 2) + " V");
+  setText("v-iron-off", fmt(state.iron_off, 3) + " A");
+  setText("v-iron-on", fmt(state.iron_on, 3) + " A");
+  setText("v-rtip", fmt(state.rtip, 2) + " ohm");
+  setText("v-rsupply", fmt(state.rsupply, 2) + " ohm");
 
   setText("n-state", state.wifi);
   setText("n-ssid", state.ssid || "-");
   setText("n-ip", state.ip || "-");
   setText("n-rssi", state.rssi + " dBm");
-  setText("n-uptime", state.uptime + " s");
-  setText("n-heap", state.heap + " B");
+  setText("d-uptime", state.uptime + " s");
+  setText("d-heap", state.heap + " B");
 
   const badge = $("badge");
   if (state.portal) {

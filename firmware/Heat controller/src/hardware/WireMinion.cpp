@@ -28,6 +28,13 @@ namespace {
         {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
         {"SUPPLY_VOLTAGE", REGISTER_SUPPLY_VOLTAGE, "float", 4, false},
         {"IRON_CURRENT", REGISTER_IRON_CURRENT, "float", 4, false},
+        {"VOLTAGE_NTC", REGISTER_VOLTAGE_NTC, "float", 4, false},
+        {"VOLTAGE_THERMOCOUPLE", REGISTER_VOLTAGE_THERMOCOUPLE, "float", 4, false},
+        {"VOLTAGE_VIN_ON", REGISTER_VOLTAGE_VIN_ON, "float", 4, false},
+        {"CURRENT_IRON_OFF", REGISTER_CURRENT_IRON_OFF, "float", 4, false},
+        {"CURRENT_IRON_ON", REGISTER_CURRENT_IRON_ON, "float", 4, false},
+        {"RESISTANCE_TIP", REGISTER_RESISTANCE_TIP, "float", 4, false},
+        {"RESISTANCE_SUPPLY", REGISTER_RESISTANCE_SUPPLY, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
@@ -190,6 +197,34 @@ uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLen
     } else if (reg == REGISTER_IRON_CURRENT) {
         // Iron current measured with the heater on, in amperes.
         float_union.m_float = Heater.status().iIronPowerOn;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_VOLTAGE_NTC) {
+        float_union.m_float = Heater.status().vNTC;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_VOLTAGE_THERMOCOUPLE) {
+        float_union.m_float = Heater.status().vThermocouple;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_VOLTAGE_VIN_ON) {
+        float_union.m_float = Heater.status().vVINHeatOn;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_CURRENT_IRON_OFF) {
+        float_union.m_float = Heater.status().iIronPowerOff;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_CURRENT_IRON_ON) {
+        float_union.m_float = Heater.status().iIronPowerOn;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_RESISTANCE_TIP) {
+        float_union.m_float = Heater.status().rTip;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_RESISTANCE_SUPPLY) {
+        float_union.m_float = Heater.status().rSupply;
         length = sizeof(float_union.m_bytes);
         memcpy(dest, float_union.m_bytes, length);
     } else if (reg == REGISTER_VERSION) {

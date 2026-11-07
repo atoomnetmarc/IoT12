@@ -13,13 +13,27 @@ The main processor is the ESP32 controller of the soldering iron. It drives the 
 
 The main processor is the I2C master. It reads register 0x11 once per second as the link heartbeat. The heat controller forces the heater off when the heartbeat stops for 5 seconds. The register map matches the heat controller README. The main processor refuses register writes when the firmware version differs.
 
+## Handle diagnosis
+
+The main processor classifies the handle from the measurements that the heat controller publishes. The first match wins.
+
+| Order | State | Condition | Line 1 | Line 2 |
+| ----- | ----- | --------- | ------ | ------ |
+| 1 | `LOSS` | `linkUp()` is false | `HW fault` | `Heat ctrl absent` |
+| 2 | `NO_HANDLE` | `NTC_V > 2.5` | `No handle` | `Connect T12 handle` |
+| 3 | `SUPPLY_OFF` | `VIN_OFF_V < 5` | `24V is off` | `Switch 24V on` |
+| 4 | `NO_TIP` | `THERMOCOUPLE_MV / 1000 * gain > 1.5`, or heater on for 1 s AND `duty > 0.2` AND `IRON_CURRENT_ON_A < 0.1` | `No T12 tip` | `Press tip in firmly` |
+| 5 | `OK` | none of the above | tip temperature | `SET`/`PWM` |
+
+The thresholds come from the measurement log in the heat controller `MEASUREMENTS.md`. The thermocouple check works with the heater off. The current check waits 1 s after the heater turns on, because the heat controller refreshes `IRON_CURRENT_ON_A` one cycle later. The `sensor` command prints `HANDLE_STATE`.
+
 ## Display
 
 The carousel has four screens:
 
 | Screen  | Content                                                                                              |
 | ------- | ---------------------------------------------------------------------------------------------------- |
-| Home    | Tip temperature, setpoint, PWM duty, heater state, link state, power and setpoint buttons, AP button |
+| Home    | Tip temperature, setpoint, PWM duty, heater state, power and setpoint buttons, AP button. A handle fault replaces the tip value and the status rail with a two-line judgement. The action line is green except in the LOSS state. POWER may always stop the heater; it may only start it in the OK state. It is red in the 24V-off state and disabled for starting in the other fault states. |
 | Network | WiFi state, SSID, IP address, RSSI, AP button                                                        |
 | Info    | Firmware version, session uptime, lifetime total, boot count                                         |
 | Touch   | Touch calibration and touch test buttons                                                             |
@@ -52,7 +66,7 @@ The web server serves the page and these routes:
 
 The write routes are open in portal mode, because the client already proved the AP password to join the access point. In station mode the page unlocks with the AP password and receives an HttpOnly session cookie. The cookie is valid until the device reboots. Logout clears the cookie in that browser. Regenerating the AP password rotates the session token, so every other browser is locked out.
 
-The live state carries tip, setpoint, NTC, duty, supply voltage, iron current, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime and heap.
+The live state carries tip, setpoint, NTC, duty, iron current, the handle state, the eight handle measurements, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime and heap. The page shows the handle state and the action in the Live card, and the measurements in the same card. The Device card shows the name, board, chip, uptime and heap. The Firmware card shows the version, git commit and build time. The Network card shows only network data.
 
 ## Storage
 
@@ -60,7 +74,7 @@ The lifetime counters and the touch calibration are stored in NVS. The network l
 
 ## Serial CLI
 
-The serial port runs at 115200 baud. The CLI provides system, log, heat, net, display, ui, audio, screen and stats commands. Use `help` for the command list.
+The serial port runs at 115200 baud. The CLI provides system, log, heat, link, sensor, net, display, ui, audio, screen and stats commands. Use `help` for the command list. The `sensor` command prints the handle measurements that the heat controller publishes and the `HANDLE_STATE` judgement, or `LINK: LOSS` when the link is down.
 
 ## Build
 

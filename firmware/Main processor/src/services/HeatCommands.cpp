@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "CliFormat.h"
+#include "HandleDiagnosis.h"
 #include "HeatController.h"
 
 namespace {
@@ -188,6 +189,25 @@ namespace {
         cli_format::keyFloat(cli, "SETPOINT_C", celsius, 2);
     }
 
+    void cmdSensor(cli::SerialCli &cli) {
+        if (!HeatController.linkUp()) {
+            cli.write("LINK: LOSS\r\n");
+            return;
+        }
+
+        cli_format::keyFloat(cli, "TIP_TEMP_C", HeatController.getTemperatureTip() - 273.15f, 2);
+        cli_format::keyFloat(cli, "NTC_TEMP_C", HeatController.getTemperatureNTC() - 273.15f, 2);
+        cli_format::keyFloat(cli, "NTC_V", HeatController.getVoltageNTC(), 5);
+        cli_format::keyFloat(cli, "THERMOCOUPLE_MV", HeatController.getVoltageThermocouple() * 1000.0f, 3);
+        cli_format::keyFloat(cli, "VIN_OFF_V", HeatController.getSupplyVoltage(), 2);
+        cli_format::keyFloat(cli, "VIN_ON_V", HeatController.getVoltageVinOn(), 2);
+        cli_format::keyFloat(cli, "IRON_CURRENT_OFF_A", HeatController.getCurrentIronOff(), 3);
+        cli_format::keyFloat(cli, "IRON_CURRENT_ON_A", HeatController.getCurrentIronOn(), 3);
+        cli_format::keyFloat(cli, "RTIP_OHM", HeatController.getResistanceTip(), 2);
+        cli_format::keyFloat(cli, "RSUPPLY_OHM", HeatController.getResistanceSupply(), 2);
+        cli_format::keyText(cli, "HANDLE_STATE", HandleStateName(HandleDiagnosisClassify().state));
+    }
+
     void cmdHeat(cli::SerialCli &cli, int argc, char **argv) {
         if (argc >= 2 && strcmp(argv[1], "int") == 0) {
             cmdHeatInt(cli);
@@ -285,5 +305,6 @@ namespace heat_commands {
     void registerCommands(cli::SerialCli &cli) {
         cli.registerCommand({"heat", [&cli](int argc, char **argv) { cmdHeat(cli, argc, argv); }, "heat controller: state, temperatures, link; heat int|regs|read|write|on|off|setpoint"});
         cli.registerCommand({"link", [&cli](int argc, char **argv) { cmdLink(cli, argc, argv); }, "link age, timeout flag, counters; link timeout [<ms>]"});
+        cli.registerCommand({"sensor", [&cli](int argc, char **argv) { (void)argc; (void)argv; cmdSensor(cli); }, "handle measurements: temperatures, voltages, currents, resistances"});
     }
 }

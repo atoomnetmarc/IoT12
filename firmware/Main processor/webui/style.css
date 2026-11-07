@@ -114,12 +114,12 @@ main {
 }
 
 .live {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 .values {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -138,14 +138,39 @@ main {
 }
 
 .values dd {
-  font-size: 1.9rem;
+  font-size: 1.6rem;
   font-family: ui-monospace, "SF Mono", Consolas, monospace;
   white-space: nowrap;
 }
 
+.values .handle {
+  grid-column: span 2;
+}
+
+.values .handle-state {
+  font-size: 1.2rem;
+  white-space: normal;
+}
+
+.values .handle-action {
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: normal;
+  margin-top: 4px;
+}
+
+.values .handle.ok .handle-state {
+  color: var(--online);
+}
+
+.values .handle.fault .handle-state {
+  color: var(--offline);
+}
+
 @media (max-width: 640px) {
-  .values {
-    grid-template-columns: repeat(2, 1fr);
+  .values .handle {
+    grid-column: span 1;
   }
 
   .values dd {

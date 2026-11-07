@@ -11,6 +11,7 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "HandleDiagnosis.h"
 #include "HeatController.h"
 #include "TouchCalibration.h"
 #include "TouchTest.h"
@@ -130,7 +131,14 @@ namespace {
 
         switch (zone) {
             case UI_ZONE_POWER:
-                toggleHeater();
+                // POWER may always stop the heater. It may only start it in the
+                // OK state, so a fault cannot leave the heater running.
+                if (UiHeaterOn()) {
+                    HeatController.setHeaterState(HEATER_STATE::OFF);
+                    DisplayRequestDraw();
+                } else if (HandleDiagnosisClassify().state == HandleState::OK) {
+                    toggleHeater();
+                }
                 break;
             case UI_ZONE_PLUS:
                 stepSetpoint(SETPOINT_STEP_TENTHS);

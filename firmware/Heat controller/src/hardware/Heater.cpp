@@ -34,6 +34,8 @@ float iIronPowerOff = 0;
 float iIronPowerOn = 0;
 float vNTC = 0;
 float vThermocouple = 0;
+float rTipLast = NAN;
+float rSupplyLast = NAN;
 uint32_t adcReadMs = 0;
 uint32_t cycleCount = 0;
 uint32_t lastCycleMs = 0;
@@ -221,6 +223,11 @@ void HeaterClass::loop(void) {
             vVINHeatOn = readVin();
             iIronPowerOn = ADCExternal.readChannel(AIN_EXTERNAL_ADC_IRON_CURRENT) / Setting.gainHeaterCurrentAmplifier / Setting.resistanceHeaterShunt;
 
+            if (vVINHeatOn > 5.0f && iIronPowerOn != 0) {
+                rTipLast = vVINHeatOn / iIronPowerOn;
+                rSupplyLast = (vVINHeatOff - vVINHeatOn) / iIronPowerOn;
+            }
+
             WireMinion.raiseInterrupt(INT_MEASUREMENTS_GROUP_B);
         }
     }
@@ -318,8 +325,8 @@ HeaterStatus HeaterClass::status(void) {
     status.vVINHeatOn = vVINHeatOn;
     status.iIronPowerOff = iIronPowerOff;
     status.iIronPowerOn = iIronPowerOn;
-    status.rTip = iIronPowerOn != 0 ? vVINHeatOn / iIronPowerOn : 0;
-    status.rSupply = iIronPowerOn != 0 ? (vVINHeatOff - vVINHeatOn) / iIronPowerOn : 0;
+    status.rTip = rTipLast;
+    status.rSupply = rSupplyLast;
     status.heatfactor = heatfactor;
     status.pTerm = myQuickPID.GetPterm();
     status.iTerm = myQuickPID.GetIterm();

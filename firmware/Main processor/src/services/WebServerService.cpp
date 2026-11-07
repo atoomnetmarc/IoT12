@@ -14,12 +14,15 @@
 #include <WiFi.h>
 #include <esp_system.h>
 
+#include <cmath>
+#include <cstdarg>
 #include <cstring>
 #include <memory>
 #include <vector>
 
 #include "DeviceName.h"
 #include "EventLog.h"
+#include "HandleDiagnosis.h"
 #include "HeatController.h"
 #include "HomeWiFiService.h"
 #include "Log.h"
@@ -164,32 +167,73 @@ namespace {
         response->addHeader("Set-Cookie", String(SESSION_COOKIE) + "=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
     }
 
+    // Append formatted text to the state message and advance the cursor.
+    void appendJson(char *&cursor, size_t &left, const char *format, ...) {
+        va_list args;
+        va_start(args, format);
+        int written = vsnprintf(cursor, left, format, args);
+        va_end(args);
+
+        if (written > 0 && static_cast<size_t>(written) < left) {
+            cursor += written;
+            left -= written;
+        }
+    }
+
+    // Append a float as a JSON number, or null when it is not finite.
+    void appendJsonFloat(char *&cursor, size_t &left, float value, int digits) {
+        if (isfinite(value)) {
+            appendJson(cursor, left, "%.*f", digits, value);
+        } else {
+            appendJson(cursor, left, "null");
+        }
+    }
+
+    // Append a key and a float value to the state message.
+    void appendJsonKeyFloat(char *&cursor, size_t &left, const char *key, float value, int digits) {
+        appendJson(cursor, left, ",\"%s\":", key);
+        appendJsonFloat(cursor, left, value, digits);
+    }
+
+    // Append a key and a text value to the state message.
+    void appendJsonKeyText(char *&cursor, size_t &left, const char *key, const char *value) {
+        appendJson(cursor, left, ",\"%s\":\"%s\"", key, value);
+    }
+
     // Build the full state message that the page receives every second.
     void buildStateJson(void) {
-        bool linked = HeatController.isCompatible();
         bool heater = HeatController.getHeaterState() == HEATER_STATE::ON;
         String ipText = portal ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+        HandleDiagnosis diagnosis = HandleDiagnosisClassify();
 
-        snprintf(stateJson, sizeof(stateJson),
-                 "{\"tip\":%.1f,\"set\":%.1f,\"ntc\":%.1f,\"duty\":%.1f,"
-                 "\"vin\":%.2f,\"current\":%.2f,"
-                 "\"heater\":%s,\"linked\":%s,\"wifi\":\"%s\",\"ssid\":\"%s\","
-                 "\"ip\":\"%s\",\"rssi\":%d,\"portal\":%s,\"uptime\":%lu,\"heap\":%u}",
-                 HeatController.getTemperatureTip() - 273.15f,
-                 HeatController.getTargetTemperature() - 273.15f,
-                 HeatController.getTemperatureNTC() - 273.15f,
-                 HeatController.getHeaterDuty(),
-                 HeatController.getSupplyVoltage(),
-                 HeatController.getIronCurrent(),
-                 heater ? "true" : "false",
-                 linked ? "true" : "false",
-                 home_wifi::stateName(home_wifi::getState()),
-                 WiFi.SSID().c_str(),
-                 ipText.c_str(),
-                 WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0,
-                 portal ? "true" : "false",
-                 static_cast<unsigned long>(millis() / 1000U),
-                 static_cast<unsigned int>(ESP.getFreeHeap()));
+        char *cursor = stateJson;
+        size_t left = sizeof(stateJson);
+
+        appendJson(cursor, left, "{\"tip\":");
+        appendJsonFloat(cursor, left, HeatController.getTemperatureTip() - 273.15f, 1);
+        appendJsonKeyFloat(cursor, left, "set", HeatController.getTargetTemperature() - 273.15f, 1);
+        appendJsonKeyFloat(cursor, left, "ntc", HeatController.getTemperatureNTC() - 273.15f, 1);
+        appendJsonKeyFloat(cursor, left, "duty", HeatController.getHeaterDuty(), 1);
+        appendJsonKeyFloat(cursor, left, "current", HeatController.getIronCurrent(), 2);
+        appendJsonKeyText(cursor, left, "handle", HandleStateName(diagnosis.state));
+        appendJsonKeyFloat(cursor, left, "ntc_v", HeatController.getVoltageNTC(), 3);
+        appendJsonKeyFloat(cursor, left, "tc_mv", HeatController.getVoltageThermocouple() * 1000.0f, 1);
+        appendJsonKeyFloat(cursor, left, "vin_off", HeatController.getSupplyVoltage(), 2);
+        appendJsonKeyFloat(cursor, left, "vin_on", HeatController.getVoltageVinOn(), 2);
+        appendJsonKeyFloat(cursor, left, "iron_off", HeatController.getCurrentIronOff(), 3);
+        appendJsonKeyFloat(cursor, left, "iron_on", HeatController.getCurrentIronOn(), 3);
+        appendJsonKeyFloat(cursor, left, "rtip", HeatController.getResistanceTip(), 2);
+        appendJsonKeyFloat(cursor, left, "rsupply", HeatController.getResistanceSupply(), 2);
+        appendJson(cursor, left, ",\"heater\":%s", heater ? "true" : "false");
+        appendJson(cursor, left, ",\"linked\":%s", HeatController.linkUp() ? "true" : "false");
+        appendJsonKeyText(cursor, left, "wifi", home_wifi::stateName(home_wifi::getState()));
+        appendJsonKeyText(cursor, left, "ssid", WiFi.SSID().c_str());
+        appendJsonKeyText(cursor, left, "ip", ipText.c_str());
+        appendJson(cursor, left, ",\"rssi\":%d", WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
+        appendJson(cursor, left, ",\"portal\":%s", portal ? "true" : "false");
+        appendJson(cursor, left, ",\"uptime\":%lu", static_cast<unsigned long>(millis() / 1000U));
+        appendJson(cursor, left, ",\"heap\":%u", static_cast<unsigned int>(ESP.getFreeHeap()));
+        appendJson(cursor, left, "}");
     }
 
     // Serve one gzipped asset from PROGMEM.

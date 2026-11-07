@@ -36,6 +36,13 @@ The firmware version register is the only register that must be read. All other 
 |     0x42 | R   |       float |         |                |    % | Actual PWM duty               |
 |     0x43 | R   |       float |         |                |    V | Supply voltage, heater off    |
 |     0x44 | R   |       float |         |                |    A | Iron current, heater on       |
+|     0x45 | R   |       float |         |                |    V | NTC voltage                   |
+|     0x46 | R   |       float |         |                |    V | Thermocouple voltage          |
+|     0x48 | R   |       float |         |                |    V | Supply voltage, heater on     |
+|     0x49 | R   |       float |         |                |    A | Iron current, heater off      |
+|     0x4A | R   |       float |         |                |    A | Iron current, heater on       |
+|     0x4B | R   |       float |         |                |    Ω | Tip resistance                |
+|     0x4C | R   |       float |         |                |    Ω | Supply resistance             |
 |     0x80 | RW  |       float |  373.15 | Y              |    K | Target tip temperature        |
 |     0xA0 | RW  |       float |  0.0449 | Y              |      | Gain of Vin resistor divider  |
 |     0xA1 | RW  |       float |   106.1 | Y              |      | Gain of temperature amplifier |
@@ -44,6 +51,8 @@ The firmware version register is the only register that must be read. All other 
 |     0x91 | RW  |       float |   0.005 | Y              |    Ω | Heater shunt resistor         |
 |     0xF8 | R   |    uint16_t |  0x1234 |                |      | A constant                    |
 |     0xF9 | R   |       float |    3.14 |                |      | Mmmm, pi                      |
+
+The resistance registers hold the last valid measurement. They are NaN until the heater has measured a current with the supply present.
 
 ### 0x00: Firmware Version
 

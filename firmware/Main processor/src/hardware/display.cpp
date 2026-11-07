@@ -16,6 +16,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "HandleDiagnosis.h"
 #include "HeatController.h"
 #include "HomeWiFiService.h"
 #include "LifetimeStats.h"
@@ -150,13 +151,14 @@ namespace {
         int16_t setTenths = 0;
         int16_t dutyPercent = 0;
         bool heaterOn = false;
-        bool linked = false;
+        HandleDiagnosis diagnosis{HandleState::OK, nullptr, nullptr};
+        bool supplyOffMessage = false;
         UiZone pressedZone = UI_ZONE_NONE;
     };
 
     // Compare every displayed value, so DisplayLoop can skip an unchanged frame.
     bool operator==(const HomeState &a, const HomeState &b) {
-        return a.tipTenths == b.tipTenths && a.setTenths == b.setTenths && a.dutyPercent == b.dutyPercent && a.heaterOn == b.heaterOn && a.linked == b.linked && a.pressedZone == b.pressedZone;
+        return a.tipTenths == b.tipTenths && a.setTenths == b.setTenths && a.dutyPercent == b.dutyPercent && a.heaterOn == b.heaterOn && a.diagnosis.state == b.diagnosis.state && a.supplyOffMessage == b.supplyOffMessage && a.pressedZone == b.pressedZone;
     }
 
     // Rectangle of a field that changes, used to clear only that field.
@@ -177,9 +179,10 @@ namespace {
     constexpr int16_t HEADER_H = 32;
     constexpr int16_t TITLE_CENTER_X = 160;
 
-    constexpr FieldRect TIP_VALUE_RECT = {16, 56, 288, 56};
-    constexpr FieldRect SET_VALUE_RECT = {75, 120, 75, 30};
-    constexpr FieldRect HEATER_RECT = {213, 120, 91, 30};
+    // The judgement owns the tip area and the status rail. The clear rectangle
+    // spans the full panel width and both font cells, so no red pixel survives
+    // a return to the normal layout.
+    constexpr FieldRect JUDGEMENT_RECT = {0, 48, 320, 116};
 
     // Width of the label column on the Network and Info screens, and the height
     // of one value row. The link label switches between AP and STA, so the
@@ -200,6 +203,8 @@ namespace {
     uint8_t backlight = BACKLIGHT_DEFAULT;
     bool powerOn = true;
     HomeState lastState;
+    // Latches the 24V-off message after a POWER press until the state changes.
+    bool supplyOffMessage = false;
     UiZone lastHeaderPressed = UI_ZONE_NONE;
     DisplayScreen currentScreen = DISPLAY_SCREEN_HOME;
 
@@ -257,12 +262,20 @@ namespace {
     HomeState readHomeState(void) {
         HomeState state;
 
-        state.linked = HeatController.isCompatible();
+        state.pressedZone = UiPressedZone();
+        state.diagnosis = HandleDiagnosisClassify();
+
+        if (state.diagnosis.state != HandleState::SUPPLY_OFF) {
+            supplyOffMessage = false;
+        } else if (state.pressedZone == UI_ZONE_POWER) {
+            supplyOffMessage = true;
+        }
+        state.supplyOffMessage = supplyOffMessage;
+
         state.tipTenths = static_cast<int16_t>(lroundf((HeatController.getTemperatureTip() - 273.15f) * 10.0f));
         state.setTenths = static_cast<int16_t>(lroundf((HeatController.getTargetTemperature() - 273.15f) * 10.0f));
         state.dutyPercent = static_cast<int16_t>(lroundf(HeatController.getHeaterDuty()));
         state.heaterOn = HeatController.getHeaterState() == HEATER_STATE::ON;
-        state.pressedZone = UiPressedZone();
 
         return state;
     }
@@ -378,19 +391,18 @@ namespace {
         lastHeaderPressed = pressed;
     }
 
-    // POWER is green while the heater is on, dark grey while it is off. A
-    // layout variant can keep the button dark and show the state with a dot.
-    void drawPowerButtonAt(const UiRect &rect, bool heaterOn, bool pressed, bool fillWhenOn) {
-        bool lit = heaterOn && fillWhenOn;
-        uint16_t fill = pressed ? TFT_WHITE : (lit ? TFT_GREEN : COLOR_BUTTON);
-        uint16_t text = (pressed || lit) ? TFT_BLACK : TFT_WHITE;
+    // Draw the POWER button with the fill and text color the caller picks, so
+    // the button can show the heater state, the 24V fault or the disabled state.
+    void drawPowerButtonAt(const UiRect &rect, bool pressed, uint16_t fill, uint16_t text) {
+        uint16_t actualFill = pressed ? TFT_WHITE : fill;
+        uint16_t actualText = pressed ? TFT_BLACK : text;
 
-        drawButtonFrame(rect, fill, pressed);
+        drawButtonFrame(rect, actualFill, pressed);
 
         lcd.setFont(&fontLogisoso24);
         lcd.setTextSize(1);
         lcd.setTextDatum(lgfx::textdatum_t::middle_center);
-        lcd.setTextColor(text, fill);
+        lcd.setTextColor(actualText, actualFill);
         lcd.drawString("POWER", rect.x + rect.w / 2, rect.y + rect.h / 2);
     }
 
@@ -413,34 +425,25 @@ namespace {
         }
     }
 
-    // Draw the big tip value at a fixed anchor. The caller clears the field
-    // when the link state changes, because the string width then changes.
+    // Draw the big tip value at a fixed anchor.
     void drawTipField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
         char buffer[16];
 
-        if (state.linked) {
-            snprintf(buffer, sizeof(buffer), "%5.1f\xC2\xB0"
-                                             "C",
-                     state.tipTenths / 10.0f);
-        } else {
-            snprintf(buffer, sizeof(buffer), "--.-");
-        }
+        snprintf(buffer, sizeof(buffer), "%5.1f\xC2\xB0"
+                                         "C",
+                 state.tipTenths / 10.0f);
 
         lcd.setFont(&fontLogisoso46);
         lcd.setTextSize(1);
         lcd.setTextDatum(datum);
-        lcd.setTextColor(state.linked ? TFT_WHITE : TFT_DARKGREY, TFT_BLACK);
+        lcd.setTextColor(TFT_WHITE, TFT_BLACK);
         lcd.drawString(buffer, x, y);
     }
 
     void drawSetField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
         char buffer[16];
 
-        if (state.linked) {
-            snprintf(buffer, sizeof(buffer), "%5.1f", state.setTenths / 10.0f);
-        } else {
-            snprintf(buffer, sizeof(buffer), "--.-");
-        }
+        snprintf(buffer, sizeof(buffer), "%5.1f", state.setTenths / 10.0f);
 
         lcd.setFont(&fontLogisoso24);
         lcd.setTextSize(1);
@@ -451,15 +454,12 @@ namespace {
 
     void drawHeaterField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
         char buffer[16];
-        // Four characters wide, so OFF, LOST and the duty share one cell width
-        // and the right-aligned value never reaches the PWM label.
+        // Four characters wide, so OFF and the duty share one cell width and
+        // the right-aligned value never reaches the PWM label.
         const char *text = " OFF";
         uint16_t color = TFT_DARKGREY;
 
-        if (!state.linked) {
-            text = "LOST";
-            color = TFT_RED;
-        } else if (state.heaterOn) {
+        if (state.heaterOn) {
             snprintf(buffer, sizeof(buffer), "%3d%%", state.dutyPercent);
             text = buffer;
             color = TFT_GREEN;
@@ -472,8 +472,42 @@ namespace {
         lcd.drawString(text, x, y);
     }
 
+    // True when the handle state replaces the tip value and the status rail.
+    bool showsJudgement(const HomeState &state) {
+        if (state.diagnosis.state == HandleState::SUPPLY_OFF) {
+            return state.supplyOffMessage;
+        }
+        return state.diagnosis.state == HandleState::LOSS || state.diagnosis.state == HandleState::NO_HANDLE || state.diagnosis.state == HandleState::NO_TIP;
+    }
+
+    // Draw the situation in the big font and the action in the small font.
+    void drawJudgement(const HandleDiagnosis &diagnosis) {
+        lcd.setFont(&fontLogisoso46);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::top_center);
+        lcd.setTextColor(TFT_RED, TFT_BLACK);
+        lcd.drawString(diagnosis.line1, 160, 56);
+
+        // Green marks an action the user can take; LOSS is a statement.
+        uint16_t actionColor = diagnosis.state == HandleState::LOSS ? TFT_RED : TFT_GREEN;
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextDatum(lgfx::textdatum_t::top_center);
+        lcd.setTextColor(actionColor, TFT_BLACK);
+        lcd.drawString(diagnosis.line2, 160, 120);
+    }
+
+    // Draw the SET and PWM labels on the status rail.
+    void drawRailLabels(void) {
+        lcd.setFont(&fontLogisoso24);
+        lcd.setTextSize(1);
+        lcd.setTextDatum(lgfx::textdatum_t::top_left);
+        lcd.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        lcd.drawString("SET", SAFE_MARGIN, 120);
+        lcd.drawString("PWM", 160, 120);
+    }
+
     // Redraw only the buttons whose appearance changed, for any layout.
-    void drawHomeButtons(const HomeState &state, const HomeState &previous, bool full, const UiRect &power, const UiRect &plus, const UiRect &minus, bool fillPowerWhenOn) {
+    void drawHomeButtons(const HomeState &state, const HomeState &previous, bool full, const UiRect &power, const UiRect &plus, const UiRect &minus) {
         bool powerPressed = state.pressedZone == UI_ZONE_POWER;
         bool plusPressed = state.pressedZone == UI_ZONE_PLUS;
         bool minusPressed = state.pressedZone == UI_ZONE_MINUS;
@@ -481,8 +515,21 @@ namespace {
         bool plusPressedBefore = previous.pressedZone == UI_ZONE_PLUS;
         bool minusPressedBefore = previous.pressedZone == UI_ZONE_MINUS;
 
-        if (full || state.heaterOn != previous.heaterOn || powerPressed != powerPressedBefore) {
-            drawPowerButtonAt(power, state.heaterOn, powerPressed, fillPowerWhenOn);
+        uint16_t powerFill = COLOR_BUTTON;
+        uint16_t powerText = TFT_WHITE;
+
+        if (state.diagnosis.state == HandleState::SUPPLY_OFF) {
+            powerFill = TFT_RED;
+            powerText = TFT_BLACK;
+        } else if (showsJudgement(state)) {
+            powerText = TFT_DARKGREY;
+        } else if (state.heaterOn) {
+            powerFill = TFT_GREEN;
+            powerText = TFT_BLACK;
+        }
+
+        if (full || state.heaterOn != previous.heaterOn || powerPressed != powerPressedBefore || state.diagnosis.state != previous.diagnosis.state) {
+            drawPowerButtonAt(power, powerPressed, powerFill, powerText);
         }
         if (full || plusPressed != plusPressedBefore) {
             drawStepButton(plus, true, plusPressed);
@@ -501,51 +548,54 @@ namespace {
 
         drawHeader(full);
 
-        if (full) {
-            lcd.drawFastHLine(SAFE_MARGIN, 116, lcd.width() - 2 * SAFE_MARGIN, COLOR_SEPARATOR);
-
-            lcd.setFont(&fontLogisoso24);
-            lcd.setTextSize(1);
-            lcd.setTextDatum(lgfx::textdatum_t::top_left);
-            lcd.setTextColor(TFT_DARKGREY, TFT_BLACK);
-            lcd.drawString("SET", SAFE_MARGIN, 120);
-            lcd.drawString("PWM", 160, 120);
-        }
+        bool judgement = showsJudgement(state);
+        bool judgementBefore = showsJudgement(previous);
+        bool layoutChanged = judgement != judgementBefore;
+        bool messageChanged = state.diagnosis.state != previous.diagnosis.state;
 
         /*
-         * The text is drawn with a background color instead of clearing the
-         * field first. LovyanGFX paints the glyph cells, so a fixed-width
-         * string overwrites the previous one without a black flash. The field
-         * is only cleared when the format changes (link up or down).
+         * The judgement owns the tip area and the status rail. Clear the full
+         * panel width and both font cells when the layout or the message
+         * changes, so no red pixel survives a return to the normal layout.
          */
-        if (full || state.tipTenths != previous.tipTenths || state.linked != previous.linked) {
-            if (state.linked != previous.linked) {
-                clearField(TIP_VALUE_RECT);
-            }
-            drawTipField(state, 160, 56, lgfx::textdatum_t::top_center);
-        }
+        if (full || layoutChanged || (judgement && messageChanged)) {
+            clearField(JUDGEMENT_RECT);
+            lcd.drawFastHLine(SAFE_MARGIN, 116, lcd.width() - 2 * SAFE_MARGIN, COLOR_SEPARATOR);
 
-        if (full || state.setTenths != previous.setTenths || state.linked != previous.linked) {
-            if (state.linked != previous.linked) {
-                clearField(SET_VALUE_RECT);
+            if (judgement) {
+                drawJudgement(state.diagnosis);
+            } else {
+                drawRailLabels();
+                drawTipField(state, 160, 56, lgfx::textdatum_t::top_center);
+                drawSetField(state, 150, 120, lgfx::textdatum_t::top_right);
+                drawHeaterField(state, 304, 120, lgfx::textdatum_t::top_right);
             }
-            // Right-aligned, so the value grows to the left and never touches
-            // the SET label when it crosses from two to three digits.
-            drawSetField(state, 150, 120, lgfx::textdatum_t::top_right);
-        }
+        } else if (!judgement) {
+            /*
+             * The text is drawn with a background color instead of clearing the
+             * field first. LovyanGFX paints the glyph cells, so a fixed-width
+             * string overwrites the previous one without a black flash.
+             */
+            if (state.tipTenths != previous.tipTenths) {
+                drawTipField(state, 160, 56, lgfx::textdatum_t::top_center);
+            }
 
-        if (full || state.heaterOn != previous.heaterOn || state.dutyPercent != previous.dutyPercent || state.linked != previous.linked) {
-            if (state.linked != previous.linked) {
-                clearField(HEATER_RECT);
+            if (state.setTenths != previous.setTenths) {
+                // Right-aligned, so the value grows to the left and never touches
+                // the SET label when it crosses from two to three digits.
+                drawSetField(state, 150, 120, lgfx::textdatum_t::top_right);
             }
-            drawHeaterField(state, 304, 120, lgfx::textdatum_t::top_right);
+
+            if (state.heaterOn != previous.heaterOn || state.dutyPercent != previous.dutyPercent) {
+                drawHeaterField(state, 304, 120, lgfx::textdatum_t::top_right);
+            }
         }
 
         /*
          * Redraw each button only when its own appearance changed. Repainting
          * the whole strip on every press made the other two buttons blink.
          */
-        drawHomeButtons(state, previous, full, UI_POWER_RECT, UI_PLUS_RECT, UI_MINUS_RECT, true);
+        drawHomeButtons(state, previous, full, UI_POWER_RECT, UI_PLUS_RECT, UI_MINUS_RECT);
     }
 
     // Values the network screen shows.
