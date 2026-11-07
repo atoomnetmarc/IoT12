@@ -560,7 +560,7 @@ namespace {
             powerText = TFT_BLACK;
         } else if (showsJudgement(state)) {
             powerText = TFT_DARKGREY;
-        } else if (state.heaterOn && state.shakePhase == static_cast<uint8_t>(SHAKE_PHASE::RAMP)) {
+        } else if (state.heaterOn && (state.shakePhase == static_cast<uint8_t>(SHAKE_PHASE::RAMP) || state.shakePhase == static_cast<uint8_t>(SHAKE_PHASE::STANDBY2))) {
             powerFill = TFT_YELLOW;
             powerText = TFT_BLACK;
         } else if (state.heaterOn) {
