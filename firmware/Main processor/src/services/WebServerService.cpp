@@ -23,11 +23,13 @@
 
 #include "DeviceName.h"
 #include "EventLog.h"
+#include "GitCommit.h"
 #include "HandleDiagnosis.h"
 #include "HeatController.h"
 #include "HomeWiFiService.h"
 #include "LifetimeStats.h"
 #include "Log.h"
+#include "SourceBundle.h"
 #include "SystemCommands.h"
 #include "WebConfigStore.h"
 #include "WebContent.h"
@@ -370,6 +372,21 @@ namespace {
         });
     }
 
+    // Serve the gzipped source archive as a download.
+    void serveSource(void) {
+        server.on("/api/source", HTTP_GET, [](AsyncWebServerRequest *request) {
+            noteRequest(request);
+
+            char filename[64];
+            snprintf(filename, sizeof(filename), "iot12-source-%s-%s.tar.gz", PRODUCT_VERSION, GIT_COMMIT);
+
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/gzip", SOURCE_GZ, SOURCE_GZ_LEN);
+            response->addHeader("Content-Disposition", String("attachment; filename=\"") + filename + "\"");
+            response->addHeader("Cache-Control", "no-cache");
+            request->send(response);
+        });
+    }
+
     // Accumulate a POST body into request->_tempObject.
     void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
         if (index == 0) {
@@ -640,6 +657,7 @@ namespace {
         serveAsset("/", WEBUI_HTML_GZ, WEBUI_HTML_GZ_LEN, "text/html");
         serveAsset("/style.css", WEBUI_CSS_GZ, WEBUI_CSS_GZ_LEN, "text/css");
         serveAsset("/app.js", WEBUI_JS_GZ, WEBUI_JS_GZ_LEN, "application/javascript");
+        serveSource();
 
         server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
             noteRequest(request);

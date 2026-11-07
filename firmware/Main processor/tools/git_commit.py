@@ -2,14 +2,15 @@
 """
 git_commit.py - PlatformIO extra_script
 
-Adds the short git commit as the GIT_COMMIT build flag. Falls back to
-"unknown" when git is not available or the project is not a repository.
+Writes include/GitCommit.h with the short git commit. Falls back to "unknown"
+when git is not available or the project is not a repository.
 
 PlatformIO integration:
     extra_scripts = tools/git_commit.py
 """
 
 import subprocess
+from pathlib import Path
 
 Import("env")
 
@@ -23,6 +24,17 @@ try:
 except (OSError, subprocess.CalledProcessError):
     commit = "unknown"
 
-flag = f'-DGIT_COMMIT=\\"{commit}\\"'
-env.Append(CCFLAGS=[flag])
-env.Append(CXXFLAGS=[flag])
+output = Path(env.subst("$PROJECT_DIR")) / "include" / "GitCommit.h"
+output.write_text(
+    "/*\n"
+    " *\n"
+    " * Copyright Marc Ketel\n"
+    " * SPDX-License-Identifier: Apache-2.0\n"
+    " *\n"
+    " */\n"
+    "\n"
+    "#pragma once\n"
+    "\n"
+    f'#define GIT_COMMIT "{commit}"\n',
+    encoding="utf-8",
+)

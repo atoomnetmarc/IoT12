@@ -1,3 +1,5 @@
 .pio
 .vscode
+include/GitCommit.h
 include/WebContent.h
+include/SourceBundle.h

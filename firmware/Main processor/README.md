@@ -64,11 +64,16 @@ The web server serves the page and these routes:
 | `/api/regenerate` | POST | Replace the AP password and rotate the session token             |
 | `/api/wifi`     | POST   | Save the network list and reconnect; requires unlock in station mode |
 | `/api/ota`      | POST   | Upload a firmware image; requires unlock in station mode         |
+| `/api/source`   | GET    | Gzipped tar of the main processor and heat controller source     |
 | `/api/stream`   | GET    | Server-sent events with the live state                           |
 
 The write routes are open in portal mode, because the client already proved the AP password to join the access point. In station mode the page unlocks with the AP password and receives an HttpOnly session cookie. The cookie is valid until the device reboots. Logout clears the cookie in that browser. Regenerating the AP password rotates the session token, so every other browser is locked out.
 
 The live state carries tip, setpoint, NTC, duty, iron current, the handle state, the eight handle measurements, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime, total uptime, boot count, reset reason, heap, ESP32 die temperature, the heat controller uptime, reset cause, die temperature and supply, the link counters, the PID terms and gains, the raw PWM values and the shake state. The page shows the handle state and the action in the Live card, and the measurements in the same card. The Device card shows the name, board, chip, uptime and heap. The Firmware card shows the version, git commit and build time. The Network card shows only network data. The Nerd stats card shows the fixed ESP32 and heat controller data and the live counters.
+
+## Source download
+
+The build packs the main processor and heat controller source trees into one gzipped tar archive and embeds it in the firmware. The Source card links to the GitHub repository and downloads the archive from `/api/source`. The archive is the source at build time, so it matches the running firmware only when the build came from a clean tree. The file name carries the product version and the git commit.
 
 ## Nerd stats
 
@@ -90,4 +95,4 @@ The serial port runs at 115200 baud. The CLI provides system, log, heat, link, s
 pio run
 ```
 
-The build generates `include/WebContent.h` from the `webui` directory and adds the short git commit as `GIT_COMMIT`.
+The build generates `include/WebContent.h` from the `webui` directory, generates `include/SourceBundle.h` from the two source trees, and generates `include/GitCommit.h` with the short git commit.
