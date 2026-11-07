@@ -180,6 +180,7 @@ namespace {
         int16_t setTenths = 0;
         int16_t dutyPercent = 0;
         bool heaterOn = false;
+        uint8_t shakePhase = 0;
         HandleDiagnosis diagnosis{HandleState::OK, nullptr, nullptr};
         bool supplyOffMessage = false;
         UiZone pressedZone = UI_ZONE_NONE;
@@ -187,7 +188,7 @@ namespace {
 
     // Compare every displayed value, so DisplayLoop can skip an unchanged frame.
     bool operator==(const HomeState &a, const HomeState &b) {
-        return a.tipTenths == b.tipTenths && a.setTenths == b.setTenths && a.dutyPercent == b.dutyPercent && a.heaterOn == b.heaterOn && a.diagnosis.state == b.diagnosis.state && a.supplyOffMessage == b.supplyOffMessage && a.pressedZone == b.pressedZone;
+        return a.tipTenths == b.tipTenths && a.setTenths == b.setTenths && a.dutyPercent == b.dutyPercent && a.heaterOn == b.heaterOn && a.shakePhase == b.shakePhase && a.diagnosis.state == b.diagnosis.state && a.supplyOffMessage == b.supplyOffMessage && a.pressedZone == b.pressedZone;
     }
 
     // Rectangle of a field that changes, used to clear only that field.
@@ -305,6 +306,14 @@ namespace {
         state.setTenths = static_cast<int16_t>(lroundf((HeatController.getTargetTemperature() - 273.15f) * 10.0f));
         state.dutyPercent = static_cast<int16_t>(lroundf(HeatController.getHeaterDuty()));
         state.heaterOn = HeatController.getHeaterState() == HEATER_STATE::ON;
+
+        bool shakeRaw;
+        bool shakeDebounced;
+        bool shakeExpired;
+        HeatController.getShakeState(&state.shakePhase, &shakeRaw, &shakeDebounced, &shakeExpired);
+        (void)shakeRaw;
+        (void)shakeDebounced;
+        (void)shakeExpired;
 
         return state;
     }
@@ -552,12 +561,15 @@ namespace {
             powerText = TFT_BLACK;
         } else if (showsJudgement(state)) {
             powerText = TFT_DARKGREY;
+        } else if (state.heaterOn && state.shakePhase == static_cast<uint8_t>(SHAKE_PHASE::RAMP)) {
+            powerFill = TFT_YELLOW;
+            powerText = TFT_BLACK;
         } else if (state.heaterOn) {
             powerFill = TFT_GREEN;
             powerText = TFT_BLACK;
         }
 
-        if (full || state.heaterOn != previous.heaterOn || powerPressed != powerPressedBefore || state.diagnosis.state != previous.diagnosis.state) {
+        if (full || state.heaterOn != previous.heaterOn || state.shakePhase != previous.shakePhase || powerPressed != powerPressedBefore || state.diagnosis.state != previous.diagnosis.state) {
             drawPowerButtonAt(power, powerPressed, powerFill, powerText);
         }
         if (full || plusPressed != plusPressedBefore) {

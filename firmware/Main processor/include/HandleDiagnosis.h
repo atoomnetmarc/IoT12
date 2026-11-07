@@ -25,8 +25,13 @@ struct HandleDiagnosis {
     const char *line2;
 };
 
-// Classify the handle from the heat controller measurements.
+// Classify the handle from the heat controller measurements. A fault is
+// reported only after it has been stable for one second.
 HandleDiagnosis HandleDiagnosisClassify(void);
+
+// Classify the handle without the steady-state delay, for decisions that must
+// not wait.
+HandleDiagnosis HandleDiagnosisClassifyRaw(void);
 
 // Short name of the state, for the CLI.
 const char *HandleStateName(HandleState state);

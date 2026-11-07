@@ -37,9 +37,15 @@ public:
     float targetTemperature(void) const;
 
 private:
+    enum : uint8_t { MEDIAN_SAMPLES = 5 };
+
+    float _median(void) const;
+
     bool _debounced = false;
     bool _lastRaw = false;
     float _voltage = 0;
+    float _samples[MEDIAN_SAMPLES] = {};
+    uint8_t _sampleIndex = 0;
     uint32_t _lastSampleMs = 0;
     uint32_t _lastRawChangeMs = 0;
     uint32_t _lastMotionMs = 0;

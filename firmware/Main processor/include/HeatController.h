@@ -93,6 +93,13 @@ enum HEATER_STATE : uint8_t {
     ON = 0x01,
 };
 
+enum class SHAKE_PHASE : uint8_t {
+    ACTIVE = 0,
+    RAMP = 1,
+    STANDBY2 = 2,
+    EXPIRED = 3,
+};
+
 typedef struct
 {
     uint32_t word0;

@@ -25,13 +25,19 @@ namespace {
     // The heat controller refreshes the iron current one cycle after the
     // heater turns on, so the current check waits for a fresh measurement.
     constexpr uint32_t CURRENT_FRESH_MS = 1000;
+    // A fault is reported only after it has been stable for this long.
+    constexpr uint32_t FAULT_STABLE_MS = 1000;
 
     uint32_t heaterOnSinceMs = 0;
     bool heaterWasOn = false;
+
+    HandleDiagnosis reportedDiagnosis{HandleState::OK, nullptr, nullptr};
+    HandleState candidateState = HandleState::OK;
+    uint32_t candidateSinceMs = 0;
 }
 
 // The web UI owns the long sentences; keep app.js in sync with these texts.
-HandleDiagnosis HandleDiagnosisClassify(void) {
+HandleDiagnosis HandleDiagnosisClassifyRaw(void) {
     if (!HeatController.linkUp()) {
         return {HandleState::LOSS, "HW fault", "Heat ctrl absent"};
     }
@@ -61,6 +67,24 @@ HandleDiagnosis HandleDiagnosisClassify(void) {
     }
 
     return {HandleState::OK, nullptr, nullptr};
+}
+
+// Reports a fault only after the raw state has been stable for one second, so
+// a single bad measurement does not flash a message.
+HandleDiagnosis HandleDiagnosisClassify(void) {
+    HandleDiagnosis raw = HandleDiagnosisClassifyRaw();
+    uint32_t now = millis();
+
+    if (raw.state != candidateState) {
+        candidateState = raw.state;
+        candidateSinceMs = now;
+    }
+
+    if (candidateState != reportedDiagnosis.state && now - candidateSinceMs >= FAULT_STABLE_MS) {
+        reportedDiagnosis = raw;
+    }
+
+    return reportedDiagnosis;
 }
 
 const char *HandleStateName(HandleState state) {

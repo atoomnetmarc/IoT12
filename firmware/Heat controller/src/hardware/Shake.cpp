@@ -28,12 +28,42 @@ void ShakeClass::init(void) {
     pinMode(A2, INPUT);
 
     _voltage = ADCInternal.readChannelVdd(PIN_SHAKE);
+
+    for (uint8_t i = 0; i < MEDIAN_SAMPLES; i++) {
+        _samples[i] = _voltage;
+    }
+
+    _sampleIndex = 0;
     _lastRaw = _voltage >= THRESHOLD_V;
     _debounced = _lastRaw;
     _lastSampleMs = millis();
     _lastRawChangeMs = millis();
     _lastMotionMs = millis();
     _expired = false;
+}
+
+// Returns the median of the sample buffer, so a single spike does not change
+// the level.
+float ShakeClass::_median(void) const {
+    float sorted[MEDIAN_SAMPLES];
+
+    for (uint8_t i = 0; i < MEDIAN_SAMPLES; i++) {
+        sorted[i] = _samples[i];
+    }
+
+    for (uint8_t i = 1; i < MEDIAN_SAMPLES; i++) {
+        float value = sorted[i];
+        int8_t j = static_cast<int8_t>(i) - 1;
+
+        while (j >= 0 && sorted[j] > value) {
+            sorted[j + 1] = sorted[j];
+            j--;
+        }
+
+        sorted[j + 1] = value;
+    }
+
+    return sorted[MEDIAN_SAMPLES / 2];
 }
 
 void ShakeClass::loop(void) {
@@ -45,7 +75,9 @@ void ShakeClass::loop(void) {
 
     _lastSampleMs = now;
     _voltage = ADCInternal.readChannelVdd(PIN_SHAKE);
-    bool raw = _voltage >= THRESHOLD_V;
+    _samples[_sampleIndex] = _voltage;
+    _sampleIndex = (_sampleIndex + 1) % MEDIAN_SAMPLES;
+    bool raw = _median() >= THRESHOLD_V;
 
     if (raw != _lastRaw) {
         _lastRaw = raw;

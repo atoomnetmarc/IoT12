@@ -136,7 +136,7 @@ namespace {
                 if (UiHeaterOn()) {
                     HeatController.setHeaterState(HEATER_STATE::OFF);
                     DisplayRequestDraw();
-                } else if (HandleDiagnosisClassify().state == HandleState::OK) {
+                } else if (HandleDiagnosisClassifyRaw().state == HandleState::OK) {
                     toggleHeater();
                 }
                 break;

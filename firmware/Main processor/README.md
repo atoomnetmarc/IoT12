@@ -33,7 +33,7 @@ The carousel has four screens:
 
 | Screen  | Content                                                                                              |
 | ------- | ---------------------------------------------------------------------------------------------------- |
-| Home    | Tip temperature, setpoint, PWM duty, heater state, power and setpoint buttons, AP button. A handle fault replaces the tip value and the status rail with a two-line judgement. The action line is green except in the LOSS state. POWER may always stop the heater; it may only start it in the OK state. It is red in the 24V-off state and disabled for starting in the other fault states. |
+| Home    | Tip temperature, setpoint, PWM duty, heater state, power and setpoint buttons, AP button. A handle fault replaces the tip value and the status rail with a two-line judgement. The action line is green except in the LOSS state. A fault is shown after it has been stable for one second. POWER may always stop the heater; it may only start it in the OK state. It is green while the heater is on, yellow while the target ramps down to standby, and red in the 24V-off state. It is disabled for starting in the other fault states. |
 | Network | WiFi state, SSID, IP address, RSSI, AP button                                                        |
 | Info    | Firmware version, session uptime, lifetime total, boot count                                         |
 | Touch   | Touch calibration and touch test buttons                                                             |

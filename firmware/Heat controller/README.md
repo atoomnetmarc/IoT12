@@ -175,7 +175,7 @@ The master reads register 0x10 to fetch and clear the flag, reports the lost lin
 
 # SHAKE Standby
 
-The SHAKE input (PA04/A3 and PB09/A2, tied together) is read with the SAMD21 internal ADC against the 3.3 V supply reference, with a 2.5 V threshold, a 10 ms sample interval, and a 20 ms software debounce. Both pins are inputs without pull. The ball switch pulls the line to about 2.17 V, which is above the digital input threshold, so the ADC is used instead of a plain GPIO read. After the last motion the heater target follows a three-phase schedule:
+The SHAKE input (PA04/A3 and PB09/A2, tied together) is read with the SAMD21 internal ADC against the 3.3 V supply reference, with a 10 ms sample interval, a 5-sample median filter, a 2.5 V threshold, and a 20 ms software debounce. Both pins are inputs without pull. The ball switch pulls the line to about 2.17 V, which is above the digital input threshold, so the ADC is used instead of a plain GPIO read. After the last motion the heater target follows a three-phase schedule:
 
 1. At `shakeStage1Ms` the target drops to `min(setpoint, standbyTemperatureHeater)`.
 2. The target ramps linearly to `min(setpoint, standbyTemperatureHeater2)` at `shakeStage2Ms`.
