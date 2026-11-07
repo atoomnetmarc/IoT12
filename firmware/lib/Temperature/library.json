@@ -1,0 +1,12 @@
+{
+  "name": "Temperature",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "description": "Temperature scales that convert to and from Kelvin. Arduino-free.",
+  "keywords": "temperature, celsius, fahrenheit, kelvin, conversion",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src"
+  }
+}
