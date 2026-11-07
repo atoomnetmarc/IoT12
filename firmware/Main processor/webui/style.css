@@ -250,7 +250,8 @@ label {
   color: var(--text-secondary);
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 0.6rem;
   margin-top: 0.25rem;
@@ -261,9 +262,32 @@ input {
   color: var(--text);
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: 1px solid var(--accent);
   border-color: var(--accent);
+}
+
+.unit-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.unit-picker label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.unit-picker select {
+  margin-top: 0;
+}
+
+.unit-picker button {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
 }
 
 button {
@@ -312,7 +336,8 @@ progress {
 
 #wifi-status,
 #ota-status,
-#lock-status {
+#lock-status,
+#unit-status {
   min-height: 1.2em;
   margin-top: 12px;
   font-size: 0.9rem;

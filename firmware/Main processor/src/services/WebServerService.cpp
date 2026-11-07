@@ -31,6 +31,8 @@
 #include "Log.h"
 #include "SourceBundle.h"
 #include "SystemCommands.h"
+#include "Temperature.h"
+#include "TemperatureUnit.h"
 #include "WebConfigStore.h"
 #include "WebContent.h"
 #include "display.h"
@@ -205,6 +207,11 @@ namespace {
         appendJson(cursor, left, ",\"%s\":\"%s\"", key, value);
     }
 
+    // Converts a Kelvin value to the active display unit.
+    float displayTemperature(float kelvin) {
+        return temperature_unit::active()->fromKelvin(kelvin);
+    }
+
     // Build the full state message that the page receives every second.
     void buildStateJson(void) {
         bool heater = HeatController.getHeaterState() == HEATER_STATE::ON;
@@ -215,9 +222,12 @@ namespace {
         size_t left = sizeof(stateJson);
 
         appendJson(cursor, left, "{\"tip\":");
-        appendJsonFloat(cursor, left, HeatController.getTemperatureTip() - 273.15f, 1);
-        appendJsonKeyFloat(cursor, left, "set", HeatController.getTargetTemperature() - 273.15f, 1);
-        appendJsonKeyFloat(cursor, left, "ntc", HeatController.getTemperatureNTC() - 273.15f, 1);
+        appendJsonFloat(cursor, left, displayTemperature(HeatController.getTemperatureTip()), 1);
+        appendJsonKeyFloat(cursor, left, "set", displayTemperature(HeatController.getTargetTemperature()), 1);
+        appendJsonKeyFloat(cursor, left, "ntc", displayTemperature(HeatController.getTemperatureNTC()), 1);
+        appendJsonKeyText(cursor, left, "unit", temperature_unit::id());
+        appendJsonKeyText(cursor, left, "unitSymbol", temperature_unit::active()->symbol);
+        appendJson(cursor, left, ",\"unitDecimals\":%u", static_cast<unsigned>(temperature_unit::active()->decimals));
         appendJsonKeyFloat(cursor, left, "duty", HeatController.getHeaterDuty(), 1);
         appendJsonKeyFloat(cursor, left, "current", HeatController.getIronCurrent(), 2);
         appendJsonKeyText(cursor, left, "handle", HandleStateName(diagnosis.state));
@@ -245,13 +255,13 @@ namespace {
         appendJson(cursor, left, ",\"heap_min\":%u", static_cast<unsigned int>(ESP.getMinFreeHeap()));
         appendJson(cursor, left, ",\"heap_max\":%u", static_cast<unsigned int>(ESP.getMaxAllocHeap()));
         appendJson(cursor, left, ",\"heap_size\":%u", static_cast<unsigned int>(ESP.getHeapSize()));
-        appendJsonKeyFloat(cursor, left, "die", temperatureRead(), 1);
+        appendJsonKeyFloat(cursor, left, "die", displayTemperature(temperatureRead() + 273.15f), 1);
 
         appendJson(cursor, left, ",\"minionUptime\":%lu", static_cast<unsigned long>(HeatController.getUptime()));
         appendJsonKeyText(cursor, left, "minionReset", HeatController.getResetCauseName());
         appendJson(cursor, left, ",\"minionFreeRam\":%lu", static_cast<unsigned long>(HeatController.getFreeRam()));
         appendJson(cursor, left, ",\"minionEvents\":%u", static_cast<unsigned int>(HeatController.getEventCount()));
-        appendJsonKeyFloat(cursor, left, "minionDie", HeatController.getDieTemperature(), 1);
+        appendJsonKeyFloat(cursor, left, "minionDie", displayTemperature(HeatController.getDieTemperature() + 273.15f), 1);
         appendJsonKeyFloat(cursor, left, "minionVdd", HeatController.getVdd(), 2);
 
         appendJson(cursor, left, ",\"linkAge\":%lu", static_cast<unsigned long>(HeatController.linkAgeMs()));
@@ -313,6 +323,8 @@ namespace {
 
         appendJson(cursor, left, "{\"name\":\"%s\",\"version\":\"%s\",\"git\":\"%s\",\"build\":\"%s\",",
                    DeviceNameGet(), PRODUCT_VERSION, GIT_COMMIT, __DATE__ " " __TIME__);
+        appendJson(cursor, left, "\"unitSymbol\":\"%s\",\"unitDecimals\":%u,",
+                   temperature_unit::active()->symbol, static_cast<unsigned>(temperature_unit::active()->decimals));
         appendJson(cursor, left, "\"board\":\"esp32dev\",\"chip\":\"%s\",\"chipRevision\":%u,",
                    ESP.getChipModel(), static_cast<unsigned>(ESP.getChipRevision()));
         appendJson(cursor, left, "\"cores\":%u,\"cpuMhz\":%u,\"sdk\":\"%s\",",
@@ -354,7 +366,7 @@ namespace {
         appendJson(cursor, left, "\"thermocoupleOffset\":%.6f,",
                    HeatController.getThermocoupleOffset());
         appendJson(cursor, left, "\"standby1\":%.2f,\"standby2\":%.2f,",
-                   HeatController.getStandbyTemp1(), HeatController.getStandbyTemp2());
+                   displayTemperature(HeatController.getStandbyTemp1()), displayTemperature(HeatController.getStandbyTemp2()));
         appendJson(cursor, left, "\"shakeStage1\":%.0f,\"shakeStage2\":%.0f,\"shakeOff\":%.0f",
                    HeatController.getShakeStage1Ms(), HeatController.getShakeStage2Ms(),
                    HeatController.getShakeOffMs());
@@ -436,6 +448,40 @@ namespace {
         } else {
             wifiReloadRequested = true;
         }
+    }
+
+    // Store the temperature unit id from a JSON body.
+    void handleUnitPost(AsyncWebServerRequest *request) {
+        noteRequest(request);
+
+        const auto *body = static_cast<const char *>(request->_tempObject);
+        if (body == nullptr) {
+            request->send(400, "application/json", "{\"ok\":false,\"error\":\"missing body\"}");
+            return;
+        }
+
+        const char *key = strstr(body, "\"unit\"");
+        const char *colon = key != nullptr ? strchr(key, ':') : nullptr;
+        const char *quote = colon != nullptr ? strchr(colon, '"') : nullptr;
+        const char *end = quote != nullptr ? strchr(quote + 1, '"') : nullptr;
+
+        if (end == nullptr || static_cast<size_t>(end - quote - 1) >= 16) {
+            request->send(400, "application/json", "{\"ok\":false,\"error\":\"invalid unit\"}");
+            return;
+        }
+
+        char id[16];
+        size_t length = static_cast<size_t>(end - quote - 1);
+        memcpy(id, quote + 1, length);
+        id[length] = '\0';
+
+        if (!temperature_unit::set(id)) {
+            request->send(400, "application/json", "{\"ok\":false,\"error\":\"unknown unit\"}");
+            return;
+        }
+
+        DisplayRequestDraw();
+        request->send(200, "application/json", "{\"ok\":true}");
     }
 
     // Stage one firmware chunk into the update partition.
@@ -702,6 +748,28 @@ namespace {
                 json += "{\"ssid\":\"" + String(escaped) + "\"}";
             }
 
+            json += "],\"temperatureUnit\":\"";
+            json += temperature_unit::id();
+            json += "\",\"temperatureUnits\":[";
+
+            for (size_t i = 0; i < temperature::unitCount(); i++) {
+                const temperature::Unit *unit = &temperature::units()[i];
+                if (i > 0) {
+                    json += ",";
+                }
+                json += "{\"id\":\"";
+                json += unit->id;
+                json += "\",\"name\":\"";
+                json += unit->name;
+                json += "\",\"symbol\":\"";
+                json += unit->symbol;
+                json += "\",\"decimals\":";
+                json += String(unit->decimals);
+                json += ",\"common\":";
+                json += unit->common ? "true" : "false";
+                json += "}";
+            }
+
             json += "]}";
             request->send(200, "application/json", json);
         });
@@ -720,6 +788,8 @@ namespace {
                       if (isUnlocked(request)) {
                           handleBody(request, data, len, index, total);
                       } });
+
+        server.on("/api/unit", HTTP_POST, [](AsyncWebServerRequest *request) { handleUnitPost(request); }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) { handleBody(request, data, len, index, total); });
 
         server.on("/api/ota", HTTP_POST, [](AsyncWebServerRequest *request) { handleOtaPost(request); }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) { handleOtaBody(request, data, len, index, total); });
 

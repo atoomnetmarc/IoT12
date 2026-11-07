@@ -13,6 +13,7 @@
 
 #include "HandleDiagnosis.h"
 #include "HeatController.h"
+#include "TemperatureUnit.h"
 #include "TouchCalibration.h"
 #include "TouchTest.h"
 #include "WebServerService.h"
@@ -21,7 +22,8 @@
 namespace {
     constexpr int16_t SETPOINT_MIN_TENTHS = 0;    // 0.0 C
     constexpr int16_t SETPOINT_MAX_TENTHS = 4500; // 450.0 C
-    constexpr int16_t SETPOINT_STEP_TENTHS = 50;  // 5.0 C
+    constexpr float SETPOINT_MIN_K = 273.15f;
+    constexpr float SETPOINT_MAX_K = 723.15f;
 
     constexpr uint32_t TOUCH_SAMPLE_MS = 20;
     constexpr uint32_t TOUCH_DEBOUNCE_MS = 30;
@@ -74,15 +76,25 @@ namespace {
         return tenths;
     }
 
-    void stepSetpoint(int16_t deltaTenths) {
-        int16_t current = UiSetpointTenths();
-        int16_t next = clampSetpoint(current + deltaTenths);
+    void stepSetpoint(int8_t direction) {
+        const temperature::Unit *unit = temperature_unit::active();
+        float kelvin = HeatController.getTargetTemperature();
+        float value = unit->fromKelvin(kelvin);
+        value += direction * unit->direction * (unit->step / 2.0f);
+        float next = unit->toKelvin(value);
 
-        if (next == current) {
+        if (next < SETPOINT_MIN_K) {
+            next = SETPOINT_MIN_K;
+        }
+        if (next > SETPOINT_MAX_K) {
+            next = SETPOINT_MAX_K;
+        }
+
+        if (next == kelvin) {
             return;
         }
 
-        HeatController.setTargetTemperature(next / 10.0f + 273.15f);
+        HeatController.setTargetTemperature(next);
         DisplayRequestDraw();
     }
 
@@ -141,10 +153,10 @@ namespace {
                 }
                 break;
             case UI_ZONE_PLUS:
-                stepSetpoint(SETPOINT_STEP_TENTHS);
+                stepSetpoint(1);
                 break;
             case UI_ZONE_MINUS:
-                stepSetpoint(-SETPOINT_STEP_TENTHS);
+                stepSetpoint(-1);
                 break;
             default:
                 break;
@@ -163,7 +175,7 @@ namespace {
         }
 
         lastRepeatMs = now;
-        stepSetpoint(activeZone == UI_ZONE_PLUS ? SETPOINT_STEP_TENTHS : -SETPOINT_STEP_TENTHS);
+        stepSetpoint(activeZone == UI_ZONE_PLUS ? 1 : -1);
     }
 }
 

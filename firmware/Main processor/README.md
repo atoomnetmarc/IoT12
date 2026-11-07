@@ -38,7 +38,7 @@ The carousel has four screens:
 | Info    | Firmware version, session uptime, lifetime total, boot count                                         |
 | Touch   | Touch calibration and touch test buttons                                                             |
 
-The setpoint changes in 5 C steps. A held button repeats after 500 ms at 150 ms intervals. The setpoint range is 0-450 C.
+The setpoint changes in 5 C-equivalent steps in the active unit. A held button repeats after 500 ms at 150 ms intervals. The setpoint range is 0-450 C.
 
 The `display info` command prints the panel, bus, touch and backlight configuration, including the controller IDs read over SPI.
 
@@ -56,20 +56,21 @@ The web server serves the page and these routes:
 | --------------- | ------ | ---------------------------------------------------------------- |
 | `/api/status`   | GET    | WiFi state, IP, RSSI, portal state, uptime, heap                 |
 | `/api/device`   | GET    | Fixed ESP32 and heat controller data, fetched after a reboot     |
-| `/api/config`   | GET    | Configured network SSIDs                                         |
+| `/api/config`   | GET    | Configured network SSIDs, the active temperature unit and the unit list |
 | `/api/screenshot` | GET  | RGB565 screenshot of the display                                 |
 | `/api/session`  | GET    | Whether the request carries a valid session cookie               |
 | `/api/login`    | POST   | Check the AP password and set the session cookie                 |
 | `/api/logout`   | POST   | Clear the session cookie in the browser                          |
 | `/api/regenerate` | POST | Replace the AP password and rotate the session token             |
 | `/api/wifi`     | POST   | Save the network list and reconnect; requires unlock in station mode |
+| `/api/unit`     | POST   | Store the temperature unit id; no unlock required                |
 | `/api/ota`      | POST   | Upload a firmware image; requires unlock in station mode         |
 | `/api/source`   | GET    | Gzipped tar of the main processor and heat controller source     |
 | `/api/stream`   | GET    | Server-sent events with the live state                           |
 
 The write routes are open in portal mode, because the client already proved the AP password to join the access point. In station mode the page unlocks with the AP password and receives an HttpOnly session cookie. The cookie is valid until the device reboots. Logout clears the cookie in that browser. Regenerating the AP password rotates the session token, so every other browser is locked out.
 
-The live state carries tip, setpoint, NTC, duty, iron current, the handle state, the eight handle measurements, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime, total uptime, boot count, reset reason, heap, ESP32 die temperature, the heat controller uptime, reset cause, die temperature and supply, the link counters, the PID terms and gains, the raw PWM values and the shake state. The page shows the handle state and the action in the Live card, and the measurements in the same card. The Device card shows the name, board, chip, uptime and heap. The Firmware card shows the version, git commit and build time. The Network card shows only network data. The Nerd stats card shows the fixed ESP32 and heat controller data and the live counters.
+The live state carries tip, setpoint, NTC, duty, iron current, the handle state, the eight handle measurements, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime, total uptime, boot count, reset reason, heap, ESP32 die temperature, the heat controller uptime, reset cause, die temperature and supply, the link counters, the PID terms and gains, the raw PWM values and the shake state. Every temperature is already converted to the active unit, and the state carries the unit id, symbol and decimals. The page shows the handle state and the action in the Live card, and the measurements in the same card. The Device card shows the name, board, chip, uptime and heap. The Firmware card shows the version, git commit and build time. The Network card shows only network data. The Nerd stats card shows the fixed ESP32 and heat controller data and the live counters.
 
 ## Source download
 
@@ -81,13 +82,17 @@ The Nerd stats card shows every counter and identity field that the two processo
 
 The heat controller registers that feed the card are listed in the heat controller README. The ESP32 side uses the Arduino-ESP32 `ESP` API, `temperatureRead()` for the die temperature and the lifetime counters from NVS.
 
+## Temperature units
+
+The web UI and the touch display show every temperature in the unit stored in NVS. The default is Celsius. The unit list comes from the shared `Temperature` library in `firmware/lib/Temperature`; the first three entries are the common units and the rest follow below a divider. The ESP32 converts the values before it sends the state, so the browser only formats them. The heat controller keeps Kelvin as its internal unit. The unit can be changed without unlocking the page, or with `unit set <id>` in the serial CLI.
+
 ## Storage
 
-The lifetime counters and the touch calibration are stored in NVS. The network list and the access point password are stored in NVS through the web configuration store. The access point password also unlocks the webui in station mode.
+The lifetime counters and the touch calibration are stored in NVS. The network list and the access point password are stored in NVS through the web configuration store. The temperature unit id is stored in NVS through the temperature unit service. The access point password also unlocks the webui in station mode.
 
 ## Serial CLI
 
-The serial port runs at 115200 baud. The CLI provides system, log, heat, link, sensor, net, display, ui, audio, screen and stats commands. Use `help` for the command list. The `sensor` command prints the handle measurements that the heat controller publishes and the `HANDLE_STATE` judgement, or `LINK: LOSS` when the link is down.
+The serial port runs at 115200 baud. The CLI provides system, log, heat, link, sensor, net, display, ui, unit, audio, screen and stats commands. Use `help` for the command list. The `sensor` command prints the handle measurements that the heat controller publishes and the `HANDLE_STATE` judgement, or `LINK: LOSS` when the link is down. The `unit` command prints the active unit, `unit list` prints every id and `unit set <id>` stores a new one.
 
 ## Build
 

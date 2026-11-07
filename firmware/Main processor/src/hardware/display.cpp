@@ -20,6 +20,7 @@
 #include "HeatController.h"
 #include "HomeWiFiService.h"
 #include "LifetimeStats.h"
+#include "TemperatureUnit.h"
 #include "TouchCalibration.h"
 #include "TouchTest.h"
 #include "Ui.h"
@@ -302,8 +303,8 @@ namespace {
         }
         state.supplyOffMessage = supplyOffMessage;
 
-        state.tipTenths = static_cast<int16_t>(lroundf((HeatController.getTemperatureTip() - 273.15f) * 10.0f));
-        state.setTenths = static_cast<int16_t>(lroundf((HeatController.getTargetTemperature() - 273.15f) * 10.0f));
+        state.tipTenths = static_cast<int16_t>(lroundf(temperature_unit::active()->fromKelvin(HeatController.getTemperatureTip()) * 10.0f));
+        state.setTenths = static_cast<int16_t>(lroundf(temperature_unit::active()->fromKelvin(HeatController.getTargetTemperature()) * 10.0f));
         state.dutyPercent = static_cast<int16_t>(lroundf(HeatController.getHeaterDuty()));
         state.heaterOn = HeatController.getHeaterState() == HEATER_STATE::ON;
 
@@ -467,9 +468,7 @@ namespace {
     void drawTipField(const HomeState &state, int16_t x, int16_t y, lgfx::textdatum_t datum) {
         char buffer[16];
 
-        snprintf(buffer, sizeof(buffer), "%5.1f\xC2\xB0"
-                                         "C",
-                 state.tipTenths / 10.0f);
+        snprintf(buffer, sizeof(buffer), "%5.1f %s", state.tipTenths / 10.0f, temperature_unit::active()->symbol);
 
         lcd.setFont(&fontLogisoso46);
         lcd.setTextSize(1);

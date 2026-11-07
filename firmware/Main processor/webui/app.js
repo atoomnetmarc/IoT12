@@ -5,6 +5,9 @@ let portalActive = false;
 let lastUptime = null;
 let lastMinionUptime = null;
 let deviceLoading = false;
+let activeUnitSymbol = "C";
+let activeUnitDecimals = 1;
+let activeUnitId = "celsius";
 
 function setText(id, text) {
   const el = $(id);
@@ -15,6 +18,11 @@ function setText(id, text) {
 
 function fmt(value, digits) {
   return Number.isFinite(value) ? value.toFixed(digits) : "--";
+}
+
+// The library already carries the display symbol, including the degree sign.
+function formatUnitSymbol(symbol) {
+  return symbol || "°C";
 }
 
 function fmtUptime(seconds) {
@@ -82,9 +90,22 @@ const HANDLE_TEXT = {
 };
 
 function applyState(state) {
-  setText("v-tip", fmt(state.tip, 1) + " C");
-  setText("v-set", fmt(state.set, 1) + " C");
-  setText("v-ntc", fmt(state.ntc, 1) + " C");
+  const unit = formatUnitSymbol(state.unitSymbol);
+  const digits = state.unitDecimals ?? 1;
+  activeUnitSymbol = unit;
+  activeUnitDecimals = digits;
+
+  // Follow a unit change made elsewhere, such as the serial CLI.
+  if (state.unit && state.unit !== activeUnitId) {
+    activeUnitId = state.unit;
+    const select = $("unit-select");
+    if (select) {
+      select.value = state.unit;
+    }
+  }
+  setText("v-tip", fmt(state.tip, digits) + " " + unit);
+  setText("v-set", fmt(state.set, digits) + " " + unit);
+  setText("v-ntc", fmt(state.ntc, digits) + " " + unit);
   setText("v-duty", fmt(state.duty, 0) + " %");
   setText("v-current", fmt(state.current, 2) + " A");
   setText("v-heater", state.heater ? "ON" : "OFF");
@@ -123,13 +144,13 @@ function applyState(state) {
   setText("d-heap-min", fmtBytes(state.heap_min));
   setText("d-heap-max", fmtBytes(state.heap_max));
   setText("d-heap-size", fmtBytes(state.heap_size));
-  setText("d-die", fmt(state.die, 1) + " C");
+  setText("d-die", fmt(state.die, digits) + " " + unit);
 
   setText("m-uptime", fmtUptime(state.minionUptime));
   setText("m-reset", state.minionReset || "--");
   setText("m-free-ram", fmtBytes(state.minionFreeRam));
   setText("m-events", state.minionEvents ?? "--");
-  setText("m-die", fmt(state.minionDie, 1) + " C");
+  setText("m-die", fmt(state.minionDie, digits) + " " + unit);
   setText("m-vdd", fmt(state.minionVdd, 2) + " V");
 
   setText("l-age", (state.linkAge ?? "--") + " ms");
@@ -159,7 +180,7 @@ function applyState(state) {
   setText("s-expired", state.shakeExpired ? "yes" : "no");
   setText("s-age", fmtUptime((state.shakeAge ?? 0) / 1000));
 
-  setText("c-target", fmt(state.set, 1) + " C");
+  setText("c-target", fmt(state.set, digits) + " " + unit);
 
   if (lastUptime !== null && state.uptime < lastUptime) {
     loadDevice();
@@ -302,6 +323,10 @@ async function loadDevice() {
   try {
     const res = await fetch("/api/device");
     const dev = await res.json();
+    if (dev.unitSymbol) {
+      activeUnitSymbol = formatUnitSymbol(dev.unitSymbol);
+    }
+    activeUnitDecimals = dev.unitDecimals ?? activeUnitDecimals;
     setText("device-name", dev.name || "");
     setText("d-name", dev.name || "?");
     setText("d-version", dev.version || "?");
@@ -338,8 +363,8 @@ async function loadDevice() {
     setText("c-gain-temp", fmt(minion.gainTemp, 2));
     setText("c-gain-current", fmt(minion.gainCurrent, 2));
     setText("c-tc-offset", fmt(minion.thermocoupleOffset, 6) + " V");
-    setText("c-standby1", fmt(minion.standby1 - 273.15, 1) + " C");
-    setText("c-standby2", fmt(minion.standby2 - 273.15, 1) + " C");
+    setText("c-standby1", fmt(minion.standby1, activeUnitDecimals) + " " + activeUnitSymbol);
+    setText("c-standby2", fmt(minion.standby2, activeUnitDecimals) + " " + activeUnitSymbol);
     setText("c-shake1", fmt(minion.shakeStage1 / 1000, 0) + " s");
     setText("c-shake2", fmt(minion.shakeStage2 / 1000, 0) + " s");
     setText("c-shake-off", fmt(minion.shakeOff / 1000, 0) + " s");
@@ -360,10 +385,80 @@ async function loadConfig() {
         input.value = net.ssid;
       }
     });
+    buildUnitSelect(cfg.temperatureUnits || [], cfg.temperatureUnit || "celsius");
   } catch (error) {
     /* fields stay empty */
   }
 }
+
+// Fill the unit selector with the common units first and the rest below.
+function buildUnitSelect(units, activeId) {
+  const select = $("unit-select");
+  if (!select) {
+    return;
+  }
+
+  select.innerHTML = "";
+  const common = document.createElement("optgroup");
+  common.label = "Common";
+  const other = document.createElement("optgroup");
+  other.label = "Other";
+
+  units.forEach((unit) => {
+    const option = document.createElement("option");
+    option.value = unit.id;
+    option.textContent = unit.name + " (" + formatUnitSymbol(unit.symbol) + ")";
+    (unit.common ? common : other).appendChild(option);
+  });
+
+  if (common.children.length > 0) {
+    select.appendChild(common);
+  }
+  if (other.children.length > 0) {
+    select.appendChild(other);
+  }
+
+  select.value = activeId;
+  activeUnitId = activeId;
+
+  const active = units.find((unit) => unit.id === activeId);
+  if (active) {
+    activeUnitSymbol = formatUnitSymbol(active.symbol);
+    activeUnitDecimals = active.decimals ?? 1;
+  }
+}
+
+$("unit-save").addEventListener("click", async () => {
+  const status = $("unit-status");
+  const button = $("unit-save");
+  const id = $("unit-select").value;
+
+  status.textContent = "";
+  status.className = "";
+  button.disabled = true;
+  button.textContent = "Saving...";
+
+  try {
+    const res = await fetch("/api/unit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unit: id }),
+    });
+    if (!res.ok) {
+      throw new Error("unit change failed");
+    }
+    status.textContent = "Saved.";
+    status.className = "ok";
+    activeUnitId = id;
+    loadDevice();
+  } catch (error) {
+    status.textContent = "Saving failed.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Save";
+  }
+});
 
 async function loadSession() {
   try {

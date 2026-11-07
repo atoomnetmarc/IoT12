@@ -26,10 +26,12 @@
 #include "SerialCli.h"
 #include "StatsCommands.h"
 #include "SystemCommands.h"
+#include "TemperatureUnit.h"
 #include "TouchCalibration.h"
 #include "TouchTest.h"
 #include "Ui.h"
 #include "UiCommands.h"
+#include "UnitCommands.h"
 #include "WebServerService.h"
 #include "display.h"
 
@@ -69,6 +71,7 @@ void AppSetup(void) {
     net_commands::registerCommands(serialCli);
     display_commands::registerCommands(serialCli);
     ui_commands::registerCommands(serialCli);
+    unit_commands::registerCommands(serialCli);
     audio_commands::registerCommands(serialCli);
     screen_commands::registerCommands(serialCli);
     stats_commands::registerCommands(serialCli);
@@ -88,6 +91,7 @@ void AppSetup(void) {
 
     DeviceNameSetup();
     home_wifi::setup();
+    temperature_unit::setup();
     web_server::setup();
 }
 
