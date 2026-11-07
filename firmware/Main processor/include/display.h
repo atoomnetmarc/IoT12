@@ -70,6 +70,82 @@ bool DisplayBoxActive(void);
 // Milliseconds of the last completed draw.
 uint32_t DisplayLastDrawMs(void);
 
+// Runtime properties of the panel, its bus, the touch controller and the backlight.
+struct DisplayInfo {
+    const char *driver;
+    uint16_t width;
+    uint16_t height;
+    uint8_t rotation;
+    uint8_t backlight;
+    uint32_t lastDrawMs;
+    uint8_t colorDepth;
+
+    int16_t pinCs;
+    int16_t pinRst;
+    int16_t pinBusy;
+    uint16_t memoryWidth;
+    uint16_t memoryHeight;
+    uint16_t panelWidth;
+    uint16_t panelHeight;
+    uint16_t offsetX;
+    uint16_t offsetY;
+    uint8_t offsetRotation;
+    uint8_t dummyReadPixel;
+    uint8_t dummyReadBits;
+    uint16_t endReadDelayUs;
+    bool readable;
+    bool invert;
+    bool rgbOrder;
+    bool dlen16bit;
+    bool busShared;
+
+    uint32_t freqWrite;
+    uint32_t freqRead;
+    int16_t pinSclk;
+    int16_t pinMiso;
+    int16_t pinMosi;
+    int16_t pinDc;
+    int16_t pinIo0;
+    int16_t pinIo1;
+    int16_t pinIo2;
+    int16_t pinIo3;
+    uint8_t spiMode;
+    bool spi3wire;
+    bool useLock;
+    uint8_t dmaChannel;
+    int spiHost;
+
+    uint32_t touchFreq;
+    uint16_t touchXMin;
+    uint16_t touchXMax;
+    uint16_t touchYMin;
+    uint16_t touchYMax;
+    bool touchBusShared;
+    int16_t touchPinInt;
+    int16_t touchPinRst;
+    uint8_t touchOffsetRotation;
+    int touchSpiHost;
+    int16_t touchPinSclk;
+    int16_t touchPinMosi;
+    int16_t touchPinMiso;
+    int16_t touchPinCs;
+
+    uint32_t lightFreq;
+    int16_t lightPinBl;
+    uint8_t lightOffset;
+    uint8_t lightPwmChannel;
+    bool lightInvert;
+
+    uint32_t id1;
+    uint32_t id4;
+    uint32_t id9;
+    uint32_t idc;
+};
+
+// Fill the runtime properties of the panel, its bus, the touch controller and
+// the backlight. The controller IDs are read over SPI.
+void DisplayGetInfo(DisplayInfo *info);
+
 // Screenshot support. Begin() takes the panel for the whole capture, Read()
 // copies one strip of RGB565 pixels, End() releases the panel. The caller must
 // pair Begin() with End().

@@ -40,6 +40,8 @@ The carousel has four screens:
 
 The setpoint changes in 5 C steps. A held button repeats after 500 ms at 150 ms intervals. The setpoint range is 0-450 C.
 
+The `display info` command prints the panel, bus, touch and backlight configuration, including the controller IDs read over SPI.
+
 ## Audio
 
 The MAX98357A plays tones at 16 kHz through I2S. The gain is 6, 9, 12 or 15 dB.

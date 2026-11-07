@@ -16,7 +16,86 @@
 #include "display.h"
 
 namespace {
+    // Print every panel, bus, touch and backlight property as KEY: value lines.
+    void printDisplayInfo(cli::SerialCli &cli) {
+        DisplayInfo info;
+        DisplayGetInfo(&info);
+
+        cli_format::keyText(cli, "DRIVER", info.driver);
+        cli.writef("RESOLUTION: %ux%u\r\n", info.width, info.height);
+        cli_format::keyUInt(cli, "ROTATION", info.rotation);
+        cli_format::keyUInt(cli, "BACKLIGHT", info.backlight);
+        cli_format::keyUInt(cli, "LAST_DRAW_MS", info.lastDrawMs);
+        cli_format::keyUInt(cli, "COLOR_DEPTH", info.colorDepth);
+
+        cli.writef("ID1: 0x%08lX\r\n", static_cast<unsigned long>(info.id1));
+        cli.writef("ID4: 0x%08lX\r\n", static_cast<unsigned long>(info.id4));
+        cli.writef("ID9: 0x%08lX\r\n", static_cast<unsigned long>(info.id9));
+        cli.writef("IDC: 0x%08lX\r\n", static_cast<unsigned long>(info.idc));
+
+        cli_format::keyUInt(cli, "SPI_HOST", static_cast<unsigned long>(info.spiHost));
+        cli_format::keyUInt(cli, "SPI_MODE", info.spiMode);
+        cli_format::keyUInt(cli, "FREQ_WRITE", info.freqWrite);
+        cli_format::keyUInt(cli, "FREQ_READ", info.freqRead);
+        cli_format::keyText(cli, "SPI_3WIRE", info.spi3wire ? "yes" : "no");
+        cli_format::keyText(cli, "USE_LOCK", info.useLock ? "yes" : "no");
+        cli_format::keyUInt(cli, "DMA_CHANNEL", info.dmaChannel);
+        cli_format::keyInt(cli, "PIN_SCLK", info.pinSclk);
+        cli_format::keyInt(cli, "PIN_MOSI", info.pinMosi);
+        cli_format::keyInt(cli, "PIN_MISO", info.pinMiso);
+        cli_format::keyInt(cli, "PIN_DC", info.pinDc);
+        cli_format::keyInt(cli, "PIN_IO0", info.pinIo0);
+        cli_format::keyInt(cli, "PIN_IO1", info.pinIo1);
+        cli_format::keyInt(cli, "PIN_IO2", info.pinIo2);
+        cli_format::keyInt(cli, "PIN_IO3", info.pinIo3);
+
+        cli_format::keyInt(cli, "PANEL_CS", info.pinCs);
+        cli_format::keyInt(cli, "PANEL_RST", info.pinRst);
+        cli_format::keyInt(cli, "PANEL_BUSY", info.pinBusy);
+        cli_format::keyUInt(cli, "MEMORY_WIDTH", info.memoryWidth);
+        cli_format::keyUInt(cli, "MEMORY_HEIGHT", info.memoryHeight);
+        cli_format::keyUInt(cli, "PANEL_WIDTH", info.panelWidth);
+        cli_format::keyUInt(cli, "PANEL_HEIGHT", info.panelHeight);
+        cli_format::keyUInt(cli, "OFFSET_X", info.offsetX);
+        cli_format::keyUInt(cli, "OFFSET_Y", info.offsetY);
+        cli_format::keyUInt(cli, "OFFSET_ROTATION", info.offsetRotation);
+        cli_format::keyUInt(cli, "DUMMY_READ_PIXEL", info.dummyReadPixel);
+        cli_format::keyUInt(cli, "DUMMY_READ_BITS", info.dummyReadBits);
+        cli_format::keyUInt(cli, "END_READ_DELAY_US", info.endReadDelayUs);
+        cli_format::keyText(cli, "READABLE", info.readable ? "yes" : "no");
+        cli_format::keyText(cli, "INVERT", info.invert ? "yes" : "no");
+        cli_format::keyText(cli, "RGB_ORDER", info.rgbOrder ? "yes" : "no");
+        cli_format::keyText(cli, "DLEN_16BIT", info.dlen16bit ? "yes" : "no");
+        cli_format::keyText(cli, "BUS_SHARED", info.busShared ? "yes" : "no");
+
+        cli_format::keyUInt(cli, "TOUCH_FREQ", info.touchFreq);
+        cli_format::keyUInt(cli, "TOUCH_X_MIN", info.touchXMin);
+        cli_format::keyUInt(cli, "TOUCH_X_MAX", info.touchXMax);
+        cli_format::keyUInt(cli, "TOUCH_Y_MIN", info.touchYMin);
+        cli_format::keyUInt(cli, "TOUCH_Y_MAX", info.touchYMax);
+        cli_format::keyText(cli, "TOUCH_BUS_SHARED", info.touchBusShared ? "yes" : "no");
+        cli_format::keyInt(cli, "TOUCH_INT", info.touchPinInt);
+        cli_format::keyInt(cli, "TOUCH_RST", info.touchPinRst);
+        cli_format::keyUInt(cli, "TOUCH_OFFSET_ROTATION", info.touchOffsetRotation);
+        cli_format::keyUInt(cli, "TOUCH_SPI_HOST", static_cast<unsigned long>(info.touchSpiHost));
+        cli_format::keyInt(cli, "TOUCH_SCLK", info.touchPinSclk);
+        cli_format::keyInt(cli, "TOUCH_MOSI", info.touchPinMosi);
+        cli_format::keyInt(cli, "TOUCH_MISO", info.touchPinMiso);
+        cli_format::keyInt(cli, "TOUCH_CS", info.touchPinCs);
+
+        cli_format::keyUInt(cli, "LIGHT_FREQ", info.lightFreq);
+        cli_format::keyInt(cli, "LIGHT_PIN", info.lightPinBl);
+        cli_format::keyUInt(cli, "LIGHT_OFFSET", info.lightOffset);
+        cli_format::keyUInt(cli, "LIGHT_PWM_CHANNEL", info.lightPwmChannel);
+        cli_format::keyText(cli, "LIGHT_INVERT", info.lightInvert ? "yes" : "no");
+    }
+
     void cmdDisplay(cli::SerialCli &cli, int argc, char **argv) {
+        if (argc >= 2 && strcmp(argv[1], "info") == 0) {
+            printDisplayInfo(cli);
+            return;
+        }
+
         if (argc >= 2 && strcmp(argv[1], "backlight") == 0) {
             if (argc < 3) {
                 cli.write("Usage: display backlight <0-255>\r\n");
@@ -70,7 +149,7 @@ namespace {
         }
 
         if (argc >= 2) {
-            cli.write("Usage: display [backlight <0-255>|on|off|box <margin>|off]\r\n");
+            cli.write("Usage: display [info|backlight <0-255>|on|off|box <margin>|off]\r\n");
             return;
         }
 
@@ -136,7 +215,7 @@ namespace {
 
 namespace display_commands {
     void registerCommands(cli::SerialCli &cli) {
-        cli.registerCommand({"display", [&cli](int argc, char **argv) { cmdDisplay(cli, argc, argv); }, "display driver, resolution, backlight; display backlight <0-255>|on|off|box <margin>|off"});
+        cli.registerCommand({"display", [&cli](int argc, char **argv) { cmdDisplay(cli, argc, argv); }, "display driver, resolution, backlight; display info|backlight <0-255>|on|off|box <margin>|off"});
         cli.registerCommand({"touch", [&cli](int argc, char **argv) { cmdTouch(cli, argc, argv); }, "touch panel: state, raw and mapped coordinates; touch calibrate|abort|reset|test|test stop"});
     }
 }

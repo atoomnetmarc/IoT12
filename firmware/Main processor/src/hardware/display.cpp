@@ -137,6 +137,35 @@ namespace {
             setPanel(&_panel);
         }
 
+        // Expose the configuration of the bus, panel, touch and backlight.
+        const lgfx::Bus_SPI::config_t &busConfig(void) const { return _bus.config(); }
+        const lgfx::Panel_Device::config_t &panelConfig(void) const { return _panel.config(); }
+        lgfx::ITouch::config_t touchConfig(void) const { return _touch.config(); }
+        const lgfx::Light_PWM::config_t &lightConfig(void) const { return _light.config(); }
+
+        // Read a controller ID with the dummy command that the panel needs
+        // before it drives MISO.
+        uint32_t readId(uint8_t cmd) {
+            _bus.beginTransaction();
+            digitalWrite(PIN_TFT_CS, HIGH);
+            _bus.writeCommand(0, 8);
+            _bus.wait();
+            digitalWrite(PIN_TFT_CS, LOW);
+            _bus.writeCommand(cmd, 8);
+            _bus.beginRead(8);
+
+            uint8_t buffer[4] = {};
+            _bus.readBytes(buffer, sizeof(buffer), false);
+
+            _bus.endTransaction();
+            digitalWrite(PIN_TFT_CS, HIGH);
+
+            return static_cast<uint32_t>(buffer[0]) | (static_cast<uint32_t>(buffer[1]) << 8) | (static_cast<uint32_t>(buffer[2]) << 16) | (static_cast<uint32_t>(buffer[3]) << 24);
+        }
+
+        uint32_t readId1(void) { return readId(0x04); }
+        uint32_t readId4(void) { return readId(0xD3); }
+
     private:
         lgfx::Bus_SPI _bus;
         lgfx::Panel_ILI9341 _panel;
@@ -1202,6 +1231,95 @@ bool DisplayBoxActive(void) {
 
 uint32_t DisplayLastDrawMs(void) {
     return lastDrawMs;
+}
+
+// Fill the runtime properties of the panel, its bus, the touch controller and
+// the backlight. The controller IDs are read over SPI.
+void DisplayGetInfo(DisplayInfo *info) {
+    if (info == nullptr) {
+        return;
+    }
+
+    *info = {};
+    info->driver = DisplayDriverName();
+
+    DisplayLock lock(100);
+    if (!lock.held) {
+        return;
+    }
+
+    const lgfx::Bus_SPI::config_t &bus = lcd.busConfig();
+    const lgfx::Panel_Device::config_t &panel = lcd.panelConfig();
+    const lgfx::ITouch::config_t touch = lcd.touchConfig();
+    const lgfx::Light_PWM::config_t &light = lcd.lightConfig();
+
+    info->width = lcd.width();
+    info->height = lcd.height();
+    info->rotation = lcd.getRotation();
+    info->backlight = backlight;
+    info->lastDrawMs = lastDrawMs;
+    info->colorDepth = static_cast<uint8_t>(lcd.getColorDepth());
+
+    info->pinCs = panel.pin_cs;
+    info->pinRst = panel.pin_rst;
+    info->pinBusy = panel.pin_busy;
+    info->memoryWidth = panel.memory_width;
+    info->memoryHeight = panel.memory_height;
+    info->panelWidth = panel.panel_width;
+    info->panelHeight = panel.panel_height;
+    info->offsetX = panel.offset_x;
+    info->offsetY = panel.offset_y;
+    info->offsetRotation = panel.offset_rotation;
+    info->dummyReadPixel = panel.dummy_read_pixel;
+    info->dummyReadBits = panel.dummy_read_bits;
+    info->endReadDelayUs = panel.end_read_delay_us;
+    info->readable = panel.readable;
+    info->invert = panel.invert;
+    info->rgbOrder = panel.rgb_order;
+    info->dlen16bit = panel.dlen_16bit;
+    info->busShared = panel.bus_shared;
+
+    info->freqWrite = bus.freq_write;
+    info->freqRead = bus.freq_read;
+    info->pinSclk = bus.pin_sclk;
+    info->pinMiso = bus.pin_miso;
+    info->pinMosi = bus.pin_mosi;
+    info->pinDc = bus.pin_dc;
+    info->pinIo0 = bus.pin_io0;
+    info->pinIo1 = bus.pin_io1;
+    info->pinIo2 = bus.pin_io2;
+    info->pinIo3 = bus.pin_io3;
+    info->spiMode = bus.spi_mode;
+    info->spi3wire = bus.spi_3wire;
+    info->useLock = bus.use_lock;
+    info->dmaChannel = bus.dma_channel;
+    info->spiHost = static_cast<int>(bus.spi_host);
+
+    info->touchFreq = touch.freq;
+    info->touchXMin = touch.x_min;
+    info->touchXMax = touch.x_max;
+    info->touchYMin = touch.y_min;
+    info->touchYMax = touch.y_max;
+    info->touchBusShared = touch.bus_shared;
+    info->touchPinInt = touch.pin_int;
+    info->touchPinRst = touch.pin_rst;
+    info->touchOffsetRotation = touch.offset_rotation;
+    info->touchSpiHost = static_cast<int>(touch.spi_host);
+    info->touchPinSclk = touch.pin_sclk;
+    info->touchPinMosi = touch.pin_mosi;
+    info->touchPinMiso = touch.pin_miso;
+    info->touchPinCs = touch.pin_cs;
+
+    info->lightFreq = light.freq;
+    info->lightPinBl = light.pin_bl;
+    info->lightOffset = light.offset;
+    info->lightPwmChannel = light.pwm_channel;
+    info->lightInvert = light.invert;
+
+    info->id1 = lcd.readId1();
+    info->id4 = lcd.readId4();
+    info->id9 = lcd.readId(0x09);
+    info->idc = lcd.readId(0x0C);
 }
 
 bool TouchRead(uint16_t *x, uint16_t *y, uint16_t *rawX, uint16_t *rawY) {
