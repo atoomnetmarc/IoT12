@@ -106,6 +106,191 @@
         </dl>
       </section>
 
+      <section class="card nerd">
+        <h2>Nerd stats</h2>
+        <div class="nerd-grid">
+          <div class="nerd-group">
+            <h3>ESP32</h3>
+            <dl class="info">
+              <dt>Session uptime</dt>
+              <dd id="d-uptime-nerd">...</dd>
+              <dt>Total uptime</dt>
+              <dd id="d-total">...</dd>
+              <dt>Boots</dt>
+              <dd id="d-boots">...</dd>
+              <dt>Reset reason</dt>
+              <dd id="d-reset">...</dd>
+              <dt>Heap free</dt>
+              <dd id="d-heap-free">...</dd>
+              <dt>Heap min</dt>
+              <dd id="d-heap-min">...</dd>
+              <dt>Heap max alloc</dt>
+              <dd id="d-heap-max">...</dd>
+              <dt>Heap size</dt>
+              <dd id="d-heap-size">...</dd>
+              <dt>Die temperature</dt>
+              <dd id="d-die">...</dd>
+              <dt>Chip revision</dt>
+              <dd id="d-chip-rev">...</dd>
+              <dt>Cores</dt>
+              <dd id="d-cores">...</dd>
+              <dt>CPU</dt>
+              <dd id="d-cpu">...</dd>
+              <dt>SDK</dt>
+              <dd id="d-sdk">...</dd>
+              <dt>Flash</dt>
+              <dd id="d-flash">...</dd>
+              <dt>Flash speed</dt>
+              <dd id="d-flash-speed">...</dd>
+              <dt>Flash mode</dt>
+              <dd id="d-flash-mode">...</dd>
+              <dt>Sketch</dt>
+              <dd id="d-sketch">...</dd>
+              <dt>Free sketch</dt>
+              <dd id="d-free-sketch">...</dd>
+              <dt>MAC</dt>
+              <dd id="d-mac">...</dd>
+              <dt>AP MAC</dt>
+              <dd id="d-ap-mac">...</dd>
+              <dt>Hostname</dt>
+              <dd id="d-hostname">...</dd>
+            </dl>
+          </div>
+
+          <div class="nerd-group">
+            <h3>SAMD21</h3>
+            <dl class="info">
+              <dt>Uptime</dt>
+              <dd id="m-uptime">...</dd>
+              <dt>Reset cause</dt>
+              <dd id="m-reset">...</dd>
+              <dt>Free RAM</dt>
+              <dd id="m-free-ram">...</dd>
+              <dt>Sketch</dt>
+              <dd id="m-sketch">...</dd>
+              <dt>Free sketch</dt>
+              <dd id="m-free-sketch">...</dd>
+              <dt>Events</dt>
+              <dd id="m-events">...</dd>
+              <dt>Die temperature</dt>
+              <dd id="m-die">...</dd>
+              <dt>VDD</dt>
+              <dd id="m-vdd">...</dd>
+              <dt>Board</dt>
+              <dd id="m-board">...</dd>
+              <dt>Build</dt>
+              <dd id="m-build">...</dd>
+              <dt>Firmware</dt>
+              <dd id="m-version">...</dd>
+              <dt>Serial</dt>
+              <dd id="m-serial">...</dd>
+              <dt>Const1</dt>
+              <dd id="m-const1">...</dd>
+              <dt>Const2</dt>
+              <dd id="m-const2">...</dd>
+            </dl>
+          </div>
+
+          <div class="nerd-group">
+            <h3>Link</h3>
+            <dl class="info">
+              <dt>Age</dt>
+              <dd id="l-age">...</dd>
+              <dt>Heartbeats</dt>
+              <dd id="l-heartbeats">...</dd>
+              <dt>Errors</dt>
+              <dd id="l-errors">...</dd>
+              <dt>Rewrites</dt>
+              <dd id="l-rewrites">...</dd>
+              <dt>Forced off</dt>
+              <dd id="l-forced-off">...</dd>
+              <dt>Last interrupt</dt>
+              <dd id="l-last-int">...</dd>
+              <dt>Compatible</dt>
+              <dd id="l-compatible">...</dd>
+              <dt>Timeout</dt>
+              <dd id="l-timeout">...</dd>
+            </dl>
+          </div>
+
+          <div class="nerd-group">
+            <h3>Heater</h3>
+            <dl class="info">
+              <dt>Cycles</dt>
+              <dd id="h-cycles">...</dd>
+              <dt>ADC read</dt>
+              <dd id="h-adc-ms">...</dd>
+              <dt>PWM duty</dt>
+              <dd id="h-pwm-duty">...</dd>
+              <dt>PWM period</dt>
+              <dd id="h-pwm-period">...</dd>
+              <dt>P term</dt>
+              <dd id="h-p">...</dd>
+              <dt>I term</dt>
+              <dd id="h-i">...</dd>
+              <dt>D term</dt>
+              <dd id="h-d">...</dd>
+              <dt>Heat factor</dt>
+              <dd id="h-heatfactor">...</dd>
+              <dt>Kp</dt>
+              <dd id="h-kp">...</dd>
+              <dt>Ki</dt>
+              <dd id="h-ki">...</dd>
+              <dt>Kd</dt>
+              <dd id="h-kd">...</dd>
+            </dl>
+          </div>
+
+          <div class="nerd-group">
+            <h3>Shake</h3>
+            <dl class="info">
+              <dt>Voltage</dt>
+              <dd id="s-voltage">...</dd>
+              <dt>Phase</dt>
+              <dd id="s-phase">...</dd>
+              <dt>Raw</dt>
+              <dd id="s-raw">...</dd>
+              <dt>Debounced</dt>
+              <dd id="s-debounced">...</dd>
+              <dt>Expired</dt>
+              <dd id="s-expired">...</dd>
+              <dt>Last motion</dt>
+              <dd id="s-age">...</dd>
+            </dl>
+          </div>
+
+          <div class="nerd-group">
+            <h3>Config</h3>
+            <dl class="info">
+              <dt>Target</dt>
+              <dd id="c-target">...</dd>
+              <dt>NTC pullup</dt>
+              <dd id="c-ntc-pullup">...</dd>
+              <dt>Heater shunt</dt>
+              <dd id="c-heater-shunt">...</dd>
+              <dt>Gain divider</dt>
+              <dd id="c-gain-divider">...</dd>
+              <dt>Gain temp</dt>
+              <dd id="c-gain-temp">...</dd>
+              <dt>Gain current</dt>
+              <dd id="c-gain-current">...</dd>
+              <dt>TC offset</dt>
+              <dd id="c-tc-offset">...</dd>
+              <dt>Standby 1</dt>
+              <dd id="c-standby1">...</dd>
+              <dt>Standby 2</dt>
+              <dd id="c-standby2">...</dd>
+              <dt>Shake stage 1</dt>
+              <dd id="c-shake1">...</dd>
+              <dt>Shake stage 2</dt>
+              <dd id="c-shake2">...</dd>
+              <dt>Shake off</dt>
+              <dd id="c-shake-off">...</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
       <section class="card">
         <h2>Firmware</h2>
         <dl class="info">

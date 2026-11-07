@@ -22,33 +22,6 @@
 namespace {
     bool _rebootPending = false;
 
-    const char *resetReasonName(esp_reset_reason_t reason) {
-        switch (reason) {
-            case ESP_RST_POWERON:
-                return "POWERON";
-            case ESP_RST_EXT:
-                return "EXT";
-            case ESP_RST_SW:
-                return "SW";
-            case ESP_RST_PANIC:
-                return "PANIC";
-            case ESP_RST_INT_WDT:
-                return "INT_WDT";
-            case ESP_RST_TASK_WDT:
-                return "TASK_WDT";
-            case ESP_RST_WDT:
-                return "WDT";
-            case ESP_RST_DEEPSLEEP:
-                return "DEEPSLEEP";
-            case ESP_RST_BROWNOUT:
-                return "BROWNOUT";
-            case ESP_RST_SDIO:
-                return "SDIO";
-            default:
-                return "UNKNOWN";
-        }
-    }
-
     void cmdVersion(cli::SerialCli &cli, int argc, char **argv) {
         (void)argc;
         (void)argv;
@@ -59,7 +32,7 @@ namespace {
         cli_format::keyUInt(cli, "CORES", ESP.getChipCores());
         cli_format::keyUInt(cli, "CPU_MHZ", ESP.getCpuFreqMHz());
         cli_format::keyUInt(cli, "FLASH_MB", ESP.getFlashChipSize() / 1024U / 1024U);
-        cli_format::keyText(cli, "RESET", resetReasonName(esp_reset_reason()));
+        cli_format::keyText(cli, "RESET", system_commands::resetReasonName(esp_reset_reason()));
     }
 
     void cmdUptime(cli::SerialCli &cli, int argc, char **argv) {
@@ -137,6 +110,33 @@ namespace {
 
         cli.write("REBOOT: now\r\n");
         _rebootPending = true;
+    }
+}
+
+const char *system_commands::resetReasonName(esp_reset_reason_t reason) {
+    switch (reason) {
+        case ESP_RST_POWERON:
+            return "POWERON";
+        case ESP_RST_EXT:
+            return "EXT";
+        case ESP_RST_SW:
+            return "SW";
+        case ESP_RST_PANIC:
+            return "PANIC";
+        case ESP_RST_INT_WDT:
+            return "INT_WDT";
+        case ESP_RST_TASK_WDT:
+            return "TASK_WDT";
+        case ESP_RST_WDT:
+            return "WDT";
+        case ESP_RST_DEEPSLEEP:
+            return "DEEPSLEEP";
+        case ESP_RST_BROWNOUT:
+            return "BROWNOUT";
+        case ESP_RST_SDIO:
+            return "SDIO";
+        default:
+            return "UNKNOWN";
     }
 }
 

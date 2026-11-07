@@ -19,6 +19,11 @@ public:
     void init(void);
     float readChannel(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2);
     float readChannelVdd(pin_size_t pinNumber, uint8_t oversampleExtraBits = 2);
+    float readDieTemperature(uint8_t oversampleExtraBits = 2);
+    float readVdd(uint8_t oversampleExtraBits = 2);
+
+private:
+    float readInternalChannel(uint8_t muxpos, float referenceVoltage, uint8_t oversampleExtraBits);
 };
 
 extern ADCInternalClass ADCInternal;

@@ -55,7 +55,7 @@ The web server serves the page and these routes:
 | Route           | Method | Content                                                          |
 | --------------- | ------ | ---------------------------------------------------------------- |
 | `/api/status`   | GET    | WiFi state, IP, RSSI, portal state, uptime, heap                 |
-| `/api/device`   | GET    | Name, version, git commit, build time, board, chip               |
+| `/api/device`   | GET    | Fixed ESP32 and heat controller data, fetched after a reboot     |
 | `/api/config`   | GET    | Configured network SSIDs                                         |
 | `/api/screenshot` | GET  | RGB565 screenshot of the display                                 |
 | `/api/session`  | GET    | Whether the request carries a valid session cookie               |
@@ -68,7 +68,13 @@ The web server serves the page and these routes:
 
 The write routes are open in portal mode, because the client already proved the AP password to join the access point. In station mode the page unlocks with the AP password and receives an HttpOnly session cookie. The cookie is valid until the device reboots. Logout clears the cookie in that browser. Regenerating the AP password rotates the session token, so every other browser is locked out.
 
-The live state carries tip, setpoint, NTC, duty, iron current, the handle state, the eight handle measurements, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime and heap. The page shows the handle state and the action in the Live card, and the measurements in the same card. The Device card shows the name, board, chip, uptime and heap. The Firmware card shows the version, git commit and build time. The Network card shows only network data.
+The live state carries tip, setpoint, NTC, duty, iron current, the handle state, the eight handle measurements, heater state, link state, WiFi state, SSID, IP, RSSI, portal state, uptime, total uptime, boot count, reset reason, heap, ESP32 die temperature, the heat controller uptime, reset cause, die temperature and supply, the link counters, the PID terms and gains, the raw PWM values and the shake state. The page shows the handle state and the action in the Live card, and the measurements in the same card. The Device card shows the name, board, chip, uptime and heap. The Firmware card shows the version, git commit and build time. The Network card shows only network data. The Nerd stats card shows the fixed ESP32 and heat controller data and the live counters.
+
+## Nerd stats
+
+The Nerd stats card shows every counter and identity field that the two processors expose. The page fetches the fixed data from `/api/device` once and again when either uptime goes backwards, so a reboot of the ESP32 or the heat controller refreshes the identity fields without polling them every second. The live counters arrive in the state stream.
+
+The heat controller registers that feed the card are listed in the heat controller README. The ESP32 side uses the Arduino-ESP32 `ESP` API, `temperatureRead()` for the die temperature and the lifetime counters from NVS.
 
 ## Storage
 

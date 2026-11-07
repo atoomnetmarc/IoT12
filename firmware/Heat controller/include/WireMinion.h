@@ -16,12 +16,21 @@
 #define I2C_MINION_ADDRESS 0x2A
 
 // System
-#define REGISTER_VERSION        0x00
-#define REGISTER_SERIAL_NUMBER  0x01
-#define REGISTER_INTERRUPT      0x10
-#define REGISTER_HEATER_STATE   0x11
-#define REGISTER_LINK_TIMEOUT   0x12
-#define FIRMWARE_VERSION_LENGTH 16
+#define REGISTER_VERSION          0x00
+#define REGISTER_SERIAL_NUMBER    0x01
+#define REGISTER_UPTIME           0x02
+#define REGISTER_RESET_CAUSE      0x03
+#define REGISTER_FREE_RAM         0x04
+#define REGISTER_EVENT_COUNT      0x05
+#define REGISTER_BOARD            0x06
+#define REGISTER_BUILD            0x07
+#define REGISTER_SKETCH_SIZE      0x08
+#define REGISTER_FREE_SKETCH      0x09
+#define REGISTER_INTERRUPT        0x10
+#define REGISTER_HEATER_STATE     0x11
+#define REGISTER_LINK_TIMEOUT     0x12
+#define REGISTER_FORCED_OFF_COUNT 0x13
+#define FIRMWARE_VERSION_LENGTH   16
 
 // Measurements
 #define REGISTER_TEMPERATURE_HEATER   0x40
@@ -37,10 +46,32 @@
 #define REGISTER_RESISTANCE_TIP       0x4B
 #define REGISTER_RESISTANCE_SUPPLY    0x4C
 
+// Heater control
+#define REGISTER_CYCLE_COUNT 0x50
+#define REGISTER_ADC_READ_MS 0x51
+#define REGISTER_PID_TERMS   0x52
+#define REGISTER_PID_GAINS   0x53
+#define REGISTER_PWM_RAW     0x54
+
+// Shake
+#define REGISTER_SHAKE_VOLTAGE         0x60
+#define REGISTER_SHAKE_STATE           0x61
+#define REGISTER_SHAKE_LAST_MOTION_AGE 0x62
+
+// Internal ADC
+#define REGISTER_DIE_TEMPERATURE 0x70
+#define REGISTER_VDD             0x71
+
 // Configuration
 #define REGISTER_TEMPERATURE_HEATER_TARGET         0x80
 #define REGISTER_RESISTOR_NTC_PULLUP               0x90
 #define REGISTER_RESISTOR_HEATER_SHUNT             0x91
+#define REGISTER_THERMOCOUPLE_OFFSET               0x92
+#define REGISTER_STANDBY_TEMP_1                    0x93
+#define REGISTER_STANDBY_TEMP_2                    0x94
+#define REGISTER_SHAKE_STAGE1_MS                   0x95
+#define REGISTER_SHAKE_STAGE2_MS                   0x96
+#define REGISTER_SHAKE_OFF_MS                      0x97
 #define REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER     0xA0
 #define REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER 0xA1
 #define REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER     0xA2
@@ -141,6 +172,10 @@ private:
     uint32_t _linkTimeoutMs = LINK_TIMEOUT_DEFAULT_MS;
     bool _linkTimedOut = false;
     uint32_t _forcedOffCount = 0;
+
+    float _dieTemperature = NAN;
+    float _vdd = NAN;
+    uint32_t _lastInternalAdcMs = 0;
 
     uint8_t _lastRegister = 0;
     bool _lastWasRead = false;

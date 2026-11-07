@@ -16,9 +16,18 @@ namespace {
     const RegisterInfo registers[] = {
         {"VERSION", REGISTER_VERSION, "str16", FIRMWARE_VERSION_LENGTH, false},
         {"SERIAL_NUMBER", REGISTER_SERIAL_NUMBER, "u32x4", 16, false},
+        {"UPTIME", REGISTER_UPTIME, "u32", 4, false},
+        {"RESET_CAUSE", REGISTER_RESET_CAUSE, "u8", 1, false},
+        {"FREE_RAM", REGISTER_FREE_RAM, "u32", 4, false},
+        {"EVENT_COUNT", REGISTER_EVENT_COUNT, "u16", 2, false},
+        {"BOARD", REGISTER_BOARD, "str16", FIRMWARE_VERSION_LENGTH, false},
+        {"BUILD", REGISTER_BUILD, "str16", FIRMWARE_VERSION_LENGTH, false},
+        {"SKETCH_SIZE", REGISTER_SKETCH_SIZE, "u32", 4, false},
+        {"FREE_SKETCH", REGISTER_FREE_SKETCH, "u32", 4, false},
         {"INTERRUPT", REGISTER_INTERRUPT, "u32", 4, false},
         {"HEATER_STATE", REGISTER_HEATER_STATE, "u8", 1, true},
         {"LINK_TIMEOUT", REGISTER_LINK_TIMEOUT, "u32", 4, true},
+        {"FORCED_OFF_COUNT", REGISTER_FORCED_OFF_COUNT, "u32", 4, false},
         {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
         {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
         {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
@@ -31,9 +40,25 @@ namespace {
         {"CURRENT_IRON_ON", REGISTER_CURRENT_IRON_ON, "float", 4, false},
         {"RESISTANCE_TIP", REGISTER_RESISTANCE_TIP, "float", 4, false},
         {"RESISTANCE_SUPPLY", REGISTER_RESISTANCE_SUPPLY, "float", 4, false},
+        {"CYCLE_COUNT", REGISTER_CYCLE_COUNT, "u32", 4, false},
+        {"ADC_READ_MS", REGISTER_ADC_READ_MS, "u32", 4, false},
+        {"PID_TERMS", REGISTER_PID_TERMS, "floatx4", 16, false},
+        {"PID_GAINS", REGISTER_PID_GAINS, "floatx4", 16, false},
+        {"PWM_RAW", REGISTER_PWM_RAW, "u32x2", 8, false},
+        {"SHAKE_VOLTAGE", REGISTER_SHAKE_VOLTAGE, "float", 4, false},
+        {"SHAKE_STATE", REGISTER_SHAKE_STATE, "u8x4", 4, false},
+        {"SHAKE_LAST_MOTION_AGE", REGISTER_SHAKE_LAST_MOTION_AGE, "u32", 4, false},
+        {"DIE_TEMPERATURE", REGISTER_DIE_TEMPERATURE, "float", 4, false},
+        {"VDD", REGISTER_VDD, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
+        {"THERMOCOUPLE_OFFSET", REGISTER_THERMOCOUPLE_OFFSET, "float", 4, false},
+        {"STANDBY_TEMP_1", REGISTER_STANDBY_TEMP_1, "float", 4, false},
+        {"STANDBY_TEMP_2", REGISTER_STANDBY_TEMP_2, "float", 4, false},
+        {"SHAKE_STAGE1_MS", REGISTER_SHAKE_STAGE1_MS, "float", 4, false},
+        {"SHAKE_STAGE2_MS", REGISTER_SHAKE_STAGE2_MS, "float", 4, false},
+        {"SHAKE_OFF_MS", REGISTER_SHAKE_OFF_MS, "float", 4, false},
         {"GAIN_VSUPPLY_RESISTOR_DIVIDER", REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER, "float", 4, true},
         {"GAIN_HEATER_TEMPERATURE_AMPLIFIER", REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER, "float", 4, true},
         {"GAIN_HEATER_CURRENT_AMPLIFIER", REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER, "float", 4, true},
@@ -219,6 +244,170 @@ float HeatControllerClass::getResistanceSupply(void) {
 
 float HeatControllerClass::getGainHeaterTemperatureAmplifier(void) {
     return readRegister_float(REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER);
+}
+
+uint32_t HeatControllerClass::getUptime(void) {
+    return readRegister_uint32_t(REGISTER_UPTIME);
+}
+
+const char *HeatControllerClass::getResetCauseName(void) {
+    uint8_t cause = readRegister_uint8_t(REGISTER_RESET_CAUSE);
+
+    if (cause & 0x01) {
+        return "POR";
+    }
+    if (cause & 0x02) {
+        return "BOD12";
+    }
+    if (cause & 0x04) {
+        return "BOD33";
+    }
+    if (cause & 0x10) {
+        return "EXT";
+    }
+    if (cause & 0x20) {
+        return "WDT";
+    }
+    if (cause & 0x40) {
+        return "SYST";
+    }
+
+    return "UNKNOWN";
+}
+
+uint32_t HeatControllerClass::getFreeRam(void) {
+    return readRegister_uint32_t(REGISTER_FREE_RAM);
+}
+
+uint32_t HeatControllerClass::getSketchSize(void) {
+    return readRegister_uint32_t(REGISTER_SKETCH_SIZE);
+}
+
+uint32_t HeatControllerClass::getFreeSketch(void) {
+    return readRegister_uint32_t(REGISTER_FREE_SKETCH);
+}
+
+uint16_t HeatControllerClass::getEventCount(void) {
+    uint16_t_u value;
+
+    if (readRegisterArray(REGISTER_EVENT_COUNT, value.m_bytes, sizeof(value.m_bytes)) != sizeof(value.m_bytes)) {
+        return 0;
+    }
+
+    return value.m_uint16_t;
+}
+
+const char *HeatControllerClass::getBoard(void) {
+    readRegisterArray(REGISTER_BOARD, (uint8_t *)boardName, sizeof(boardName));
+    boardName[sizeof(boardName) - 1] = '\0';
+    return boardName;
+}
+
+const char *HeatControllerClass::getBuild(void) {
+    readRegisterArray(REGISTER_BUILD, (uint8_t *)buildDate, sizeof(buildDate));
+    buildDate[sizeof(buildDate) - 1] = '\0';
+    return buildDate;
+}
+
+uint32_t HeatControllerClass::getForcedOffCount(void) {
+    return readRegister_uint32_t(REGISTER_FORCED_OFF_COUNT);
+}
+
+uint32_t HeatControllerClass::getCycleCount(void) {
+    return readRegister_uint32_t(REGISTER_CYCLE_COUNT);
+}
+
+uint32_t HeatControllerClass::getAdcReadMs(void) {
+    return readRegister_uint32_t(REGISTER_ADC_READ_MS);
+}
+
+void HeatControllerClass::getPidTerms(float *p, float *i, float *d, float *heatfactor) {
+    float values[4] = {NAN, NAN, NAN, NAN};
+    readRegisterArray(REGISTER_PID_TERMS, reinterpret_cast<uint8_t *>(values), sizeof(values));
+    *p = values[0];
+    *i = values[1];
+    *d = values[2];
+    *heatfactor = values[3];
+}
+
+void HeatControllerClass::getPidGains(float *kp, float *ki, float *kd) {
+    float values[4] = {NAN, NAN, NAN, NAN};
+    readRegisterArray(REGISTER_PID_GAINS, reinterpret_cast<uint8_t *>(values), sizeof(values));
+    *kp = values[0];
+    *ki = values[1];
+    *kd = values[2];
+}
+
+void HeatControllerClass::getPwmRaw(uint32_t *duty, uint32_t *period) {
+    uint32_t values[2] = {0, 0};
+    readRegisterArray(REGISTER_PWM_RAW, reinterpret_cast<uint8_t *>(values), sizeof(values));
+    *duty = values[0];
+    *period = values[1];
+}
+
+float HeatControllerClass::getShakeVoltage(void) {
+    return readRegister_float(REGISTER_SHAKE_VOLTAGE);
+}
+
+void HeatControllerClass::getShakeState(uint8_t *phase, bool *raw, bool *debounced, bool *expired) {
+    uint8_t values[4] = {0, 0, 0, 0};
+    readRegisterArray(REGISTER_SHAKE_STATE, values, sizeof(values));
+    *phase = values[0];
+    *raw = values[1] != 0;
+    *debounced = values[2] != 0;
+    *expired = values[3] != 0;
+}
+
+uint32_t HeatControllerClass::getShakeLastMotionAge(void) {
+    return readRegister_uint32_t(REGISTER_SHAKE_LAST_MOTION_AGE);
+}
+
+float HeatControllerClass::getDieTemperature(void) {
+    return readRegister_float(REGISTER_DIE_TEMPERATURE);
+}
+
+float HeatControllerClass::getVdd(void) {
+    return readRegister_float(REGISTER_VDD);
+}
+
+float HeatControllerClass::getResistanceNtcPullup(void) {
+    return readRegister_float(REGISTER_RESISTOR_NTC_PULLUP);
+}
+
+float HeatControllerClass::getResistanceHeaterShunt(void) {
+    return readRegister_float(REGISTER_RESISTOR_HEATER_SHUNT);
+}
+
+float HeatControllerClass::getGainVSupplyResistorDivider(void) {
+    return readRegister_float(REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER);
+}
+
+float HeatControllerClass::getGainHeaterCurrentAmplifier(void) {
+    return readRegister_float(REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER);
+}
+
+float HeatControllerClass::getThermocoupleOffset(void) {
+    return readRegister_float(REGISTER_THERMOCOUPLE_OFFSET);
+}
+
+float HeatControllerClass::getStandbyTemp1(void) {
+    return readRegister_float(REGISTER_STANDBY_TEMP_1);
+}
+
+float HeatControllerClass::getStandbyTemp2(void) {
+    return readRegister_float(REGISTER_STANDBY_TEMP_2);
+}
+
+float HeatControllerClass::getShakeStage1Ms(void) {
+    return readRegister_float(REGISTER_SHAKE_STAGE1_MS);
+}
+
+float HeatControllerClass::getShakeStage2Ms(void) {
+    return readRegister_float(REGISTER_SHAKE_STAGE2_MS);
+}
+
+float HeatControllerClass::getShakeOffMs(void) {
+    return readRegister_float(REGISTER_SHAKE_OFF_MS);
 }
 
 const char *HeatControllerClass::getFirmwareVersion(void) {

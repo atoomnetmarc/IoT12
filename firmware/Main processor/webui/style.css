@@ -195,6 +195,24 @@ main {
   text-align: right;
 }
 
+.nerd {
+  grid-column: 1 / -1;
+}
+
+.nerd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.nerd-group h3 {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
 .screenshot-area {
   display: flex;
   align-items: center;

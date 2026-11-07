@@ -28,9 +28,16 @@ The firmware version register is the only register that must be read. All other 
 | -------: | --- | ----------: | ------: | -------------- | ---: | ----------------------------- |
 |     0x00 | R   | 16-byte str |         |                |      | Firmware version              |
 |     0x01 | R   | 4x uint32_t |         |                |      | SAMD21 128-bit serial number  |
+|     0x02 | R   |    uint32_t |         |                |    s | Uptime since boot             |
+|     0x03 | R   |     uint8_t |         |                |      | Reset cause                   |
+|     0x04 | R   |    uint32_t |         |                |    B | Free RAM                      |
+|     0x05 | R   |    uint16_t |         |                |      | Event log count               |
+|     0x06 | R   | 16-byte str |         |                |      | Board name                    |
+|     0x07 | R   | 16-byte str |         |                |      | Build date                    |
 |     0x10 | R   |    uint32_t |         |                |      | Interrupt reason              |
 |     0x11 | RW  |     uint8_t |    0x00 | N              |      | Heating state                 |
 |     0x12 | RW  |    uint32_t |    5000 | N              |   ms | Link supervision timeout      |
+|     0x13 | R   |    uint32_t |         |                |      | Forced-off count              |
 |     0x40 | R   |       float |         |                |    K | Current tip temperature       |
 |     0x41 | R   |       float |         |                |    K | Ambient temperature           |
 |     0x42 | R   |       float |         |                |    % | Actual PWM duty               |
@@ -43,16 +50,47 @@ The firmware version register is the only register that must be read. All other 
 |     0x4A | R   |       float |         |                |    A | Iron current, heater on       |
 |     0x4B | R   |       float |         |                |    Ω | Tip resistance                |
 |     0x4C | R   |       float |         |                |    Ω | Supply resistance             |
+|     0x50 | R   |    uint32_t |         |                |      | Heater cycle count            |
+|     0x51 | R   |    uint32_t |         |                |   ms | ADC read time                 |
+|     0x52 | R   |  4x float   |         |                |      | P, I, D terms and heat factor |
+|     0x53 | R   |  4x float   |         |                |      | Kp, Ki, Kd and spare          |
+|     0x54 | R   | 2x uint32_t |         |                |      | Raw PWM duty and period       |
+|     0x60 | R   |       float |         |                |    V | Shake input voltage           |
+|     0x61 | R   |  4x uint8_t |         |                |      | Shake phase, raw, debounced, expired |
+|     0x62 | R   |    uint32_t |         |                |   ms | Time since last motion        |
+|     0x70 | R   |       float |         |                |    C | SAMD21 die temperature        |
+|     0x71 | R   |       float |         |                |    V | SAMD21 I/O supply             |
 |     0x80 | RW  |       float |  373.15 | Y              |    K | Target tip temperature        |
 |     0xA0 | RW  |       float |  0.0449 | Y              |      | Gain of Vin resistor divider  |
 |     0xA1 | RW  |       float |   106.1 | Y              |      | Gain of temperature amplifier |
 |     0xA2 | RW  |       float |    50.4 | Y              |      | Gain of current amplifier     |
 |     0x90 | RW  |       float |   10000 | Y              |    Ω | NTC pullup resistor           |
 |     0x91 | RW  |       float |   0.005 | Y              |    Ω | Heater shunt resistor         |
+|     0x92 | R   |       float |         |                |    V | Thermocouple input offset     |
+|     0x93 | R   |       float |         |                |    K | First standby temperature     |
+|     0x94 | R   |       float |         |                |    K | Second standby temperature    |
+|     0x95 | R   |       float |         |                |   ms | Shake stage 1 time            |
+|     0x96 | R   |       float |         |                |   ms | Shake stage 2 time            |
+|     0x97 | R   |       float |         |                |   ms | Shake off time                |
 |     0xF8 | R   |    uint16_t |  0x1234 |                |      | A constant                    |
 |     0xF9 | R   |       float |    3.14 |                |      | Mmmm, pi                      |
 
 The resistance registers hold the last valid measurement. They are NaN until the heater has measured a current with the supply present.
+
+## Diagnostics
+
+The diagnostic registers are read-only and exist for the web page and the CLI. They do not influence the heater control loop.
+
+- `0x02` uptime in seconds, so the master can detect a minion reboot without relying on the 49.7 day `millis()` wrap.
+- `0x03` reset cause bits: POR, BOD12, BOD33, EXT, WDT, SYST.
+- `0x04` free RAM between the heap end and the stack pointer.
+- `0x05` number of event log entries in RAM.
+- `0x06` and `0x07` board name and build date.
+- `0x13` number of link timeouts that forced the heater off.
+- `0x50` to `0x54` heater cycle count, ADC read time, PID terms, PID gains and raw PWM values.
+- `0x60` to `0x62` shake voltage, shake state and time since the last motion.
+- `0x70` and `0x71` SAMD21 die temperature and I/O supply, sampled once per second.
+- `0x92` to `0x97` the remaining settings that the web page shows.
 
 ### 0x00: Firmware Version
 

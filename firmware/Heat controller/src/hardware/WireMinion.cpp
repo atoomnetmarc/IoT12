@@ -9,20 +9,56 @@
 #include <Wire.h>
 #include <wiring_private.h>
 
+#include "AdcInternal.h"
 #include "EventLog.h"
 #include "Heater.h"
 #include "Setting.h"
+#include "Shake.h"
 #include "WireMinion.h"
 #include "config.h"
 #include "main.h"
 
+#ifndef BOARD_NAME
+#define BOARD_NAME "unknown"
+#endif
+
+extern "C" char *sbrk(int incr);
+
+extern "C" {
+extern uint32_t __text_start__;
+extern uint32_t __etext;
+extern uint32_t __data_start__;
+extern uint32_t __data_end__;
+}
+
 namespace {
+    // Returns the number of flash bytes used by the sketch.
+    uint32_t sketchSize(void) {
+        uint32_t end = reinterpret_cast<uint32_t>(&__etext) + (reinterpret_cast<uint32_t>(&__data_end__) - reinterpret_cast<uint32_t>(&__data_start__));
+        return end - reinterpret_cast<uint32_t>(&__text_start__);
+    }
+
+    // Returns the number of flash bytes left for the sketch.
+    uint32_t freeSketch(void) {
+        uint32_t end = reinterpret_cast<uint32_t>(&__etext) + (reinterpret_cast<uint32_t>(&__data_end__) - reinterpret_cast<uint32_t>(&__data_start__));
+        return NVMCTRL->PARAM.bit.NVMP * NVMCTRL_PAGE_SIZE - end;
+    }
+
     const RegisterInfo registers[] = {
         {"VERSION", REGISTER_VERSION, "str16", FIRMWARE_VERSION_LENGTH, false},
         {"SERIAL_NUMBER", REGISTER_SERIAL_NUMBER, "u32x4", 16, false},
+        {"UPTIME", REGISTER_UPTIME, "u32", 4, false},
+        {"RESET_CAUSE", REGISTER_RESET_CAUSE, "u8", 1, false},
+        {"FREE_RAM", REGISTER_FREE_RAM, "u32", 4, false},
+        {"EVENT_COUNT", REGISTER_EVENT_COUNT, "u16", 2, false},
+        {"BOARD", REGISTER_BOARD, "str16", FIRMWARE_VERSION_LENGTH, false},
+        {"BUILD", REGISTER_BUILD, "str16", FIRMWARE_VERSION_LENGTH, false},
+        {"SKETCH_SIZE", REGISTER_SKETCH_SIZE, "u32", 4, false},
+        {"FREE_SKETCH", REGISTER_FREE_SKETCH, "u32", 4, false},
         {"INTERRUPT", REGISTER_INTERRUPT, "u32", 4, false},
         {"HEATER_STATE", REGISTER_HEATER_STATE, "u8", 1, true},
         {"LINK_TIMEOUT", REGISTER_LINK_TIMEOUT, "u32", 4, true},
+        {"FORCED_OFF_COUNT", REGISTER_FORCED_OFF_COUNT, "u32", 4, false},
         {"TEMPERATURE_HEATER", REGISTER_TEMPERATURE_HEATER, "float", 4, false},
         {"TEMPERATURE_NTC", REGISTER_TEMPERATURE_NTC, "float", 4, false},
         {"HEATER_DUTY", REGISTER_HEATER_DUTY, "float", 4, false},
@@ -35,9 +71,25 @@ namespace {
         {"CURRENT_IRON_ON", REGISTER_CURRENT_IRON_ON, "float", 4, false},
         {"RESISTANCE_TIP", REGISTER_RESISTANCE_TIP, "float", 4, false},
         {"RESISTANCE_SUPPLY", REGISTER_RESISTANCE_SUPPLY, "float", 4, false},
+        {"CYCLE_COUNT", REGISTER_CYCLE_COUNT, "u32", 4, false},
+        {"ADC_READ_MS", REGISTER_ADC_READ_MS, "u32", 4, false},
+        {"PID_TERMS", REGISTER_PID_TERMS, "floatx4", 16, false},
+        {"PID_GAINS", REGISTER_PID_GAINS, "floatx4", 16, false},
+        {"PWM_RAW", REGISTER_PWM_RAW, "u32x2", 8, false},
+        {"SHAKE_VOLTAGE", REGISTER_SHAKE_VOLTAGE, "float", 4, false},
+        {"SHAKE_STATE", REGISTER_SHAKE_STATE, "u8x4", 4, false},
+        {"SHAKE_LAST_MOTION_AGE", REGISTER_SHAKE_LAST_MOTION_AGE, "u32", 4, false},
+        {"DIE_TEMPERATURE", REGISTER_DIE_TEMPERATURE, "float", 4, false},
+        {"VDD", REGISTER_VDD, "float", 4, false},
         {"TEMPERATURE_HEATER_TARGET", REGISTER_TEMPERATURE_HEATER_TARGET, "float", 4, true},
         {"RESISTOR_NTC_PULLUP", REGISTER_RESISTOR_NTC_PULLUP, "float", 4, true},
         {"RESISTOR_HEATER_SHUNT", REGISTER_RESISTOR_HEATER_SHUNT, "float", 4, true},
+        {"THERMOCOUPLE_OFFSET", REGISTER_THERMOCOUPLE_OFFSET, "float", 4, false},
+        {"STANDBY_TEMP_1", REGISTER_STANDBY_TEMP_1, "float", 4, false},
+        {"STANDBY_TEMP_2", REGISTER_STANDBY_TEMP_2, "float", 4, false},
+        {"SHAKE_STAGE1_MS", REGISTER_SHAKE_STAGE1_MS, "float", 4, false},
+        {"SHAKE_STAGE2_MS", REGISTER_SHAKE_STAGE2_MS, "float", 4, false},
+        {"SHAKE_OFF_MS", REGISTER_SHAKE_OFF_MS, "float", 4, false},
         {"GAIN_VSUPPLY_RESISTOR_DIVIDER", REGISTER_GAIN_VSUPPLY_RESISTOR_DIVIDER, "float", 4, true},
         {"GAIN_HEATER_TEMPERATURE_AMPLIFIER", REGISTER_GAIN_HEATER_TEMPERATURE_AMPLIFIER, "float", 4, true},
         {"GAIN_HEATER_CURRENT_AMPLIFIER", REGISTER_GAIN_HEATER_CURRENT_AMPLIFIER, "float", 4, true},
@@ -76,6 +128,12 @@ void WireMinionClass::loop(void) {
     if (_assertHeatINT == true) {
         _assertHeatINT = false;
         digitalWrite(PIN_HEAT_INT, HIGH);
+    }
+
+    if (millis() - _lastInternalAdcMs >= 1000) {
+        _lastInternalAdcMs = millis();
+        _dieTemperature = ADCInternal.readDieTemperature();
+        _vdd = ADCInternal.readVdd();
     }
 
     if (_linkTimedOut == false && (millis() - _lastHeartbeatMs) > _linkTimeoutMs) {
@@ -171,6 +229,50 @@ uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLen
         SerialNumber_union.m_SerialNumber.word3 = *(uint32_t *)0x0080A048;
         length = sizeof(SerialNumber_union.m_bytes);
         memcpy(dest, SerialNumber_union.m_bytes, length);
+    } else if (reg == REGISTER_UPTIME) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = millis() / 1000U;
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_RESET_CAUSE) {
+        dest[0] = PM->RCAUSE.reg;
+        length = 1;
+    } else if (reg == REGISTER_FREE_RAM) {
+        char marker = 0;
+        uintptr_t stack = reinterpret_cast<uintptr_t>(&marker);
+        uintptr_t heap = reinterpret_cast<uintptr_t>(sbrk(0));
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = static_cast<uint32_t>(stack - heap);
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_EVENT_COUNT) {
+        uint16_t_u uint16_t_union;
+        uint16_t_union.m_uint16_t = static_cast<uint16_t>(eventlog::Log.count());
+        length = sizeof(uint16_t_union.m_bytes);
+        memcpy(dest, uint16_t_union.m_bytes, length);
+    } else if (reg == REGISTER_BOARD) {
+        length = FIRMWARE_VERSION_LENGTH;
+        memset(dest, 0, length);
+        strncpy((char *)dest, BOARD_NAME, length - 1);
+    } else if (reg == REGISTER_BUILD) {
+        length = FIRMWARE_VERSION_LENGTH;
+        memset(dest, 0, length);
+        strncpy((char *)dest, __DATE__, length - 1);
+    } else if (reg == REGISTER_SKETCH_SIZE) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = sketchSize();
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_FREE_SKETCH) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = freeSketch();
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_FORCED_OFF_COUNT) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = _forcedOffCount;
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
     } else if (reg == REGISTER_TEMPERATURE_HEATER_TARGET) {
         float_union.m_float = Setting.targetTemperatureHeater;
         length = sizeof(float_union.m_bytes);
@@ -227,6 +329,54 @@ uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLen
         float_union.m_float = Heater.status().rSupply;
         length = sizeof(float_union.m_bytes);
         memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_CYCLE_COUNT) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = Heater.status().cycleCount;
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_ADC_READ_MS) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = Heater.status().adcReadMs;
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_PID_TERMS) {
+        HeaterStatus status = Heater.status();
+        float values[4] = {status.pTerm, status.iTerm, status.dTerm, status.heatfactor};
+        length = sizeof(values);
+        memcpy(dest, values, length);
+    } else if (reg == REGISTER_PID_GAINS) {
+        HeaterStatus status = Heater.status();
+        float values[4] = {status.kp, status.ki, status.kd, 0.0f};
+        length = sizeof(values);
+        memcpy(dest, values, length);
+    } else if (reg == REGISTER_PWM_RAW) {
+        HeaterStatus status = Heater.status();
+        uint32_t values[2] = {status.pwmDuty, status.pwmPeriod};
+        length = sizeof(values);
+        memcpy(dest, values, length);
+    } else if (reg == REGISTER_SHAKE_VOLTAGE) {
+        float_union.m_float = Shake.voltage();
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_SHAKE_STATE) {
+        dest[0] = static_cast<uint8_t>(Shake.phase());
+        dest[1] = Shake.rawLevel() ? 1 : 0;
+        dest[2] = Shake.debouncedLevel() ? 1 : 0;
+        dest[3] = Shake.expired() ? 1 : 0;
+        length = 4;
+    } else if (reg == REGISTER_SHAKE_LAST_MOTION_AGE) {
+        uint32_t_u uint32_t_union;
+        uint32_t_union.m_uint32_t = Shake.lastMotionAgeMs();
+        length = sizeof(uint32_t_union.m_bytes);
+        memcpy(dest, uint32_t_union.m_bytes, length);
+    } else if (reg == REGISTER_DIE_TEMPERATURE) {
+        float_union.m_float = _dieTemperature;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_VDD) {
+        float_union.m_float = _vdd;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
     } else if (reg == REGISTER_VERSION) {
         length = FIRMWARE_VERSION_LENGTH;
         memset(dest, 0, length);
@@ -266,6 +416,30 @@ uint8_t WireMinionClass::readRegister(uint8_t reg, uint8_t *dest, uint8_t maxLen
         memcpy(dest, float_union.m_bytes, length);
     } else if (reg == REGISTER_RESISTOR_HEATER_SHUNT) {
         float_union.m_float = Setting.resistanceHeaterShunt;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_THERMOCOUPLE_OFFSET) {
+        float_union.m_float = Setting.thermocoupleInputOffsetVoltage;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_STANDBY_TEMP_1) {
+        float_union.m_float = Setting.standbyTemperatureHeater;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_STANDBY_TEMP_2) {
+        float_union.m_float = Setting.standbyTemperatureHeater2;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_SHAKE_STAGE1_MS) {
+        float_union.m_float = Setting.shakeStage1Ms;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_SHAKE_STAGE2_MS) {
+        float_union.m_float = Setting.shakeStage2Ms;
+        length = sizeof(float_union.m_bytes);
+        memcpy(dest, float_union.m_bytes, length);
+    } else if (reg == REGISTER_SHAKE_OFF_MS) {
+        float_union.m_float = Setting.shakeOffMs;
         length = sizeof(float_union.m_bytes);
         memcpy(dest, float_union.m_bytes, length);
     }

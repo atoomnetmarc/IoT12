@@ -12,6 +12,7 @@
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
 #include <WiFi.h>
+#include <esp_mac.h>
 #include <esp_system.h>
 
 #include <cmath>
@@ -25,7 +26,9 @@
 #include "HandleDiagnosis.h"
 #include "HeatController.h"
 #include "HomeWiFiService.h"
+#include "LifetimeStats.h"
 #include "Log.h"
+#include "SystemCommands.h"
 #include "WebConfigStore.h"
 #include "WebContent.h"
 #include "display.h"
@@ -65,7 +68,7 @@ namespace {
     char apPassValue[web_config::AP_PASS_LEN] = {0};
     char apIpValue[16] = {0};
 
-    char stateJson[768] = {0};
+    char stateJson[2048] = {0};
     uint32_t lastStreamMs = 0;
 
     bool otaRunning = false;
@@ -231,9 +234,129 @@ namespace {
         appendJsonKeyText(cursor, left, "ip", ipText.c_str());
         appendJson(cursor, left, ",\"rssi\":%d", WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
         appendJson(cursor, left, ",\"portal\":%s", portal ? "true" : "false");
-        appendJson(cursor, left, ",\"uptime\":%lu", static_cast<unsigned long>(millis() / 1000U));
+
+        appendJson(cursor, left, ",\"uptime\":%lu", static_cast<unsigned long>(lifetime_stats::sessionSeconds()));
+        appendJson(cursor, left, ",\"total\":%lu", static_cast<unsigned long>(lifetime_stats::totalSeconds()));
+        appendJson(cursor, left, ",\"boots\":%lu", static_cast<unsigned long>(lifetime_stats::bootCount()));
+        appendJsonKeyText(cursor, left, "reset", system_commands::resetReasonName(esp_reset_reason()));
         appendJson(cursor, left, ",\"heap\":%u", static_cast<unsigned int>(ESP.getFreeHeap()));
+        appendJson(cursor, left, ",\"heap_min\":%u", static_cast<unsigned int>(ESP.getMinFreeHeap()));
+        appendJson(cursor, left, ",\"heap_max\":%u", static_cast<unsigned int>(ESP.getMaxAllocHeap()));
+        appendJson(cursor, left, ",\"heap_size\":%u", static_cast<unsigned int>(ESP.getHeapSize()));
+        appendJsonKeyFloat(cursor, left, "die", temperatureRead(), 1);
+
+        appendJson(cursor, left, ",\"minionUptime\":%lu", static_cast<unsigned long>(HeatController.getUptime()));
+        appendJsonKeyText(cursor, left, "minionReset", HeatController.getResetCauseName());
+        appendJson(cursor, left, ",\"minionFreeRam\":%lu", static_cast<unsigned long>(HeatController.getFreeRam()));
+        appendJson(cursor, left, ",\"minionEvents\":%u", static_cast<unsigned int>(HeatController.getEventCount()));
+        appendJsonKeyFloat(cursor, left, "minionDie", HeatController.getDieTemperature(), 1);
+        appendJsonKeyFloat(cursor, left, "minionVdd", HeatController.getVdd(), 2);
+
+        appendJson(cursor, left, ",\"linkAge\":%lu", static_cast<unsigned long>(HeatController.linkAgeMs()));
+        appendJson(cursor, left, ",\"heartbeats\":%lu", static_cast<unsigned long>(HeatController.heartbeatCount()));
+        appendJson(cursor, left, ",\"errors\":%lu", static_cast<unsigned long>(HeatController.errorCount()));
+        appendJson(cursor, left, ",\"rewrites\":%lu", static_cast<unsigned long>(HeatController.rewriteCount()));
+        appendJson(cursor, left, ",\"forcedOff\":%lu", static_cast<unsigned long>(HeatController.getForcedOffCount()));
+        appendJson(cursor, left, ",\"lastInt\":%lu", static_cast<unsigned long>(HeatController.getLastInterrupt()));
+        appendJson(cursor, left, ",\"compatible\":%s", HeatController.isCompatible() ? "true" : "false");
+
+        appendJson(cursor, left, ",\"cycles\":%lu", static_cast<unsigned long>(HeatController.getCycleCount()));
+        appendJson(cursor, left, ",\"adcMs\":%lu", static_cast<unsigned long>(HeatController.getAdcReadMs()));
+
+        float p, i, d, heatfactor;
+        HeatController.getPidTerms(&p, &i, &d, &heatfactor);
+        appendJsonKeyFloat(cursor, left, "p", p, 4);
+        appendJsonKeyFloat(cursor, left, "i", i, 4);
+        appendJsonKeyFloat(cursor, left, "d", d, 4);
+        appendJsonKeyFloat(cursor, left, "heatfactor", heatfactor, 4);
+
+        float kp, ki, kd;
+        HeatController.getPidGains(&kp, &ki, &kd);
+        appendJsonKeyFloat(cursor, left, "kp", kp, 5);
+        appendJsonKeyFloat(cursor, left, "ki", ki, 5);
+        appendJsonKeyFloat(cursor, left, "kd", kd, 6);
+
+        uint32_t pwmDuty, pwmPeriod;
+        HeatController.getPwmRaw(&pwmDuty, &pwmPeriod);
+        appendJson(cursor, left, ",\"pwmDuty\":%lu", static_cast<unsigned long>(pwmDuty));
+        appendJson(cursor, left, ",\"pwmPeriod\":%lu", static_cast<unsigned long>(pwmPeriod));
+
+        appendJsonKeyFloat(cursor, left, "shakeV", HeatController.getShakeVoltage(), 3);
+
+        uint8_t shakePhase;
+        bool shakeRaw, shakeDebounced, shakeExpired;
+        HeatController.getShakeState(&shakePhase, &shakeRaw, &shakeDebounced, &shakeExpired);
+        appendJson(cursor, left, ",\"shakePhase\":%u", static_cast<unsigned int>(shakePhase));
+        appendJson(cursor, left, ",\"shakeRaw\":%s", shakeRaw ? "true" : "false");
+        appendJson(cursor, left, ",\"shakeDebounced\":%s", shakeDebounced ? "true" : "false");
+        appendJson(cursor, left, ",\"shakeExpired\":%s", shakeExpired ? "true" : "false");
+        appendJson(cursor, left, ",\"shakeAge\":%lu", static_cast<unsigned long>(HeatController.getShakeLastMotionAge()));
+
         appendJson(cursor, left, "}");
+    }
+
+    // Returns the soft-AP MAC from eFuse, which is valid before the AP starts.
+    String apMacAddress(void) {
+        uint8_t mac[6] = {0};
+        char text[18] = {0};
+        esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+        snprintf(text, sizeof(text), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        return String(text);
+    }
+
+    // Build the fixed device data that the page fetches after a reboot.
+    void buildDeviceJson(char *out, size_t size) {
+        char *cursor = out;
+        size_t left = size;
+
+        appendJson(cursor, left, "{\"name\":\"%s\",\"version\":\"%s\",\"git\":\"%s\",\"build\":\"%s\",",
+                   DeviceNameGet(), PRODUCT_VERSION, GIT_COMMIT, __DATE__ " " __TIME__);
+        appendJson(cursor, left, "\"board\":\"esp32dev\",\"chip\":\"%s\",\"chipRevision\":%u,",
+                   ESP.getChipModel(), static_cast<unsigned>(ESP.getChipRevision()));
+        appendJson(cursor, left, "\"cores\":%u,\"cpuMhz\":%u,\"sdk\":\"%s\",",
+                   static_cast<unsigned>(ESP.getChipCores()), static_cast<unsigned>(ESP.getCpuFreqMHz()), ESP.getSdkVersion());
+        appendJson(cursor, left, "\"flashSize\":%u,\"flashSpeed\":%u,\"flashMode\":%u,",
+                   static_cast<unsigned>(ESP.getFlashChipSize()), static_cast<unsigned>(ESP.getFlashChipSpeed()),
+                   static_cast<unsigned>(ESP.getFlashChipMode()));
+        uint32_t sketchSize = ESP.getSketchSize();
+        uint32_t freeSketch = ESP.getFreeSketchSpace() > sketchSize ? ESP.getFreeSketchSpace() - sketchSize : 0;
+        appendJson(cursor, left, "\"sketchSize\":%u,\"freeSketch\":%u,",
+                   static_cast<unsigned>(sketchSize), static_cast<unsigned>(freeSketch));
+        appendJson(cursor, left, "\"mac\":\"%s\",\"apMac\":\"%s\",\"hostname\":\"%s\",",
+                   WiFi.macAddress().c_str(), apMacAddress().c_str(), WiFi.getHostname());
+
+        appendJson(cursor, left, "\"minion\":{\"linked\":%s,\"compatible\":%s,",
+                   HeatController.linkUp() ? "true" : "false",
+                   HeatController.isCompatible() ? "true" : "false");
+        appendJson(cursor, left, "\"version\":\"%s\",\"board\":\"%s\",\"build\":\"%s\",",
+                   HeatController.getFirmwareVersion(), HeatController.getBoard(), HeatController.getBuild());
+        appendJson(cursor, left, "\"sketchSize\":%u,\"freeSketch\":%u,",
+                   static_cast<unsigned>(HeatController.getSketchSize()),
+                   static_cast<unsigned>(HeatController.getFreeSketch()));
+
+        SerialNumber_t sn = HeatController.getSerialNumber();
+        appendJson(cursor, left, "\"serial\":\"%08lx%08lx%08lx%08lx\",",
+                   static_cast<unsigned long>(sn.word0), static_cast<unsigned long>(sn.word1),
+                   static_cast<unsigned long>(sn.word2), static_cast<unsigned long>(sn.word3));
+
+        appendJson(cursor, left, "\"const1\":%u,\"const2\":%.6f,",
+                   static_cast<unsigned>(HeatController.getConst1()), HeatController.getConst2());
+        appendJson(cursor, left, "\"linkTimeout\":%lu,",
+                   static_cast<unsigned long>(HeatController.getLinkTimeout()));
+        appendJson(cursor, left, "\"ntcPullup\":%.2f,\"heaterShunt\":%.4f,",
+                   HeatController.getResistanceNtcPullup(), HeatController.getResistanceHeaterShunt());
+        appendJson(cursor, left, "\"gainDivider\":%.5f,\"gainTemp\":%.2f,\"gainCurrent\":%.2f,",
+                   HeatController.getGainVSupplyResistorDivider(),
+                   HeatController.getGainHeaterTemperatureAmplifier(),
+                   HeatController.getGainHeaterCurrentAmplifier());
+        appendJson(cursor, left, "\"thermocoupleOffset\":%.6f,",
+                   HeatController.getThermocoupleOffset());
+        appendJson(cursor, left, "\"standby1\":%.2f,\"standby2\":%.2f,",
+                   HeatController.getStandbyTemp1(), HeatController.getStandbyTemp2());
+        appendJson(cursor, left, "\"shakeStage1\":%.0f,\"shakeStage2\":%.0f,\"shakeOff\":%.0f",
+                   HeatController.getShakeStage1Ms(), HeatController.getShakeStage2Ms(),
+                   HeatController.getShakeOffMs());
+        appendJson(cursor, left, "}}");
     }
 
     // Serve one gzipped asset from PROGMEM.
@@ -542,12 +665,8 @@ namespace {
         server.on("/api/device", HTTP_GET, [](AsyncWebServerRequest *request) {
             noteRequest(request);
 
-            char json[320];
-            snprintf(json, sizeof(json),
-                     "{\"name\":\"%s\",\"version\":\"%s\",\"git\":\"%s\",\"build\":\"%s\","
-                     "\"board\":\"%s\",\"chip\":\"%s\"}",
-                     DeviceNameGet(), PRODUCT_VERSION, GIT_COMMIT, __DATE__ " " __TIME__,
-                     "esp32dev", ESP.getChipModel());
+            char json[2048];
+            buildDeviceJson(json, sizeof(json));
             request->send(200, "application/json", json);
         });
 

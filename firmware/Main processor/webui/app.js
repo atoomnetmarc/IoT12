@@ -2,6 +2,9 @@ const $ = (id) => document.getElementById(id);
 
 let unlocked = false;
 let portalActive = false;
+let lastUptime = null;
+let lastMinionUptime = null;
+let deviceLoading = false;
 
 function setText(id, text) {
   const el = $(id);
@@ -12,6 +15,60 @@ function setText(id, text) {
 
 function fmt(value, digits) {
   return Number.isFinite(value) ? value.toFixed(digits) : "--";
+}
+
+function fmtUptime(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return "--";
+  }
+  const total = Math.floor(seconds);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return days + "d " + String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+}
+
+function fmtBytes(bytes) {
+  if (!Number.isFinite(bytes)) {
+    return "--";
+  }
+  if (bytes >= 1024 * 1024) {
+    return (bytes / (1024 * 1024)).toFixed(2) + " MiB";
+  }
+  if (bytes >= 1024) {
+    return (bytes / 1024).toFixed(1) + " KiB";
+  }
+  return bytes + " B";
+}
+
+function fmtHex(value, digits) {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  return "0x" + Math.trunc(value).toString(16).padStart(digits, "0");
+}
+
+const INT_NAMES = [
+  [31, "REBOOT"],
+  [30, "GROUP_A"],
+  [29, "GROUP_B"],
+  [28, "LINK_TIMEOUT"],
+];
+
+function fmtInterrupt(value) {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+  const names = INT_NAMES.filter(([bit]) => (value & (1 << bit)) !== 0).map(([, name]) => name);
+  return fmtHex(value, 8) + (names.length ? " " + names.join("|") : "");
+}
+
+const SHAKE_PHASE = ["ACTIVE", "RAMP", "STANDBY2", "EXPIRED"];
+const FLASH_MODES = ["QIO", "QOUT", "DIO", "DOUT", "FAST_READ", "SLOW_READ"];
+
+function flashModeName(mode) {
+  return FLASH_MODES[mode] || "?";
 }
 
 // The firmware sends the state name; the long sentences live here.
@@ -55,8 +112,65 @@ function applyState(state) {
   setText("n-ssid", state.ssid || "-");
   setText("n-ip", state.ip || "-");
   setText("n-rssi", state.rssi + " dBm");
-  setText("d-uptime", state.uptime + " s");
-  setText("d-heap", state.heap + " B");
+
+  setText("d-uptime", fmtUptime(state.uptime));
+  setText("d-uptime-nerd", fmtUptime(state.uptime));
+  setText("d-total", fmtUptime(state.total));
+  setText("d-boots", state.boots ?? "--");
+  setText("d-reset", state.reset || "--");
+  setText("d-heap", fmtBytes(state.heap));
+  setText("d-heap-free", fmtBytes(state.heap));
+  setText("d-heap-min", fmtBytes(state.heap_min));
+  setText("d-heap-max", fmtBytes(state.heap_max));
+  setText("d-heap-size", fmtBytes(state.heap_size));
+  setText("d-die", fmt(state.die, 1) + " C");
+
+  setText("m-uptime", fmtUptime(state.minionUptime));
+  setText("m-reset", state.minionReset || "--");
+  setText("m-free-ram", fmtBytes(state.minionFreeRam));
+  setText("m-events", state.minionEvents ?? "--");
+  setText("m-die", fmt(state.minionDie, 1) + " C");
+  setText("m-vdd", fmt(state.minionVdd, 2) + " V");
+
+  setText("l-age", (state.linkAge ?? "--") + " ms");
+  setText("l-heartbeats", state.heartbeats ?? "--");
+  setText("l-errors", state.errors ?? "--");
+  setText("l-rewrites", state.rewrites ?? "--");
+  setText("l-forced-off", state.forcedOff ?? "--");
+  setText("l-last-int", fmtInterrupt(state.lastInt));
+  setText("l-compatible", state.compatible ? "yes" : "no");
+
+  setText("h-cycles", state.cycles ?? "--");
+  setText("h-adc-ms", (state.adcMs ?? "--") + " ms");
+  setText("h-pwm-duty", state.pwmDuty ?? "--");
+  setText("h-pwm-period", state.pwmPeriod ?? "--");
+  setText("h-p", fmt(state.p, 4));
+  setText("h-i", fmt(state.i, 4));
+  setText("h-d", fmt(state.d, 4));
+  setText("h-heatfactor", fmt(state.heatfactor, 4));
+  setText("h-kp", fmt(state.kp, 5));
+  setText("h-ki", fmt(state.ki, 5));
+  setText("h-kd", fmt(state.kd, 6));
+
+  setText("s-voltage", fmt(state.shakeV, 3) + " V");
+  setText("s-phase", SHAKE_PHASE[state.shakePhase] || "--");
+  setText("s-raw", state.shakeRaw ? "high" : "low");
+  setText("s-debounced", state.shakeDebounced ? "high" : "low");
+  setText("s-expired", state.shakeExpired ? "yes" : "no");
+  setText("s-age", fmtUptime((state.shakeAge ?? 0) / 1000));
+
+  setText("c-target", fmt(state.set, 1) + " C");
+
+  if (lastUptime !== null && state.uptime < lastUptime) {
+    loadDevice();
+  }
+  if (lastMinionUptime !== null && state.minionUptime > 0 && state.minionUptime < lastMinionUptime) {
+    loadDevice();
+  }
+  lastUptime = state.uptime;
+  if (state.minionUptime > 0) {
+    lastMinionUptime = state.minionUptime;
+  }
 
   const badge = $("badge");
   if (state.portal) {
@@ -181,6 +295,10 @@ document.addEventListener("visibilitychange", () => {
 openStream();
 
 async function loadDevice() {
+  if (deviceLoading) {
+    return;
+  }
+  deviceLoading = true;
   try {
     const res = await fetch("/api/device");
     const dev = await res.json();
@@ -191,8 +309,44 @@ async function loadDevice() {
     setText("d-build", dev.build || "?");
     setText("d-board", dev.board || "?");
     setText("d-chip", dev.chip || "?");
+    setText("d-chip-rev", dev.chipRevision ?? "?");
+    setText("d-cores", dev.cores ?? "?");
+    setText("d-cpu", (dev.cpuMhz ?? "?") + " MHz");
+    setText("d-sdk", dev.sdk || "?");
+    setText("d-flash", fmtBytes(dev.flashSize));
+    setText("d-flash-speed", dev.flashSpeed ? (dev.flashSpeed / 1000000).toFixed(0) + " MHz" : "?");
+    setText("d-flash-mode", flashModeName(dev.flashMode));
+    setText("d-sketch", fmtBytes(dev.sketchSize));
+    setText("d-free-sketch", fmtBytes(dev.freeSketch));
+    setText("d-mac", dev.mac || "?");
+    setText("d-ap-mac", dev.apMac || "?");
+    setText("d-hostname", dev.hostname || "?");
+
+    const minion = dev.minion || {};
+    setText("m-version", minion.version || "?");
+    setText("m-board", minion.board || "?");
+    setText("m-build", minion.build || "?");
+    setText("m-sketch", fmtBytes(minion.sketchSize));
+    setText("m-free-sketch", fmtBytes(minion.freeSketch));
+    setText("m-serial", minion.serial || "?");
+    setText("m-const1", minion.const1 !== undefined ? fmtHex(minion.const1, 4) : "?");
+    setText("m-const2", fmt(minion.const2, 6));
+    setText("l-timeout", (minion.linkTimeout ?? "?") + " ms");
+    setText("c-ntc-pullup", fmt(minion.ntcPullup, 0) + " ohm");
+    setText("c-heater-shunt", fmt(minion.heaterShunt, 4) + " ohm");
+    setText("c-gain-divider", fmt(minion.gainDivider, 5));
+    setText("c-gain-temp", fmt(minion.gainTemp, 2));
+    setText("c-gain-current", fmt(minion.gainCurrent, 2));
+    setText("c-tc-offset", fmt(minion.thermocoupleOffset, 6) + " V");
+    setText("c-standby1", fmt(minion.standby1 - 273.15, 1) + " C");
+    setText("c-standby2", fmt(minion.standby2 - 273.15, 1) + " C");
+    setText("c-shake1", fmt(minion.shakeStage1 / 1000, 0) + " s");
+    setText("c-shake2", fmt(minion.shakeStage2 / 1000, 0) + " s");
+    setText("c-shake-off", fmt(minion.shakeOff / 1000, 0) + " s");
   } catch (error) {
     /* placeholders stay */
+  } finally {
+    deviceLoading = false;
   }
 }
 

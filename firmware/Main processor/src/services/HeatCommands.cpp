@@ -48,6 +48,38 @@ namespace {
             return;
         }
 
+        if (strcmp(info.type, "u32x2") == 0) {
+            uint32_t_u words[2];
+            memcpy(words, bytes, sizeof(words));
+            cli.writef("%lu %lu\r\n",
+                       static_cast<unsigned long>(words[0].m_uint32_t),
+                       static_cast<unsigned long>(words[1].m_uint32_t));
+            return;
+        }
+
+        if (strcmp(info.type, "u8x4") == 0) {
+            cli.writef("%u %u %u %u\r\n",
+                       static_cast<unsigned>(bytes[0]),
+                       static_cast<unsigned>(bytes[1]),
+                       static_cast<unsigned>(bytes[2]),
+                       static_cast<unsigned>(bytes[3]));
+            return;
+        }
+
+        if (strcmp(info.type, "floatx4") == 0) {
+            float_u values[4];
+            char buffer[24];
+            memcpy(values, bytes, sizeof(values));
+
+            for (size_t i = 0; i < 4; i++) {
+                cli_format::formatFloat(buffer, sizeof(buffer), values[i].m_float, 6);
+                cli.writef("%s%s", i == 0 ? "" : " ", buffer);
+            }
+
+            cli.write("\r\n");
+            return;
+        }
+
         if (strcmp(info.type, "u32") == 0) {
             uint32_t_u value;
             memcpy(value.m_bytes, bytes, sizeof(value.m_bytes));
